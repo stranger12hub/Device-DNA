@@ -1,3 +1,4 @@
+// Mobile pass: 375px-safe timeline metadata, buttons, and insight banners.
 import { useEffect, useState } from 'react';
 import TimelineCard from '../components/TimelineCard';
 import { getDeviceTimeline } from '../lib/services';
@@ -129,14 +130,14 @@ export default function Timeline({ deviceId }: TimelineProps) {
           </div>
           <div className="flex gap-2">
             <button
-              className="h-10 border border-[#171717] px-3 text-sm font-medium uppercase"
+              className="min-h-11 border border-[#171717] px-3 text-left text-sm font-medium uppercase"
               type="button"
               onClick={navigateToRegister}
             >
               New device
             </button>
             <button
-              className="h-10 border border-[#171717] px-3 text-sm font-medium uppercase disabled:cursor-not-allowed disabled:border-[#171717]/25 disabled:text-[#171717]/40"
+              className="min-h-11 border border-[#171717] px-3 text-left text-sm font-medium uppercase disabled:cursor-not-allowed disabled:border-[#171717]/25 disabled:text-[#171717]/40"
               type="button"
               onClick={() => navigateToLogRepair(selectedDeviceId)}
               disabled={!selectedDeviceId}
@@ -253,7 +254,7 @@ function Meta({ label, value }: MetaProps) {
       <span className="text-xs font-medium uppercase text-[#171717]/45">
         {label}
       </span>
-      <span className="break-all text-sm font-medium">{value}</span>
+      <span className="min-w-0 break-all text-sm font-medium">{value}</span>
     </div>
   );
 }

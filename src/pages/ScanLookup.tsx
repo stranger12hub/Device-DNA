@@ -1,9 +1,15 @@
+// Mobile pass: rear-camera scanner fallback and 375px-safe lookup layout.
 import { type FormEvent, useEffect, useRef, useState } from 'react';
 import { Html5Qrcode } from 'html5-qrcode';
 import { lookupDeviceBySerial } from '../lib/services';
 import { navigateToDeviceTimeline, navigateToRegister } from '../lib/routes';
 
 const scannerElementId = 'repairpass-qr-scanner';
+const scannerConfig = {
+  fps: 10,
+  qrbox: { width: 240, height: 240 },
+  aspectRatio: 1,
+};
 
 export default function ScanLookup() {
   const scannerRef = useRef<Html5Qrcode | null>(null);
@@ -22,39 +28,10 @@ export default function ScanLookup() {
       setCameraError(null);
 
       try {
-        const cameras = await Html5Qrcode.getCameras();
-
-        if (!isMounted) {
-          return;
-        }
-
-        if (cameras.length === 0) {
-          setCameraError('Camera unavailable. Use manual lookup instead.');
-          setIsScannerStarting(false);
-          return;
-        }
-
         const scanner = new Html5Qrcode(scannerElementId);
         scannerRef.current = scanner;
 
-        await scanner.start(
-          cameras[0].id,
-          {
-            fps: 10,
-            qrbox: { width: 240, height: 240 },
-            aspectRatio: 1,
-          },
-          (decodedText) => {
-            if (hasScannedRef.current) {
-              return;
-            }
-
-            hasScannedRef.current = true;
-            void stopScanner();
-            navigateToDeviceTimeline(decodedText.trim());
-          },
-          () => undefined,
-        );
+        await startWithCameraFallback(scanner, handleScanSuccess);
 
         if (isMounted) {
           setIsScannerStarting(false);
@@ -76,6 +53,16 @@ export default function ScanLookup() {
       void stopScanner();
     };
   }, []);
+
+  function handleScanSuccess(decodedText: string) {
+    if (hasScannedRef.current) {
+      return;
+    }
+
+    hasScannedRef.current = true;
+    void stopScanner();
+    navigateToDeviceTimeline(parseScannedDeviceId(decodedText));
+  }
 
   async function stopScanner() {
     const scanner = scannerRef.current;
@@ -141,7 +128,7 @@ export default function ScanLookup() {
             </h1>
           </div>
           <button
-            className="h-10 w-fit border border-[#171717] px-3 text-sm font-medium uppercase transition-colors hover:border-[#21F1A8] hover:bg-[#21F1A8]"
+            className="min-h-11 w-fit border border-[#171717] px-3 text-left text-sm font-medium uppercase transition-colors hover:border-[#21F1A8] hover:bg-[#21F1A8]"
             type="button"
             onClick={navigateToRegister}
           >
@@ -156,10 +143,10 @@ export default function ScanLookup() {
             </div>
 
             <div className="flex flex-1 flex-col gap-4 p-4 sm:p-6">
-              <div className="relative min-h-[320px] overflow-hidden border border-[#171717] bg-white">
+              <div className="relative min-h-[260px] overflow-hidden border border-[#171717] bg-white sm:min-h-[320px]">
                 <div
                   id={scannerElementId}
-                  className="min-h-[320px] [&_button]:border [&_button]:border-[#171717] [&_button]:bg-[#FAFAFA] [&_button]:px-3 [&_button]:py-2 [&_button]:text-sm [&_button]:font-medium [&_button]:uppercase [&_select]:border [&_select]:border-[#171717] [&_select]:bg-[#FAFAFA] [&_select]:p-2"
+                  className="min-h-[260px] max-w-full overflow-hidden sm:min-h-[320px] [&_button]:min-h-11 [&_button]:border [&_button]:border-[#171717] [&_button]:bg-[#FAFAFA] [&_button]:px-3 [&_button]:py-2 [&_button]:text-sm [&_button]:font-medium [&_button]:uppercase [&_select]:max-w-full [&_select]:border [&_select]:border-[#171717] [&_select]:bg-[#FAFAFA] [&_select]:p-2 [&_video]:max-w-full"
                 />
                 {isScannerStarting ? (
                   <div className="absolute inset-0 grid place-items-center bg-[#FAFAFA] text-sm text-[#171717]/60">
@@ -195,7 +182,7 @@ export default function ScanLookup() {
                   Serial/IMEI
                 </span>
                 <input
-                  className="mt-auto w-full border-0 bg-transparent p-0 text-2xl font-medium outline-none placeholder:text-[#171717]/25 focus:ring-0"
+                  className="mt-auto w-full min-w-0 border-0 bg-transparent p-0 text-xl font-medium outline-none placeholder:text-[#171717]/25 focus:ring-0 sm:text-2xl"
                   name="serialImei"
                   value={serialImei}
                   placeholder="356938035643809"
@@ -234,4 +221,65 @@ export default function ScanLookup() {
       </section>
     </main>
   );
+}
+
+type CameraStartTarget =
+  | { facingMode: { exact: 'environment' } }
+  | { facingMode: 'environment' }
+  | undefined;
+
+async function startWithCameraFallback(
+  scanner: Html5Qrcode,
+  onScanSuccess: (decodedText: string) => void,
+) {
+  const targets: CameraStartTarget[] = [
+    { facingMode: { exact: 'environment' } },
+    { facingMode: 'environment' },
+    undefined,
+  ];
+  let lastError: unknown;
+
+  for (const target of targets) {
+    try {
+      if (target) {
+        await scanner.start(target, scannerConfig, onScanSuccess, () => undefined);
+        return;
+      }
+
+      const cameras = await Html5Qrcode.getCameras();
+
+      if (cameras.length === 0) {
+        throw new Error('No cameras found');
+      }
+
+      await scanner.start(
+        cameras[0].id,
+        scannerConfig,
+        onScanSuccess,
+        () => undefined,
+      );
+      return;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  throw lastError;
+}
+
+function parseScannedDeviceId(decodedText: string): string {
+  const value = decodedText.trim();
+
+  try {
+    const url = new URL(value);
+    const match = url.pathname.match(/^\/devices\/([^/]+)$/);
+
+    if (match) {
+      return decodeURIComponent(match[1]);
+    }
+  } catch {
+    return value;
+  }
+
+  return value;
 }

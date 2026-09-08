@@ -1,3 +1,4 @@
+// Mobile pass: 375px-safe QR sizing, wrapping, and touch targets.
 import { type FormEvent, useRef, useState } from 'react';
 import { QRCodeCanvas } from 'qrcode.react';
 import { registerDevice } from '../lib/services';
@@ -24,7 +25,9 @@ export default function Register() {
   const [registeredDevice, setRegisteredDevice] = useState<Device | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const qrValue = registeredDevice?.id ?? '';
+  const qrValue = registeredDevice
+    ? `${window.location.origin}/devices/${registeredDevice.id}`
+    : '';
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -90,7 +93,7 @@ export default function Register() {
               Register device
             </h1>
           </div>
-          <div className="border border-[#171717] px-3 py-2 text-sm">
+          <div className="min-h-11 w-fit border border-[#171717] px-3 py-2 text-sm">
             MVP-QR-01
           </div>
         </header>
@@ -161,12 +164,13 @@ export default function Register() {
                       size={320}
                       marginSize={2}
                       level="H"
-                      className="h-auto w-full"
+                      className="h-auto max-w-full"
                     />
                   </div>
 
                   <div className="grid gap-2 text-sm">
                     <MetaRow label="Device ID" value={registeredDevice.id} />
+                    <MetaRow label="QR link" value={qrValue} />
                     <MetaRow
                       label="Serial/IMEI"
                       value={registeredDevice.serial_imei}
@@ -244,7 +248,7 @@ function InputField({
         {label}
       </span>
       <input
-        className="mt-auto w-full border-0 bg-transparent p-0 text-2xl font-medium outline-none placeholder:text-[#171717]/25 focus:ring-0"
+        className="mt-auto w-full min-w-0 border-0 bg-transparent p-0 text-xl font-medium outline-none placeholder:text-[#171717]/25 focus:ring-0 sm:text-2xl"
         name={name}
         value={value}
         placeholder={placeholder}
@@ -274,7 +278,7 @@ function LockedField({ label, value }: LockedFieldProps) {
         {label}
       </span>
       <input
-        className="mt-auto w-full border-0 bg-transparent p-0 text-2xl font-medium outline-none"
+        className="mt-auto w-full min-w-0 border-0 bg-transparent p-0 text-xl font-medium outline-none sm:text-2xl"
         value={value}
         disabled
         readOnly
@@ -325,7 +329,7 @@ function MetaRow({ label, value }: MetaRowProps) {
       <span className="text-xs font-medium uppercase text-[#171717]/45">
         {label}
       </span>
-      <span className="break-all font-medium">{value}</span>
+      <span className="min-w-0 break-all font-medium">{value}</span>
     </div>
   );
 }

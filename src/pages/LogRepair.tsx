@@ -1,3 +1,4 @@
+// Mobile pass: stacked repair fields and 44px-safe controls.
 import { type FormEvent, useState } from 'react';
 import { logRepair } from '../lib/services';
 import { getCurrentRoute, navigateToDeviceTimeline } from '../lib/routes';
@@ -203,7 +204,7 @@ function InputField({
         {label}
       </span>
       <input
-        className="mt-auto w-full border-0 bg-transparent p-0 text-xl font-medium outline-none placeholder:text-[#171717]/25 focus:ring-0"
+        className="mt-auto w-full min-w-0 border-0 bg-transparent p-0 text-lg font-medium outline-none placeholder:text-[#171717]/25 focus:ring-0 sm:text-xl"
         name={name}
         type={type}
         min={min}
@@ -236,7 +237,7 @@ function ToggleField({ label, checked, onChange }: ToggleFieldProps) {
         {label}
       </span>
       <button
-        className="mt-auto grid h-12 grid-cols-2 border border-[#171717] text-sm font-medium uppercase"
+        className="mt-auto grid min-h-12 grid-cols-2 border border-[#171717] text-sm font-medium uppercase"
         type="button"
         role="switch"
         aria-checked={checked}

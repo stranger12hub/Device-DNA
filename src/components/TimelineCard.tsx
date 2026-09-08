@@ -1,3 +1,4 @@
+// Mobile pass: timeline card text wrapping and 44px-safe badges.
 import type { RepairEventWithParts, WarrantyRecord } from '../types/database';
 
 type TimelineCardProps = {
@@ -8,11 +9,11 @@ export default function TimelineCard({ event }: TimelineCardProps) {
   return (
     <article className="grid gap-4 border border-[#171717] bg-[#FAFAFA] p-4 sm:p-5">
       <header className="flex flex-col gap-3 border-b border-[#171717] pb-4 sm:flex-row sm:items-start sm:justify-between">
-        <div>
+        <div className="min-w-0">
           <p className="text-xs font-medium uppercase text-[#171717]/50">
             {formatDateTime(event.created_at)}
           </p>
-          <h2 className="mt-2 font-['PP_Neue_Montreal','Helvetica_Neue',Helvetica,Arial,sans-serif] text-2xl font-medium leading-tight">
+          <h2 className="mt-2 break-words font-['PP_Neue_Montreal','Helvetica_Neue',Helvetica,Arial,sans-serif] text-2xl font-medium leading-tight">
             {event.symptom}
           </h2>
         </div>
@@ -33,9 +34,15 @@ export default function TimelineCard({ event }: TimelineCardProps) {
                 className="grid gap-3 border-t border-[#171717] py-3 text-sm sm:grid-cols-[minmax(0,1fr)_120px_160px]"
                 key={part.id}
               >
-                <span className="font-medium">{part.part_name}</span>
-                <span>{part.is_genuine ? 'Genuine' : 'Aftermarket'}</span>
-                <span>{getPartWarrantyLabel(part.warranty_records)}</span>
+                <span className="min-w-0 break-words font-medium">
+                  {part.part_name}
+                </span>
+                <span className="min-w-0 break-words">
+                  {part.is_genuine ? 'Genuine' : 'Aftermarket'}
+                </span>
+                <span className="min-w-0 break-words">
+                  {getPartWarrantyLabel(part.warranty_records)}
+                </span>
               </div>
             ))}
           </div>
@@ -58,7 +65,7 @@ function Field({ label, value }: FieldProps) {
   return (
     <div>
       <p className="text-xs font-medium uppercase text-[#171717]/50">{label}</p>
-      <p className="mt-1">{value}</p>
+      <p className="mt-1 break-words">{value}</p>
     </div>
   );
 }
@@ -77,7 +84,7 @@ function WarrantyBadge({ records }: WarrantyBadgeProps) {
   return (
     <span
       className={[
-        'inline-flex w-fit border px-3 py-1 text-xs font-medium uppercase',
+        'inline-flex min-h-11 w-fit items-center border px-3 py-1 text-xs font-medium uppercase',
         isActive
           ? 'border-[#21F1A8] bg-[#21F1A8] text-[#171717]'
           : 'border-[#171717]/25 bg-[#E7E7E2] text-[#171717]/60',
