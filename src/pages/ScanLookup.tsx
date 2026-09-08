@@ -2,6 +2,7 @@
 import { type FormEvent, useEffect, useRef, useState } from 'react';
 import { Html5Qrcode } from 'html5-qrcode';
 import { lookupDeviceBySerial } from '../lib/services';
+import { parseDeviceTimelineCode } from '../lib/deviceLinks';
 import { navigateToDeviceTimeline, navigateToRegister } from '../lib/routes';
 
 const scannerElementId = 'repairpass-qr-scanner';
@@ -61,7 +62,7 @@ export default function ScanLookup() {
 
     hasScannedRef.current = true;
     void stopScanner();
-    navigateToDeviceTimeline(parseScannedDeviceId(decodedText));
+    navigateToDeviceTimeline(parseDeviceTimelineCode(decodedText));
   }
 
   async function stopScanner() {
@@ -265,21 +266,4 @@ async function startWithCameraFallback(
   }
 
   throw lastError;
-}
-
-function parseScannedDeviceId(decodedText: string): string {
-  const value = decodedText.trim();
-
-  try {
-    const url = new URL(value);
-    const match = url.pathname.match(/^\/devices\/([^/]+)$/);
-
-    if (match) {
-      return decodeURIComponent(match[1]);
-    }
-  } catch {
-    return value;
-  }
-
-  return value;
 }

@@ -3,6 +3,7 @@ import { type FormEvent, useRef, useState } from 'react';
 import { QRCodeCanvas } from 'qrcode.react';
 import { registerDevice } from '../lib/services';
 import { navigateToDeviceTimeline } from '../lib/routes';
+import { buildDeviceTimelineUrl } from '../lib/deviceLinks';
 import type { Device } from '../types/database';
 
 type FormState = {
@@ -26,7 +27,7 @@ export default function Register() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const qrValue = registeredDevice
-    ? `${window.location.origin}/devices/${registeredDevice.id}`
+    ? buildDeviceTimelineUrl(registeredDevice.id)
     : '';
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
