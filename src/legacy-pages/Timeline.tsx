@@ -20,6 +20,8 @@ type InsightFlags = {
   recurringFault: boolean;
   recurringDetails?: string;
   warrantyStatus: WarrantyStatus[];
+  health_score: number;
+  ai_summary: string;
 };
 
 type TimelineProps = {
@@ -36,6 +38,13 @@ export default function Timeline({ deviceId }: TimelineProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+  const latestScore = timeline?.device_scores?.[0] ?? null;
+  const visibleHealthScore = insight
+    ? {
+        health_score: insight.health_score,
+        ai_summary: insight.ai_summary,
+      }
+    : latestScore;
 
   useEffect(() => {
     let isCurrent = true;
@@ -156,6 +165,27 @@ export default function Timeline({ deviceId }: TimelineProps) {
           </section>
         ) : null}
 
+        {visibleHealthScore ? (
+          <section className="grid gap-4 border border-[#171717] p-4 sm:grid-cols-[160px_minmax(0,1fr)] sm:p-5">
+            <div>
+              <p className="text-xs font-medium uppercase text-[#171717]/45">
+                Health score
+              </p>
+              <p className="mt-2 font-['PP_Neue_Montreal','Helvetica_Neue',Helvetica,Arial,sans-serif] text-5xl font-medium leading-none">
+                {visibleHealthScore.health_score}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs font-medium uppercase text-[#171717]/45">
+                AI summary
+              </p>
+              <p className="mt-2 text-sm leading-6 text-[#171717]/70">
+                {visibleHealthScore.ai_summary}
+              </p>
+            </div>
+          </section>
+        ) : null}
+
         <LogRepair
           deviceId={selectedDeviceId}
           onRepairLogged={() => setRefreshKey((current) => current + 1)}
@@ -177,7 +207,10 @@ export default function Timeline({ deviceId }: TimelineProps) {
               {timeline.repair_events.map((event) => (
                 <div className="relative" key={event.id}>
                   <span className="absolute -left-[25px] top-5 h-3 w-3 border border-[#171717] bg-[#FAFAFA]" />
-                  <TimelineCard event={event} />
+                  <TimelineCard
+                    event={event}
+                    canApprove={false}
+                  />
                 </div>
               ))}
             </div>

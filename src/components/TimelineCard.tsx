@@ -3,9 +3,19 @@ import type { RepairEventWithParts, WarrantyRecord } from '../types/database';
 
 type TimelineCardProps = {
   event: RepairEventWithParts;
+  canApprove?: boolean;
+  isApproving?: boolean;
+  onApprove?: (repairEventId: string) => void;
 };
 
-export default function TimelineCard({ event }: TimelineCardProps) {
+export default function TimelineCard({
+  event,
+  canApprove = false,
+  isApproving = false,
+  onApprove,
+}: TimelineCardProps) {
+  const technicianTag = event.profiles?.display_name || 'Independent';
+
   return (
     <article className="grid gap-4 border border-[#171717] bg-[#FAFAFA] p-4 sm:p-5">
       <header className="flex flex-col gap-3 border-b border-[#171717] pb-4 sm:flex-row sm:items-start sm:justify-between">
@@ -16,8 +26,23 @@ export default function TimelineCard({ event }: TimelineCardProps) {
           <h2 className="mt-2 break-words font-['PP_Neue_Montreal','Helvetica_Neue',Helvetica,Arial,sans-serif] text-2xl font-medium leading-tight">
             {event.symptom}
           </h2>
+          <p className="mt-2 text-xs font-medium uppercase text-[#171717]/50">
+            {technicianTag}
+          </p>
         </div>
-        <WarrantyBadge records={getWarrantyRecords(event)} />
+        <div className="flex flex-wrap gap-2">
+          <WarrantyBadge records={getWarrantyRecords(event)} />
+          {canApprove ? (
+            <button
+              className="min-h-11 border border-[#171717] px-3 text-xs font-medium uppercase transition-colors hover:border-[#21F1A8] hover:bg-[#21F1A8] disabled:cursor-not-allowed disabled:border-[#171717]/25 disabled:text-[#171717]/40"
+              type="button"
+              disabled={isApproving}
+              onClick={() => onApprove?.(event.id)}
+            >
+              {isApproving ? 'Approving...' : 'Approve'}
+            </button>
+          ) : null}
+        </div>
       </header>
 
       <div className="grid gap-4 text-sm leading-6 sm:grid-cols-2">
@@ -35,10 +60,10 @@ export default function TimelineCard({ event }: TimelineCardProps) {
                 key={part.id}
               >
                 <span className="min-w-0 break-words font-medium">
-                  {part.part_name}
+                  {part.component_name}
                 </span>
                 <span className="min-w-0 break-words">
-                  {part.is_genuine ? 'Genuine' : 'Aftermarket'}
+                  {part.part_type}
                 </span>
                 <span className="min-w-0 break-words">
                   {getPartWarrantyLabel(part.warranty_records)}

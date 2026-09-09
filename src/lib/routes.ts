@@ -1,6 +1,8 @@
 export type AppRoute =
   | { name: 'scan' }
   | { name: 'register' }
+  | { name: 'signIn' }
+  | { name: 'signUp' }
   | { name: 'timeline'; deviceId: string }
   | { name: 'logRepair'; deviceId: string };
 
@@ -13,6 +15,14 @@ export function getCurrentRoute(): AppRoute {
 
   if (path === '/register') {
     return { name: 'register' };
+  }
+
+  if (path.startsWith('/sign-in')) {
+    return { name: 'signIn' };
+  }
+
+  if (path.startsWith('/sign-up')) {
+    return { name: 'signUp' };
   }
 
   if (timelineMatch) {
@@ -38,6 +48,14 @@ export function navigateToRegister() {
 
 export function navigateToScanLookup() {
   navigate('/');
+}
+
+export function navigateToSignIn() {
+  navigate('/sign-in');
+}
+
+export function navigateToSignUp() {
+  navigate('/sign-up');
 }
 
 export function navigateToDeviceTimeline(deviceId: string) {

@@ -6,8 +6,33 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[];
 
-export type DeviceType = 'phone';
+export type DeviceType = 'phone' | 'laptop';
+export type ProfileRole = 'owner' | 'technician';
+export type ComponentName =
+  | 'battery'
+  | 'display'
+  | 'charging_assembly'
+  | 'motherboard'
+  | 'camera'
+  | 'speaker'
+  | 'back_panel'
+  | 'keyboard'
+  | 'storage'
+  | 'memory'
+  | 'cooling_system'
+  | 'charging_port';
+export type PartType = 'oem' | 'compatible' | 'refurbished' | 'customer_provided';
 export type WarrantyRecordStatus = 'active' | 'expired' | 'void';
+export type AccessRole = 'owner' | 'family';
+export type DocumentType = 'invoice' | 'warranty_cert' | 'evidence';
+
+export type ScoreBreakdown = {
+  deviceAge: number;
+  repairFrequency: number;
+  recurringFaults: number;
+  criticalComponentHistory: number;
+  warrantyEvidenceCompleteness: number;
+};
 
 export type Database = {
   public: {
@@ -15,18 +40,42 @@ export type Database = {
       devices: {
         Row: {
           id: string;
-          serial_imei: string;
+          owner_id: string;
           device_type: DeviceType;
           brand: string;
           model: string;
+          serial_imei: string;
+          specs: Json;
+          purchase_date: string | null;
           created_at: string;
         };
         Insert: {
           id?: string;
-          serial_imei: string;
-          device_type?: DeviceType;
+          owner_id: string;
+          device_type: DeviceType;
           brand: string;
           model: string;
+          serial_imei: string;
+          specs?: Json;
+          purchase_date?: string | null;
+          created_at?: string;
+        };
+        Update: never;
+        Relationships: [];
+      };
+      profiles: {
+        Row: {
+          id: string;
+          role: ProfileRole;
+          display_name: string | null;
+          service_centre: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id: string;
+          role: ProfileRole;
+          display_name?: string | null;
+          service_centre?: string | null;
           created_at?: string;
         };
         Update: never;
@@ -36,19 +85,23 @@ export type Database = {
         Row: {
           id: string;
           device_id: string;
+          technician_id: string;
           symptom: string;
           diagnosis: string | null;
           action_taken: string;
-          logged_by: string | null;
+          cost: number | null;
+          parent_repair_id: string | null;
           created_at: string;
         };
         Insert: {
           id?: string;
           device_id: string;
+          technician_id: string;
           symptom: string;
           diagnosis?: string | null;
           action_taken: string;
-          logged_by?: string | null;
+          cost?: number | null;
+          parent_repair_id?: string | null;
           created_at?: string;
         };
         Update: never;
@@ -59,24 +112,42 @@ export type Database = {
             referencedRelation: 'devices';
             referencedColumns: ['id'];
           },
+          {
+            foreignKeyName: 'repair_events_technician_id_fkey';
+            columns: ['technician_id'];
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'repair_events_parent_repair_id_fkey';
+            columns: ['parent_repair_id'];
+            referencedRelation: 'repair_events';
+            referencedColumns: ['id'];
+          },
         ];
       };
       parts: {
         Row: {
           id: string;
           repair_event_id: string;
-          part_name: string;
-          is_genuine: boolean;
+          component_name: ComponentName;
+          part_number: string | null;
+          part_type: PartType;
+          supplier: string | null;
+          cost: number | null;
           warranty_days: number;
-          created_at: string;
+          evidence_url: string | null;
         };
         Insert: {
           id?: string;
           repair_event_id: string;
-          part_name: string;
-          is_genuine?: boolean;
+          component_name: ComponentName;
+          part_number?: string | null;
+          part_type: PartType;
+          supplier?: string | null;
+          cost?: number | null;
           warranty_days?: number;
-          created_at?: string;
+          evidence_url?: string | null;
         };
         Update: never;
         Relationships: [
@@ -95,7 +166,6 @@ export type Database = {
           start_date: string;
           end_date: string;
           status: WarrantyRecordStatus;
-          created_at: string;
         };
         Insert: {
           id?: string;
@@ -103,7 +173,6 @@ export type Database = {
           start_date: string;
           end_date: string;
           status?: WarrantyRecordStatus;
-          created_at?: string;
         };
         Update: never;
         Relationships: [
@@ -111,6 +180,87 @@ export type Database = {
             foreignKeyName: 'warranty_records_part_id_fkey';
             columns: ['part_id'];
             referencedRelation: 'parts';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      device_scores: {
+        Row: {
+          id: string;
+          device_id: string;
+          health_score: number;
+          score_breakdown: ScoreBreakdown;
+          ai_summary: string | null;
+          previous_score: number | null;
+          generated_at: string;
+        };
+        Insert: {
+          id?: string;
+          device_id: string;
+          health_score: number;
+          score_breakdown: ScoreBreakdown;
+          ai_summary?: string | null;
+          previous_score?: number | null;
+          generated_at?: string;
+        };
+        Update: never;
+        Relationships: [
+          {
+            foreignKeyName: 'device_scores_device_id_fkey';
+            columns: ['device_id'];
+            referencedRelation: 'devices';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      device_access: {
+        Row: {
+          id: string;
+          device_id: string;
+          user_id: string;
+          access_role: AccessRole;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          device_id: string;
+          user_id: string;
+          access_role: AccessRole;
+          created_at?: string;
+        };
+        Update: never;
+        Relationships: [
+          {
+            foreignKeyName: 'device_access_device_id_fkey';
+            columns: ['device_id'];
+            referencedRelation: 'devices';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      documents: {
+        Row: {
+          id: string;
+          device_id: string;
+          uploaded_by: string | null;
+          doc_type: DocumentType;
+          file_url: string;
+          uploaded_at: string;
+        };
+        Insert: {
+          id?: string;
+          device_id: string;
+          uploaded_by?: string | null;
+          doc_type: DocumentType;
+          file_url: string;
+          uploaded_at?: string;
+        };
+        Update: never;
+        Relationships: [
+          {
+            foreignKeyName: 'documents_device_id_fkey';
+            columns: ['device_id'];
+            referencedRelation: 'devices';
             referencedColumns: ['id'];
           },
         ];
@@ -124,9 +274,14 @@ export type Database = {
 };
 
 export type Device = Database['public']['Tables']['devices']['Row'];
+export type Profile = Database['public']['Tables']['profiles']['Row'];
 export type RepairEvent = Database['public']['Tables']['repair_events']['Row'];
 export type Part = Database['public']['Tables']['parts']['Row'];
-export type WarrantyRecord = Database['public']['Tables']['warranty_records']['Row'];
+export type WarrantyRecord =
+  Database['public']['Tables']['warranty_records']['Row'];
+export type DeviceScore = Database['public']['Tables']['device_scores']['Row'];
+export type DeviceAccess = Database['public']['Tables']['device_access']['Row'];
+export type DocumentRecord = Database['public']['Tables']['documents']['Row'];
 
 export type PartWithWarranty = Part & {
   warranty_records: WarrantyRecord[];
@@ -134,8 +289,12 @@ export type PartWithWarranty = Part & {
 
 export type RepairEventWithParts = RepairEvent & {
   parts: PartWithWarranty[];
+  profiles?: Profile | null;
 };
 
 export type DeviceTimeline = Device & {
   repair_events: RepairEventWithParts[];
+  device_scores: DeviceScore[];
+  documents?: DocumentRecord[];
+  device_access?: DeviceAccess[];
 };

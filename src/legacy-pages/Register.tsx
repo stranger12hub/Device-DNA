@@ -1,24 +1,38 @@
 // Mobile pass: 375px-safe QR sizing, wrapping, and touch targets.
 import { type FormEvent, useRef, useState } from 'react';
+import { SignedIn, SignedOut, SignInButton, useUser } from '@clerk/clerk-react';
 import { QRCodeCanvas } from 'qrcode.react';
 import { registerDevice } from '../lib/services';
 import { navigateToDeviceTimeline } from '../lib/routes';
 import { buildDeviceTimelineUrl } from '../lib/deviceLinks';
-import type { Device } from '../types/database';
+import type { Device, DeviceType, Json } from '../types/database';
 
 type FormState = {
+  deviceType: DeviceType;
   brand: string;
   model: string;
   serialImei: string;
+  storage: string;
+  color: string;
+  os: string;
+  processor: string;
+  ram: string;
 };
 
 const initialFormState: FormState = {
+  deviceType: 'phone',
   brand: '',
   model: '',
   serialImei: '',
+  storage: '',
+  color: '',
+  os: '',
+  processor: '',
+  ram: '',
 };
 
 export default function Register() {
+  const { user } = useUser();
   const qrCanvasRef = useRef<HTMLCanvasElement>(null);
   const [form, setForm] = useState<FormState>(initialFormState);
   const [fieldError, setFieldError] = useState<string | null>(null);
@@ -36,6 +50,7 @@ export default function Register() {
     const serialImei = form.serialImei.trim();
     const brand = form.brand.trim();
     const model = form.model.trim();
+    const specs = buildSpecs(form);
 
     setSubmitError(null);
     setFieldError(null);
@@ -50,10 +65,12 @@ export default function Register() {
 
     try {
       const device = await registerDevice({
-        device_type: 'phone',
+        device_type: form.deviceType,
         brand,
         model,
         serial_imei: serialImei,
+        owner_id: user?.id ?? 'anonymous-owner',
+        specs,
       });
 
       setRegisteredDevice(device);
@@ -105,7 +122,16 @@ export default function Register() {
             onSubmit={handleSubmit}
           >
             <div className="grid border-b border-[#171717] sm:grid-cols-2">
-              <LockedField label="Device type" value="phone" />
+              <SelectField
+                label="Device type"
+                name="deviceType"
+                value={form.deviceType}
+                options={[
+                  { label: 'Phone', value: 'phone' },
+                  { label: 'Laptop', value: 'laptop' },
+                ]}
+                onChange={(value) => updateField('deviceType', value)}
+              />
               <InputField
                 label="Brand"
                 name="brand"
@@ -134,11 +160,60 @@ export default function Register() {
               />
             </div>
 
+            <div className="grid border-b border-[#171717] sm:grid-cols-2 lg:grid-cols-3">
+              <InputField
+                label="Storage"
+                name="storage"
+                placeholder="256 GB"
+                value={form.storage}
+                onChange={(value) => updateField('storage', value)}
+              />
+              <InputField
+                label={form.deviceType === 'phone' ? 'Color' : 'Processor'}
+                name={form.deviceType === 'phone' ? 'color' : 'processor'}
+                placeholder={form.deviceType === 'phone' ? 'Graphite' : 'M3'}
+                value={
+                  form.deviceType === 'phone' ? form.color : form.processor
+                }
+                onChange={(value) =>
+                  updateField(
+                    form.deviceType === 'phone' ? 'color' : 'processor',
+                    value,
+                  )
+                }
+              />
+              <InputField
+                label={form.deviceType === 'phone' ? 'OS' : 'RAM'}
+                name={form.deviceType === 'phone' ? 'os' : 'ram'}
+                placeholder={form.deviceType === 'phone' ? 'iOS 18' : '16 GB'}
+                value={form.deviceType === 'phone' ? form.os : form.ram}
+                onChange={(value) =>
+                  updateField(form.deviceType === 'phone' ? 'os' : 'ram', value)
+                }
+              />
+            </div>
+
             <div className="flex flex-1 flex-col justify-between gap-8 p-4 sm:p-6">
+              <SignedOut>
+                <div className="border border-[#171717]/25 p-4 text-sm leading-6 text-[#171717]/60">
+                  Sign in as an owner before registering production device
+                  records.
+                  <SignInButton mode="modal">
+                    <button
+                      className="mt-3 block min-h-11 border border-[#171717] px-3 text-sm font-medium uppercase text-[#171717]"
+                      type="button"
+                    >
+                      Sign in
+                    </button>
+                  </SignInButton>
+                </div>
+              </SignedOut>
+              <SignedIn>
               <StatusBlock
                 submitError={submitError}
                 registeredDevice={registeredDevice}
               />
+              </SignedIn>
 
               <button
                 className="h-14 border border-[#171717] bg-[#171717] px-5 text-left text-sm font-medium uppercase text-[#FAFAFA] transition-colors hover:bg-[#21F1A8] hover:text-[#171717] disabled:cursor-not-allowed disabled:border-[#171717]/25 disabled:bg-[#171717]/10 disabled:text-[#171717]/40"
@@ -267,23 +342,38 @@ function InputField({
   );
 }
 
-type LockedFieldProps = {
+type SelectFieldProps = {
   label: string;
+  name: string;
   value: string;
+  options: { label: string; value: DeviceType }[];
+  onChange: (value: DeviceType) => void;
 };
 
-function LockedField({ label, value }: LockedFieldProps) {
+function SelectField({
+  label,
+  name,
+  value,
+  options,
+  onChange,
+}: SelectFieldProps) {
   return (
     <label className="flex min-h-36 flex-col gap-4 border-b border-[#171717] p-4 sm:border-b-0 sm:border-r sm:p-6">
       <span className="text-xs font-medium uppercase text-[#171717]/60">
         {label}
       </span>
-      <input
-        className="mt-auto w-full min-w-0 border-0 bg-transparent p-0 text-xl font-medium outline-none sm:text-2xl"
+      <select
+        className="mt-auto w-full min-w-0 border-0 bg-transparent p-0 text-xl font-medium outline-none focus:ring-0 sm:text-2xl"
+        name={name}
         value={value}
-        disabled
-        readOnly
-      />
+        onChange={(event) => onChange(event.target.value as DeviceType)}
+      >
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
     </label>
   );
 }
@@ -350,4 +440,20 @@ function isObjectWithMessage(value: unknown): value is { message: string } {
     'message' in value &&
     typeof value.message === 'string'
   );
+}
+
+function buildSpecs(form: FormState): Json {
+  if (form.deviceType === 'phone') {
+    return {
+      storage: form.storage.trim(),
+      color: form.color.trim(),
+      os: form.os.trim(),
+    };
+  }
+
+  return {
+    storage: form.storage.trim(),
+    processor: form.processor.trim(),
+    ram: form.ram.trim(),
+  };
 }

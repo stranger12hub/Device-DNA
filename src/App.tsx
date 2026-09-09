@@ -4,10 +4,11 @@ import {
   subscribeToRouteChanges,
   type AppRoute,
 } from './lib/routes';
-import LogRepair from './pages/LogRepair';
-import Register from './pages/Register';
-import ScanLookup from './pages/ScanLookup';
-import Timeline from './pages/Timeline';
+import AuthPage from './legacy-pages/AuthPage';
+import LogRepair from './legacy-pages/LogRepair';
+import Register from './legacy-pages/Register';
+import ScanLookup from './legacy-pages/ScanLookup';
+import Timeline from './legacy-pages/Timeline';
 
 function App() {
   const [route, setRoute] = useState<AppRoute>(() => getCurrentRoute());
@@ -26,6 +27,14 @@ function App() {
 
   if (route.name === 'register') {
     return <Register />;
+  }
+
+  if (route.name === 'signIn') {
+    return <AuthPage mode="sign-in" />;
+  }
+
+  if (route.name === 'signUp') {
+    return <AuthPage mode="sign-up" />;
   }
 
   return <ScanLookup />;

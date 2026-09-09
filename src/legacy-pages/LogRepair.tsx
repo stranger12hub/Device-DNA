@@ -1,7 +1,9 @@
 // Mobile pass: stacked repair fields and 44px-safe controls.
 import { type FormEvent, useState } from 'react';
+import { SignInButton, useUser } from '@clerk/clerk-react';
 import { logRepair } from '../lib/services';
 import { getCurrentRoute, navigateToDeviceTimeline } from '../lib/routes';
+import { getUserRole } from '../lib/auth';
 
 type LogRepairProps = {
   deviceId?: string;
@@ -27,6 +29,7 @@ const initialFormState: FormState = {
 };
 
 export default function LogRepair({ deviceId, onRepairLogged }: LogRepairProps) {
+  const { isSignedIn, user } = useUser();
   const route = getCurrentRoute();
   const selectedDeviceId =
     deviceId ??
@@ -38,6 +41,8 @@ export default function LogRepair({ deviceId, onRepairLogged }: LogRepairProps) 
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const role = getUserRole(user?.publicMetadata);
+  const isTechnician = isSignedIn && role === 'technician';
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -73,6 +78,8 @@ export default function LogRepair({ deviceId, onRepairLogged }: LogRepairProps) 
         symptom,
         diagnosis: diagnosis || null,
         actionTaken,
+        loggedBy: user?.fullName ?? user?.primaryEmailAddress?.emailAddress ?? null,
+        technicianId: user?.id ?? null,
         parts: partName
           ? [
               {
@@ -111,6 +118,24 @@ export default function LogRepair({ deviceId, onRepairLogged }: LogRepairProps) 
         Log repair
       </div>
 
+      {!isTechnician ? (
+        <div className="grid gap-4 p-4 sm:p-5">
+          <p className="text-sm leading-6 text-[#171717]/60">
+            Technician access is required to log repair work.
+          </p>
+          {!isSignedIn ? (
+            <SignInButton mode="modal">
+              <button
+                className="min-h-11 w-fit border border-[#171717] px-3 text-sm font-medium uppercase transition-colors hover:border-[#21F1A8] hover:bg-[#21F1A8]"
+                type="button"
+              >
+                Sign in
+              </button>
+            </SignInButton>
+          ) : null}
+        </div>
+      ) : (
+        <>
       <div className="grid sm:grid-cols-2">
         <InputField
           label="Symptom"
@@ -171,6 +196,8 @@ export default function LogRepair({ deviceId, onRepairLogged }: LogRepairProps) 
           {isSubmitting ? 'Logging...' : 'Log repair'}
         </button>
       </div>
+        </>
+      )}
     </form>
   );
 }
