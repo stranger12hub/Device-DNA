@@ -25,6 +25,7 @@ export type PartType = 'oem' | 'compatible' | 'refurbished' | 'customer_provided
 export type WarrantyRecordStatus = 'active' | 'expired' | 'void';
 export type AccessRole = 'owner' | 'family';
 export type DocumentType = 'invoice' | 'warranty_cert' | 'evidence';
+export type RepairStatus = 'pending' | 'approved';
 
 export type ScoreBreakdown = {
   deviceAge: number;
@@ -91,6 +92,7 @@ export type Database = {
           action_taken: string;
           cost: number | null;
           parent_repair_id: string | null;
+          status: RepairStatus;
           created_at: string;
         };
         Insert: {
@@ -102,6 +104,7 @@ export type Database = {
           action_taken: string;
           cost?: number | null;
           parent_repair_id?: string | null;
+          status?: RepairStatus;
           created_at?: string;
         };
         Update: never;
@@ -192,6 +195,8 @@ export type Database = {
           score_breakdown: ScoreBreakdown;
           ai_summary: string | null;
           previous_score: number | null;
+          market_value_estimate: number | null;
+          market_value_summary: string | null;
           generated_at: string;
         };
         Insert: {
@@ -201,6 +206,8 @@ export type Database = {
           score_breakdown: ScoreBreakdown;
           ai_summary?: string | null;
           previous_score?: number | null;
+          market_value_estimate?: number | null;
+          market_value_summary?: string | null;
           generated_at?: string;
         };
         Update: never;
@@ -265,9 +272,44 @@ export type Database = {
           },
         ];
       };
+      approval_requests: {
+        Row: {
+          id: string;
+          repair_event_id: string;
+          otp_hash: string;
+          expires_at: string;
+          verified: boolean;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          repair_event_id: string;
+          otp_hash: string;
+          expires_at: string;
+          verified?: boolean;
+          created_at?: string;
+        };
+        Update: never;
+        Relationships: [
+          {
+            foreignKeyName: 'approval_requests_repair_event_id_fkey';
+            columns: ['repair_event_id'];
+            referencedRelation: 'repair_events';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
     };
     Views: Record<string, never>;
-    Functions: Record<string, never>;
+    Functions: {
+      approve_repair_event: {
+        Args: {
+          repair_event_id: string;
+          otp_code: string;
+        };
+        Returns: boolean;
+      };
+    };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;
   };
@@ -282,6 +324,8 @@ export type WarrantyRecord =
 export type DeviceScore = Database['public']['Tables']['device_scores']['Row'];
 export type DeviceAccess = Database['public']['Tables']['device_access']['Row'];
 export type DocumentRecord = Database['public']['Tables']['documents']['Row'];
+export type ApprovalRequest =
+  Database['public']['Tables']['approval_requests']['Row'];
 
 export type PartWithWarranty = Part & {
   warranty_records: WarrantyRecord[];

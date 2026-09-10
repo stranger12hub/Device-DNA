@@ -1,4 +1,3 @@
-// supabase/functions/insight/index.ts
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
 
 type WarrantyStatus = {
@@ -22,6 +21,8 @@ type InsightResponse = {
   score_breakdown: ScoreBreakdown;
   ai_summary: string | null;
   previous_score: number | null;
+  market_value_estimate: number | null;
+  market_value_summary: string | null;
 };
 
 type WarrantyRecord = {
@@ -48,6 +49,7 @@ type RepairEventWithParts = {
   action_taken: string;
   cost: number | null;
   parent_repair_id: string | null;
+  status: 'pending' | 'approved';
   created_at: string;
   parts: PartWithWarranty[];
   profiles?: {
@@ -100,21 +102,30 @@ Deno.serve(async (request) => {
       return jsonResponse(fallbackInsight(), 400);
     }
 
-    const recurring = detectRecurringFault(body.timeline);
-    const warrantyStatus = getWarrantyStatus(body.timeline);
+    const approvedTimeline: DeviceTimeline = {
+      ...body.timeline,
+      repair_events: body.timeline.repair_events.filter(
+        (event) => event.status === 'approved',
+      ),
+    };
+    const recurring = detectRecurringFault(approvedTimeline);
+    const warrantyStatus = getWarrantyStatus(approvedTimeline);
     const scoreResult = calculateHealthScore(
-      body.timeline,
+      approvedTimeline,
       recurring.recurringFault,
       warrantyStatus,
     );
-    const previousScore = await getPreviousScore(body.timeline.id);
-    const aiSummary = await generateAiSummary(body.timeline, {
-      ...recurring,
-      warrantyStatus,
-      health_score: scoreResult.health_score,
-      score_breakdown: scoreResult.score_breakdown,
-      previous_score: previousScore,
-    });
+    const previousScore = await getPreviousScore(approvedTimeline.id);
+    const [aiSummary, marketValue] = await Promise.all([
+      generateAiSummary(approvedTimeline, {
+        ...recurring,
+        warrantyStatus,
+        health_score: scoreResult.health_score,
+        score_breakdown: scoreResult.score_breakdown,
+        previous_score: previousScore,
+      }),
+      generateMarketValue(approvedTimeline, scoreResult.health_score),
+    ]);
     const response: InsightResponse = {
       ...recurring,
       warrantyStatus,
@@ -122,9 +133,11 @@ Deno.serve(async (request) => {
       score_breakdown: scoreResult.score_breakdown,
       ai_summary: aiSummary,
       previous_score: previousScore,
+      market_value_estimate: marketValue.market_value_estimate,
+      market_value_summary: marketValue.market_value_summary,
     };
 
-    await writeDeviceScore(body.timeline.id, response);
+    await writeDeviceScore(approvedTimeline.id, response);
 
     return jsonResponse(response, 200);
   } catch (error) {
@@ -144,11 +157,9 @@ function detectRecurringFault(timeline: DeviceTimeline): {
       [event.symptom, event.diagnosis, event.action_taken].join(' '),
     );
 
-    if (!key) {
-      continue;
+    if (key) {
+      buckets.set(key, (buckets.get(key) ?? 0) + 1);
     }
-
-    buckets.set(key, (buckets.get(key) ?? 0) + 1);
   }
 
   const recurring = [...buckets.entries()]
@@ -161,7 +172,7 @@ function detectRecurringFault(timeline: DeviceTimeline): {
 
   return {
     recurringFault: true,
-    recurringDetails: `${recurring[0]} appears across ${recurring[1]} repair records.`,
+    recurringDetails: `${recurring[0]} appears across ${recurring[1]} approved repair records.`,
   };
 }
 
@@ -197,6 +208,108 @@ function calculateHealthScore(
   };
 }
 
+async function generateAiSummary(
+  timeline: DeviceTimeline,
+  insight: Omit<
+    InsightResponse,
+    'ai_summary' | 'market_value_estimate' | 'market_value_summary'
+  >,
+): Promise<string | null> {
+  const parsed = await callGemini([
+    'Write a 2-3 sentence Device DNA device summary for a buyer.',
+    'Explain the supplied deterministic health score. Do not change, invent, certify, or guarantee the score.',
+    'Return only JSON: { "ai_summary": string }',
+    JSON.stringify({ timeline, insight }),
+  ].join('\n'));
+
+  return typeof parsed?.ai_summary === 'string' ? parsed.ai_summary : null;
+}
+
+async function generateMarketValue(
+  timeline: DeviceTimeline,
+  healthScore: number,
+): Promise<{
+  market_value_estimate: number | null;
+  market_value_summary: string | null;
+}> {
+  const parsed = await callGemini([
+    'Estimate an Indian resale market value in INR for this device.',
+    'Base it only on device age, brand/model, specs, health score, repair frequency, component history, part types, warranties, and evidence.',
+    'If the data is too thin or confidence is low, return null for both fields. Do not guess.',
+    'Return only JSON: { "market_value_estimate": number | null, "market_value_summary": string | null }',
+    JSON.stringify({ timeline, healthScore }),
+  ].join('\n'));
+
+  const estimate =
+    typeof parsed?.market_value_estimate === 'number'
+      ? Math.round(parsed.market_value_estimate)
+      : null;
+  const summary =
+    typeof parsed?.market_value_summary === 'string'
+      ? parsed.market_value_summary
+      : null;
+
+  if (estimate === null || summary === null) {
+    return {
+      market_value_estimate: null,
+      market_value_summary: null,
+    };
+  }
+
+  return {
+    market_value_estimate: estimate,
+    market_value_summary: summary,
+  };
+}
+
+async function callGemini(prompt: string): Promise<Record<string, unknown> | null> {
+  const apiKey = Deno.env.get('GEMINI_API_KEY');
+
+  if (!apiKey) {
+    return null;
+  }
+
+  try {
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          contents: [
+            {
+              role: 'user',
+              parts: [{ text: prompt }],
+            },
+          ],
+          generationConfig: {
+            responseMimeType: 'application/json',
+          },
+        }),
+      },
+    );
+
+    if (!response.ok) {
+      console.error('Gemini error:', response.status, await response.text());
+      return null;
+    }
+
+    const gemini = (await response.json()) as GeminiResponse;
+    const text = gemini.candidates?.[0]?.content?.parts?.[0]?.text;
+
+    if (!text) {
+      return null;
+    }
+
+    return JSON.parse(text) as Record<string, unknown>;
+  } catch (error) {
+    console.error('Gemini call failed:', error);
+    return null;
+  }
+}
+
 function scoreDeviceAge(timeline: DeviceTimeline): number {
   const anchor = timeline.purchase_date || timeline.created_at;
   const ageDays = daysBetween(new Date(anchor), new Date());
@@ -227,24 +340,13 @@ function scoreCriticalComponents(timeline: DeviceTimeline): number {
     'memory',
     'cooling_system',
   ]);
-  const criticalCount = timeline.repair_events.reduce(
-    (count, event) =>
-      count +
-      event.parts.filter((part) => criticalComponents.has(part.component_name))
-        .length,
-    0,
-  );
-  const nonGenuineCount = timeline.repair_events.reduce(
-    (count, event) =>
-      count +
-      event.parts.filter(
-        (part) =>
-          part.part_type === 'compatible' ||
-          part.part_type === 'refurbished' ||
-          part.part_type === 'customer_provided',
-      ).length,
-    0,
-  );
+  const parts = timeline.repair_events.flatMap((event) => event.parts);
+  const criticalCount = parts.filter((part) =>
+    criticalComponents.has(part.component_name),
+  ).length;
+  const nonGenuineCount = parts.filter((part) =>
+    ['compatible', 'refurbished', 'customer_provided'].includes(part.part_type),
+  ).length;
 
   return Math.max(20, 100 - criticalCount * 14 - nonGenuineCount * 8);
 }
@@ -288,75 +390,8 @@ function getWarrantyStatus(timeline: DeviceTimeline): WarrantyStatus[] {
   );
 }
 
-async function generateAiSummary(
-  timeline: DeviceTimeline,
-  insight: Omit<InsightResponse, 'ai_summary'>,
-): Promise<string | null> {
-  const apiKey = Deno.env.get('GEMINI_API_KEY');
-
-  if (!apiKey) {
-    return null;
-  }
-
-  try {
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          contents: [
-            {
-              role: 'user',
-              parts: [
-                {
-                  text: [
-                    'Write a 2-3 sentence RepairPass device summary for a buyer.',
-                    'Explain the supplied deterministic health score. Do not change or invent the score.',
-                    'Return only JSON: { "ai_summary": string }',
-                    JSON.stringify({ timeline, insight }),
-                  ].join('\n'),
-                },
-              ],
-            },
-          ],
-          generationConfig: {
-            responseMimeType: 'application/json',
-          },
-        }),
-      },
-    );
-
-    if (!response.ok) {
-      console.error('Gemini summary error:', response.status, await response.text());
-      return null;
-    }
-
-    const gemini = (await response.json()) as GeminiResponse;
-    const text = gemini.candidates?.[0]?.content?.parts?.[0]?.text;
-
-    if (!text) {
-      return null;
-    }
-
-    const parsed = JSON.parse(text) as { ai_summary?: unknown };
-    return typeof parsed.ai_summary === 'string' ? parsed.ai_summary : null;
-  } catch (error) {
-    console.error('Gemini summary failed:', error);
-    return null;
-  }
-}
-
 async function getPreviousScore(deviceId: string): Promise<number | null> {
-  const supabase = getServiceClient();
-
-  if (!supabase) {
-    return null;
-  }
-
-  const { data, error } = await supabase
+  const { data, error } = await getServiceClient()
     .from('device_scores')
     .select('health_score')
     .eq('device_id', deviceId)
@@ -373,18 +408,14 @@ async function getPreviousScore(deviceId: string): Promise<number | null> {
 }
 
 async function writeDeviceScore(deviceId: string, insight: InsightResponse) {
-  const supabase = getServiceClient();
-
-  if (!supabase) {
-    return;
-  }
-
-  const { error } = await supabase.from('device_scores').insert({
+  const { error } = await getServiceClient().from('device_scores').insert({
     device_id: deviceId,
     health_score: insight.health_score,
     score_breakdown: insight.score_breakdown,
     ai_summary: insight.ai_summary,
     previous_score: insight.previous_score,
+    market_value_estimate: insight.market_value_estimate,
+    market_value_summary: insight.market_value_summary,
   });
 
   if (error) {
@@ -397,7 +428,7 @@ function getServiceClient() {
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
   if (!supabaseUrl || !serviceRoleKey) {
-    return null;
+    throw new Error('Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY');
   }
 
   return createClient(supabaseUrl, serviceRoleKey);
@@ -417,6 +448,8 @@ function fallbackInsight(): InsightResponse {
     },
     ai_summary: null,
     previous_score: null,
+    market_value_estimate: null,
+    market_value_summary: null,
   };
 }
 

@@ -52,6 +52,9 @@ export type SubmitRepairRecordInput = {
 };
 
 export type DocumentType = DocumentInsert['doc_type'];
+export type VerifyOtpResult = {
+  approved: boolean;
+};
 
 export async function registerDevice(
   data: RegisterDeviceInput,
@@ -92,6 +95,7 @@ export async function submitRepairRecord(
     action_taken: data.actionTaken,
     cost: data.cost ?? null,
     parent_repair_id: data.parentRepairId ?? null,
+    status: 'pending',
   };
 
   const { data: repairEvent, error: repairError } = await supabase
@@ -109,10 +113,39 @@ export async function submitRepairRecord(
     : [];
   const warrantyRecords = parts.length ? await insertWarranties(parts) : [];
 
+  const { error: approvalError } = await supabase.functions.invoke(
+    'request-approval',
+    {
+      body: { repair_event_id: repairEvent.id },
+    },
+  );
+
+  if (approvalError) {
+    console.error('Approval request failed:', approvalError);
+  }
+
   return {
     ...repairEvent,
     parts: attachWarrantyRecords(parts, warrantyRecords),
   };
+}
+
+export async function verifyOtpAndApprove(
+  repairEventId: string,
+  otp: string,
+): Promise<VerifyOtpResult> {
+  ensureSupabaseConfigured();
+
+  const { data, error } = await supabase.rpc('approve_repair_event', {
+    repair_event_id: repairEventId,
+    otp_code: otp,
+  });
+
+  if (error) {
+    throw error;
+  }
+
+  return { approved: data === true };
 }
 
 export async function getDeviceTimeline(
@@ -164,7 +197,19 @@ export async function getDeviceScore(
 
   const { data, error } = await supabase
     .from('device_scores')
-    .select()
+    .select(
+      `
+        id,
+        device_id,
+        health_score,
+        score_breakdown,
+        ai_summary,
+        previous_score,
+        market_value_estimate,
+        market_value_summary,
+        generated_at
+      `,
+    )
     .eq('device_id', deviceId)
     .order('generated_at', { ascending: false })
     .limit(1)
@@ -313,7 +358,7 @@ export async function logRepair(
 }
 
 export async function approveRepair(): Promise<void> {
-  throw new Error('Repair approval was removed. Submit a correction entry instead.');
+  throw new Error('Use verifyOtpAndApprove(repairEventId, otp) for approvals.');
 }
 
 export async function approveRepairEvent(): Promise<void> {
