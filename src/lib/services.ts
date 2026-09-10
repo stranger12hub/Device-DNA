@@ -64,6 +64,11 @@ type RegisterDeviceResponse = {
   device?: Device;
   error?: string;
 };
+type SubmitRepairResponse = {
+  ok: boolean;
+  repair?: RepairEventWithParts;
+  error?: string;
+};
 
 export async function getProfile(userId: string): Promise<Profile | null> {
   ensureSupabaseConfigured();
@@ -199,36 +204,10 @@ export async function registerDevice(
   data: RegisterDeviceInput,
 ): Promise<Device> {
   ensureSupabaseConfigured();
-
-  const { data: response, error } = await supabase.functions.invoke<RegisterDeviceResponse>(
-    'register-device',
-    {
-      body: {
-        device_type: data.device_type,
-        brand: data.brand,
-        model: data.model,
-        serial_imei: data.serial_imei,
-        specs: data.specs ?? {},
-        purchase_date: data.purchase_date ?? null,
-      },
-    },
-  );
-
-  if (!error && response?.ok && response.device) {
-    return response.device;
-  }
-
-  return registerDeviceViaApi(data, response?.error || error);
-}
-
-async function registerDeviceViaApi(
-  data: RegisterDeviceInput,
-  originalError?: unknown,
-): Promise<Device> {
   const token = await getClerkAccessToken();
 
   if (!token) {
-    throw originalError ?? new Error('Sign in again and retry registration');
+    throw new Error('Sign in again and retry registration');
   }
 
   const response = await fetch('/api/register-device', {
@@ -249,7 +228,7 @@ async function registerDeviceViaApi(
   const body = (await response.json().catch(() => ({}))) as RegisterDeviceResponse;
 
   if (!response.ok || !body.ok || !body.device) {
-    throw new Error(body.error || getServiceErrorMessage(originalError));
+    throw new Error(body.error || 'Could not register this device');
   }
 
   return body.device;
@@ -259,68 +238,27 @@ export async function submitRepairRecord(
   data: SubmitRepairRecordInput,
 ): Promise<RepairEventWithParts> {
   ensureSupabaseConfigured();
+  const token = await getClerkAccessToken();
 
-  const repairInsert: RepairEventInsert = {
-    device_id: data.deviceId,
-    technician_id: data.technicianId,
-    symptom: data.symptom,
-    diagnosis: data.diagnosis ?? null,
-    action_taken: data.actionTaken,
-    cost: data.cost ?? null,
-    parent_repair_id: data.parentRepairId ?? null,
-    status: 'pending',
-  };
-
-  const { data: repairEvent, error: repairError } = await supabase
-    .from('repair_events')
-    .insert(repairInsert)
-    .select()
-    .single();
-
-  if (repairError) {
-    throw repairError;
+  if (!token) {
+    throw new Error('Sign in again and retry repair submission');
   }
 
-  const parts = data.parts?.length
-    ? await insertParts(repairEvent.id, data.parts)
-    : [];
-  const warrantyRecords = parts.length ? await insertWarranties(parts) : [];
-
-  const { error: approvalError } = await supabase.functions.invoke(
-    'request-approval',
-    {
-      body: { repair_event_id: repairEvent.id },
-    },
-  );
-
-  if (approvalError) {
-    await requestApprovalViaApi(repairEvent.id).catch((error) => {
-      console.error('Approval request failed:', getServiceErrorMessage(error));
-    });
-  }
-
-  return {
-    ...repairEvent,
-    parts: attachWarrantyRecords(parts, warrantyRecords),
-  };
-}
-
-async function requestApprovalViaApi(repairEventId: string): Promise<void> {
-  const response = await fetch('/api/request-approval', {
+  const response = await fetch('/api/submit-repair', {
     method: 'POST',
     headers: {
+      Authorization: `Bearer ${token}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ repair_event_id: repairEventId }),
+    body: JSON.stringify(data),
   });
-  const body = (await response.json().catch(() => ({}))) as {
-    ok?: boolean;
-    error?: string;
-  };
+  const body = (await response.json().catch(() => ({}))) as SubmitRepairResponse;
 
-  if (!response.ok || !body.ok) {
-    throw new Error(body.error || 'Could not send approval request');
+  if (!response.ok || !body.ok || !body.repair) {
+    throw new Error(body.error || 'Could not submit repair record');
   }
+
+  return body.repair;
 }
 
 export async function verifyOtpAndApprove(

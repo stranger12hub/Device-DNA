@@ -58,14 +58,15 @@ export async function POST(request: NextRequest) {
         return json({ ok: false, error: 'A device with this serial or IMEI already exists' }, 409);
       }
 
-      console.error('Device insert failed', error.code);
-      return json({ ok: false, error: 'Could not register this device' }, 500);
+      console.error('Device insert failed', error.code, error.message);
+      return json({ ok: false, error: `Device insert failed: ${error.message}` }, 500);
     }
 
     return json({ ok: true, device }, 200);
   } catch (error) {
-    console.error('register-device API failed', error instanceof Error ? error.message : 'Unknown error');
-    return json({ ok: false, error: 'Could not register this device' }, 500);
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    console.error('register-device API failed', message);
+    return json({ ok: false, error: message }, 500);
   }
 }
 
@@ -143,8 +144,8 @@ async function ensureProfile(
     });
 
   if (error && error.code !== '23505') {
-    console.error('Profile insert failed', error.code);
-    throw new Error('Profile insert failed');
+    console.error('Profile insert failed', error.code, error.message);
+    throw new Error(`Profile insert failed: ${error.message}`);
   }
 }
 

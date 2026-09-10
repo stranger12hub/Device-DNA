@@ -38,7 +38,6 @@ import {
   formatCurrency,
   formatDate,
   formatDateTime,
-  ensureProfile,
   getServiceErrorMessage,
   getDeviceScore,
   getDeviceTimeline,
@@ -940,7 +939,6 @@ function RepairSubmissionContent() {
     setBusy(true);
     setError('');
     try {
-      await ensureProfile(viewer.id, 'technician', viewer.name);
       await submitRepairRecord({
         deviceId: params.id,
         technicianId: viewer.id,

@@ -76,8 +76,8 @@ export async function POST(request: NextRequest) {
       });
 
     if (insertError) {
-      console.error('Approval insert failed', insertError.code);
-      return json({ ok: false, error: 'Could not create approval request' }, 500);
+      console.error('Approval insert failed', insertError.code, insertError.message);
+      return json({ ok: false, error: `Could not create approval request: ${insertError.message}` }, 500);
     }
 
     await sendApprovalEmail({
@@ -93,8 +93,9 @@ export async function POST(request: NextRequest) {
 
     return json({ ok: true }, 200);
   } catch (error) {
-    console.error('request-approval API failed', error instanceof Error ? error.message : 'Unknown error');
-    return json({ ok: false, error: 'Could not send approval request' }, 500);
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    console.error('request-approval API failed', message);
+    return json({ ok: false, error: message }, 500);
   }
 }
 
@@ -116,8 +117,8 @@ async function getRepairLookup(
     .maybeSingle<RepairLookup>();
 
   if (error) {
-    console.error('Repair lookup failed', error.code);
-    throw new Error('Repair lookup failed');
+    console.error('Repair lookup failed', error.code, error.message);
+    throw new Error(`Repair lookup failed: ${error.message}`);
   }
 
   return data;

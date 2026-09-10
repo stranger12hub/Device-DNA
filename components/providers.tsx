@@ -3,7 +3,6 @@
 import { ClerkProvider, useAuth, useUser } from '@clerk/clerk-react';
 import { createContext, type ReactNode, useContext, useEffect } from 'react';
 import { setSupabaseAccessTokenGetter } from '@/src/lib/supabase';
-import { getUserRole } from '@/src/lib/auth';
 import type { ProfileRole } from '@/src/types/database';
 
 export type ViewerContextValue = {
@@ -62,8 +61,6 @@ export function useViewerContext() {
 function ViewerBridge({ children }: { children: ReactNode }) {
   const { getToken, isLoaded, isSignedIn, userId } = useAuth();
   const { user } = useUser();
-  const metadata = user?.publicMetadata as Record<string, unknown> | undefined;
-  const role = getUserRole(metadata);
 
   useEffect(() => {
     setSupabaseAccessTokenGetter(async () => {
@@ -86,7 +83,7 @@ function ViewerBridge({ children }: { children: ReactNode }) {
     ready: isLoaded,
     signedIn: Boolean(isSignedIn),
     id: userId ?? null,
-    role,
+    role: null,
     name: user?.fullName ?? user?.username ?? 'Device DNA user',
     email: user?.primaryEmailAddress?.emailAddress ?? 'No email on account',
     phone: user?.primaryPhoneNumber?.phoneNumber ?? 'No phone on account',
