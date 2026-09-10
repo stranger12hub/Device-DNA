@@ -30,6 +30,7 @@ import {
   ShieldCheck,
   Smartphone,
   Sparkles,
+  StopCircle,
   Wrench,
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
@@ -39,12 +40,11 @@ import {
   formatCurrency,
   formatDate,
   formatDateTime,
+  ensureProfile,
   getDeviceScore,
   getDeviceTimeline,
   getDevicesForUser,
-  getProfile,
   getPublicPassportTimeline,
-  getRecentVisibleDevices,
   lookupDevice,
   recalculateDeviceScore,
   registerDevice,
@@ -58,7 +58,6 @@ import type {
   DeviceTimeline,
   DeviceType,
   PartType,
-  ProfileRole,
   RepairEventWithParts,
   ScoreBreakdown,
 } from '@/src/types/database';
@@ -66,6 +65,15 @@ import type {
 type Viewer = ReturnType<typeof useViewerContext>;
 type DeviceFilter = 'all' | 'phone' | 'laptop';
 type ActivityGroup = 'Today' | 'This week' | 'Earlier';
+type BarcodeDetectorResult = {
+  rawValue?: string;
+};
+type BarcodeDetectorInstance = {
+  detect: (source: HTMLVideoElement) => Promise<BarcodeDetectorResult[]>;
+};
+type BarcodeDetectorConstructor = new (options?: {
+  formats?: string[];
+}) => BarcodeDetectorInstance;
 
 const navItems = [
   { label: 'Home', href: '/', icon: Home },
@@ -147,7 +155,7 @@ export function LogoMark({ compact = false, light = false }: { compact?: boolean
       <img
         src="/device-dna-logo.jpeg"
         alt="Device DNA"
-        className={`${compact ? 'h-10 w-10' : 'h-12 w-12'} rounded-[18px] border border-white/10 object-cover shadow-lg`}
+        className={`${compact ? 'h-10 w-10' : 'h-12 w-12'} rounded-xl border border-white/10 object-cover shadow-lg`}
       />
       {!compact && (
         <span>
@@ -185,7 +193,7 @@ function DesktopRail() {
   const pathname = usePathname();
 
   return (
-    <aside className="fixed left-4 top-4 z-40 hidden h-[calc(100vh-32px)] w-20 rounded-[28px] border border-white/10 bg-white/[0.06] p-3 shadow-2xl shadow-black/30 backdrop-blur-2xl md:block">
+    <aside className="fixed left-4 top-4 z-40 hidden h-[calc(100vh-32px)] w-20 rounded-2xl border border-white/10 bg-white/[0.06] p-3 shadow-2xl shadow-black/30 backdrop-blur-2xl md:block">
       <div className="flex h-full flex-col items-center gap-5">
         <LogoMark compact light />
         <nav className="flex flex-1 flex-col items-center justify-center gap-3">
@@ -205,7 +213,7 @@ function RailItem({ item, active }: { item: (typeof navItems)[number]; active: b
     <Link
       href={item.href}
       title={item.label}
-      className={`grid h-14 w-14 place-items-center rounded-[20px] border transition ${
+      className={`grid h-14 w-14 place-items-center rounded-xl border transition ${
         item.featured
           ? 'border-device-blue bg-device-blue text-white shadow-lg shadow-device-blue/20'
           : active
@@ -261,13 +269,12 @@ export function HomePage() {
 
   useEffect(() => {
     if (!viewer.signedIn || !viewer.id) return;
-    const loader = viewer.role === 'owner' ? getDevicesForUser(viewer.id) : getRecentVisibleDevices(6);
-    loader.then(setDevices).catch(() => setDevices([]));
-  }, [viewer.id, viewer.role, viewer.signedIn]);
+    getDevicesForUser(viewer.id).then(setDevices).catch(() => setDevices([]));
+  }, [viewer.id, viewer.signedIn]);
 
   return (
     <AppShell>
-      <section className="relative overflow-hidden rounded-[34px] border border-white/10 bg-white/[0.06] p-5 shadow-2xl shadow-black/30 backdrop-blur-2xl md:p-8">
+      <section className="relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.06] p-5 shadow-2xl shadow-black/30 backdrop-blur-2xl md:p-8">
         <div className="absolute left-1/2 top-10 h-80 w-80 -translate-x-1/2 rounded-full bg-device-blue/20 blur-3xl" />
         <div className="relative flex items-center justify-between gap-4">
           <LogoMark light />
@@ -371,7 +378,7 @@ function AuthCluster({ viewer }: { viewer: Viewer }) {
 
 function QuickTile({ icon, title, body, tone }: { icon: React.ReactNode; title: string; body: string; tone: 'blue' | 'cyan' | 'green' | 'amber' }) {
   return (
-    <div className="rounded-[24px] border border-white/10 bg-white/[0.07] p-4 backdrop-blur-xl">
+    <div className="rounded-2xl border border-white/10 bg-white/[0.07] p-4 backdrop-blur-xl">
       <IconTile tone={tone}>{icon}</IconTile>
       <h3 className="mt-4 text-xl font-black text-white">{title}</h3>
       <p className="mt-2 text-sm leading-6 text-white/60">{body}</p>
@@ -381,7 +388,7 @@ function QuickTile({ icon, title, body, tone }: { icon: React.ReactNode; title: 
 
 function RoleCard({ title, body, href }: { title: string; body: string; href: string }) {
   return (
-    <Link href={href} className="group rounded-[26px] border border-white/10 bg-white/[0.07] p-4 transition hover:border-cyan-300/40 hover:bg-white/[0.1]">
+    <Link href={href} className="group rounded-2xl border border-white/10 bg-white/[0.07] p-4 transition hover:border-cyan-300/40 hover:bg-white/[0.1]">
       <h3 className="text-xl font-black text-white">{title}</h3>
       <p className="mt-2 text-sm leading-6 text-white/60">{body}</p>
       <span className="mt-4 inline-flex items-center gap-2 text-sm font-black text-cyan-100">
@@ -425,9 +432,8 @@ function DevicesContent() {
 
   useEffect(() => {
     if (!viewer.id) return;
-    const loader = viewer.role === 'owner' ? getDevicesForUser(viewer.id) : getRecentVisibleDevices(100);
-    loader.then(setDevices).catch(() => setDevices([]));
-  }, [viewer.id, viewer.role]);
+    getDevicesForUser(viewer.id).then(setDevices).catch(() => setDevices([]));
+  }, [viewer.id]);
 
   const filtered = devices.filter((device) => {
     const matchesFilter = filter === 'all' || device.device_type === filter;
@@ -467,7 +473,7 @@ function DeviceGrid({ devices }: { devices: Device[] }) {
         <Link
           key={device.id}
           href={`/devices/${device.id}`}
-          className="group rounded-[30px] border border-white/10 bg-white/[0.07] p-4 shadow-xl shadow-black/20 backdrop-blur-2xl transition hover:-translate-y-0.5 hover:border-cyan-300/40 hover:bg-white/[0.1]"
+          className="group rounded-2xl border border-white/10 bg-white/[0.07] p-4 shadow-xl shadow-black/20 backdrop-blur-2xl transition hover:-translate-y-0.5 hover:border-cyan-300/40 hover:bg-white/[0.1]"
         >
           <div className="flex items-start justify-between gap-3">
             <IconTile tone={device.device_type === 'phone' ? 'blue' : 'cyan'}>
@@ -530,6 +536,7 @@ function RegisterContent() {
     setBusy(true);
     setError('');
     try {
+      await ensureProfile(viewer.id, 'owner', viewer.name);
       const device = await registerDevice({
         owner_id: viewer.id,
         device_type: type,
@@ -541,8 +548,8 @@ function RegisterContent() {
       });
       setCreated(device);
       setStep(3);
-    } catch {
-      setError('Could not register this device. Check whether the identity already exists.');
+    } catch (error) {
+      setError(getRegistrationErrorMessage(error));
     } finally {
       setBusy(false);
     }
@@ -659,7 +666,7 @@ function DeviceContent() {
   if (!timeline) return <AppShell><EmptyGlass title="Device not found" body="Scan again or check the Device DNA ID." /></AppShell>;
 
   const isOwner = viewer.id === timeline.owner_id;
-  const isTechnician = viewer.role === 'technician';
+  const canAddRepair = Boolean(viewer.signedIn);
 
   return (
     <AppShell>
@@ -674,7 +681,7 @@ function DeviceContent() {
             eyebrow="Timeline"
             title="Locked repair history"
             description="Pending repairs are waiting on owner OTP and do not appear on the public passport."
-            action={isTechnician ? <PrimaryButton href={`/devices/${timeline.id}/repair`}><Wrench size={17} /> Add repair</PrimaryButton> : null}
+            action={canAddRepair ? <PrimaryButton href={`/devices/${timeline.id}/repair`}><Wrench size={17} /> Add repair</PrimaryButton> : null}
           />
           {notice && <AlertGlass title="Approval update">{notice}</AlertGlass>}
           <RepairTimeline
@@ -707,7 +714,7 @@ async function loadDevice(
 
 function DeviceHero({ device, score }: { device: DeviceTimeline; score: DeviceScore | null }) {
   return (
-    <section className="relative overflow-hidden rounded-[34px] border border-white/10 bg-white/[0.07] p-5 shadow-2xl shadow-black/30 backdrop-blur-2xl md:p-7">
+    <section className="relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.07] p-5 shadow-2xl shadow-black/30 backdrop-blur-2xl md:p-7">
       <div className="absolute right-10 top-0 h-56 w-56 rounded-full bg-device-blue/20 blur-3xl" />
       <div className="relative flex flex-col justify-between gap-6 md:flex-row md:items-end">
         <div>
@@ -794,7 +801,7 @@ function RepairTimeline({
       {repairs.map((repair) => {
         const pending = repair.status === 'pending';
         return (
-          <article key={repair.id} className="rounded-[30px] border border-white/10 bg-white/[0.07] p-4 shadow-xl shadow-black/20 backdrop-blur-2xl">
+          <article key={repair.id} className="rounded-2xl border border-white/10 bg-white/[0.07] p-4 shadow-xl shadow-black/20 backdrop-blur-2xl">
             <div className="flex flex-col justify-between gap-3 md:flex-row md:items-start">
               <div>
                 <div className="flex flex-wrap gap-2">
@@ -812,7 +819,7 @@ function RepairTimeline({
               <Info label="Parts" value={repair.parts.length ? repair.parts.map((part) => pretty(part.component_name)).join(', ') : 'No replacement'} />
             </dl>
             {pending && !publicOnly && (
-              <div className="mt-5 rounded-[24px] border border-amber-300/20 bg-amber-300/10 p-4">
+              <div className="mt-5 rounded-2xl border border-amber-300/20 bg-amber-300/10 p-4">
                 <p className="flex items-center gap-2 text-sm font-black text-amber-100">
                   <LockKeyhole size={16} />
                   Locked but waiting. Not visible on the public passport until owner OTP approval.
@@ -871,8 +878,8 @@ function RepairSubmissionContent() {
   }, [params.id]);
 
   async function submit() {
-    if (!viewer.id || viewer.role !== 'technician') {
-      setError('Sign in with a technician profile to add repair records.');
+    if (!viewer.id) {
+      setError('Sign in to add repair records.');
       return;
     }
     if (!form.symptom.trim() || !form.actionTaken.trim()) {
@@ -882,12 +889,7 @@ function RepairSubmissionContent() {
     setBusy(true);
     setError('');
     try {
-      const profile = await getProfile(viewer.id);
-      if (!profile || profile.role !== 'technician') {
-        setError('Technician profile not found in Supabase.');
-        setBusy(false);
-        return;
-      }
+      await ensureProfile(viewer.id, 'technician', viewer.name);
       await submitRepairRecord({
         deviceId: params.id,
         technicianId: viewer.id,
@@ -958,19 +960,16 @@ function RepairSubmissionContent() {
 }
 
 export function ScanPage() {
-  return (
-    <AuthGate>
-      <ScanContent />
-    </AuthGate>
-  );
+  return <ScanContent />;
 }
 
 function ScanContent() {
   const router = useRouter();
-  const scannerRef = useRef<HTMLDivElement>(null);
-  const scannerInstance = useRef<{ stop: () => Promise<void>; clear: () => void } | null>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const scanLoopRef = useRef<number | null>(null);
   const [query, setQuery] = useState('');
-  const [state, setState] = useState<'ready' | 'camera' | 'found' | 'missing' | 'invalid'>('ready');
+  const [state, setState] = useState<'ready' | 'camera' | 'found' | 'missing' | 'invalid' | 'unsupported'>('ready');
   const [cameraError, setCameraError] = useState('');
 
   async function find(value = query) {
@@ -989,31 +988,85 @@ function ScanContent() {
   }
 
   async function startCamera() {
-    if (!scannerRef.current) return;
     setCameraError('');
     setState('camera');
+
+    if (!('BarcodeDetector' in window)) {
+      setState('unsupported');
+      setCameraError('QR scanning is not supported in this browser. Use manual entry below.');
+      return;
+    }
+
     try {
-      const { Html5Qrcode } = await import('html5-qrcode');
-      const scanner = new Html5Qrcode('device-dna-scanner');
-      scannerInstance.current = scanner;
-      await scanner.start(
-        { facingMode: 'environment' },
-        { fps: 10, qrbox: { width: 240, height: 240 } },
-        (decodedText: string) => {
-          scanner.stop().catch(() => undefined);
-          find(decodedText);
+      stopCamera();
+
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: { ideal: 'environment' },
         },
-        () => undefined,
-      );
+        audio: false,
+      });
+      const video = videoRef.current;
+
+      if (!video) {
+        throw new Error('Video element unavailable');
+      }
+
+      streamRef.current = stream;
+      video.srcObject = stream;
+      await video.play();
+
+      const Detector = window.BarcodeDetector as BarcodeDetectorConstructor;
+      const detector = new Detector({ formats: ['qr_code'] });
+
+      const tick = async () => {
+        if (!videoRef.current || !streamRef.current) {
+          return;
+        }
+
+        try {
+          const codes = await detector.detect(videoRef.current);
+          const rawValue = codes[0]?.rawValue;
+
+          if (rawValue) {
+            stopCamera();
+            await find(rawValue);
+            return;
+          }
+        } catch {
+          setCameraError('Could not read the camera frame. Try manual entry.');
+        }
+
+        scanLoopRef.current = window.requestAnimationFrame(tick);
+      };
+
+      scanLoopRef.current = window.requestAnimationFrame(tick);
     } catch {
-      setCameraError('Camera could not start. Manual entry is ready.');
+      setCameraError('Camera could not start. Check browser permission or use manual entry.');
+      setState('ready');
+    }
+  }
+
+  function stopCamera() {
+    if (scanLoopRef.current !== null) {
+      window.cancelAnimationFrame(scanLoopRef.current);
+      scanLoopRef.current = null;
+    }
+
+    streamRef.current?.getTracks().forEach((track) => track.stop());
+    streamRef.current = null;
+
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+
+    if (state === 'camera') {
       setState('ready');
     }
   }
 
   useEffect(() => () => {
-    scannerInstance.current?.stop().catch(() => undefined);
-    scannerInstance.current?.clear();
+    stopCamera();
   }, []);
 
   return (
@@ -1024,15 +1077,15 @@ function ScanContent() {
         description="Use the camera or manual Device DNA ID entry. Results open as public read-only passports."
       />
       <div className="grid gap-5 lg:grid-cols-[1fr_390px]">
-        <section className="relative min-h-[460px] overflow-hidden rounded-[34px] border border-white/10 bg-white/[0.07] p-5 shadow-2xl shadow-black/30 backdrop-blur-2xl">
+        <section className="relative min-h-[460px] overflow-hidden rounded-2xl border border-white/10 bg-white/[0.07] p-5 shadow-2xl shadow-black/30 backdrop-blur-2xl">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_10%,rgba(56,189,248,0.18),transparent_42%)]" />
           <div className="relative flex items-center justify-between">
             <LogoMark compact light />
             <Badge tone={state === 'found' ? 'approved' : state === 'missing' ? 'danger' : 'neutral'}>{state}</Badge>
           </div>
-          <div className="relative mx-auto mt-8 grid h-72 w-full max-w-sm place-items-center overflow-hidden rounded-[30px] border border-cyan-300/20 bg-black/24">
-            <div id="device-dna-scanner" ref={scannerRef} className="absolute inset-0" />
-            <div className="pointer-events-none absolute inset-8 rounded-[24px] border border-cyan-200/50">
+          <div className="relative mx-auto mt-8 grid h-72 w-full max-w-sm place-items-center overflow-hidden rounded-2xl border border-white/12 bg-black/24">
+            <video ref={videoRef} muted playsInline className="absolute inset-0 h-full w-full object-cover" />
+            <div className="pointer-events-none absolute inset-8 rounded-2xl border border-cyan-200/50">
               <div className="scanner-line absolute left-5 right-5 top-8 h-px bg-cyan-200" />
             </div>
             {state !== 'camera' && (
@@ -1052,7 +1105,11 @@ function ScanContent() {
             {state === 'missing' && <p className="text-sm font-bold text-red-300">No device found.</p>}
             {state === 'invalid' && <p className="text-sm font-bold text-red-300">Enter a valid code or link.</p>}
             <PrimaryButton onClick={() => find()}>Find device</PrimaryButton>
-            <GlassButton onClick={startCamera}><Camera size={17} /> Start camera</GlassButton>
+            {state === 'camera' ? (
+              <GlassButton onClick={stopCamera}><StopCircle size={17} /> Stop camera</GlassButton>
+            ) : (
+              <GlassButton onClick={startCamera}><Camera size={17} /> Start camera</GlassButton>
+            )}
           </div>
         </GlassPanel>
       </div>
@@ -1078,8 +1135,8 @@ function ActivityContent() {
 
   useEffect(() => {
     if (!viewer.id) return;
-    loadActivity(viewer.id, viewer.role).then(setGroups).catch(() => undefined);
-  }, [viewer.id, viewer.role]);
+    loadActivity(viewer.id).then(setGroups).catch(() => undefined);
+  }, [viewer.id]);
 
   return (
     <AppShell>
@@ -1090,7 +1147,7 @@ function ActivityContent() {
             <h2 className="text-2xl font-black text-white">{group}</h2>
             <div className="mt-4 space-y-3">
               {groups[group].length ? groups[group].map((repair) => (
-                <Link key={repair.id} href={`/devices/${repair.device_id}`} className="flex gap-3 rounded-[24px] border border-white/10 bg-white/[0.06] p-3">
+                <Link key={repair.id} href={`/devices/${repair.device_id}`} className="flex gap-3 rounded-2xl border border-white/10 bg-white/[0.06] p-3">
                   <IconTile tone={repair.status === 'approved' ? 'green' : 'amber'}>{repair.status === 'approved' ? <BadgeCheck /> : <Clock3 />}</IconTile>
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-black text-white">{repair.symptom}</p>
@@ -1106,8 +1163,8 @@ function ActivityContent() {
   );
 }
 
-async function loadActivity(userId: string, role: ProfileRole | null): Promise<Record<ActivityGroup, RepairEventWithParts[]>> {
-  const devices = role === 'owner' ? await getDevicesForUser(userId) : await getRecentVisibleDevices(20);
+async function loadActivity(userId: string): Promise<Record<ActivityGroup, RepairEventWithParts[]>> {
+  const devices = await getDevicesForUser(userId);
   const timelines = await Promise.all(devices.slice(0, 12).map((device) => getDeviceTimeline(device.id)));
   const repairs = timelines
     .filter((timeline): timeline is DeviceTimeline => Boolean(timeline))
@@ -1143,16 +1200,16 @@ function AccountContent() {
       <GlassPanel>
         <div className="flex flex-col gap-5 md:flex-row md:items-center">
           {viewer.imageUrl ? (
-            <img src={viewer.imageUrl} alt={viewer.name} className="h-24 w-24 rounded-[30px] border border-white/10 object-cover shadow-xl" />
+            <img src={viewer.imageUrl} alt={viewer.name} className="h-24 w-24 rounded-2xl border border-white/10 object-cover shadow-xl" />
           ) : (
-            <div className="grid h-24 w-24 place-items-center rounded-[30px] border border-white/10 bg-white/[0.07]"><CircleUserRound size={42} /></div>
+            <div className="grid h-24 w-24 place-items-center rounded-2xl border border-white/10 bg-white/[0.07]"><CircleUserRound size={42} /></div>
           )}
           <div className="flex-1">
             <h2 className="text-4xl font-black text-white">{viewer.name}</h2>
             <div className="mt-5 grid gap-3 md:grid-cols-3">
               <MiniMetric label="Email" value={viewer.email} normal />
               <MiniMetric label="Phone" value={viewer.phone} normal />
-              <MiniMetric label="Role" value={viewer.role ?? 'visitor'} />
+              <MiniMetric label="Access" value="Signed in" />
             </div>
           </div>
           {viewer.configured && (
@@ -1269,7 +1326,7 @@ function HeaderBlock({ eyebrow, title, description, action }: { eyebrow?: string
 }
 
 function GlassPanel({ children, className = '' }: { children: React.ReactNode; className?: string }) {
-  return <section className={`rounded-[30px] border border-white/10 bg-white/[0.07] p-4 shadow-2xl shadow-black/20 backdrop-blur-2xl md:p-5 ${className}`}>{children}</section>;
+  return <section className={`rounded-2xl border border-white/10 bg-white/[0.07] p-4 shadow-2xl shadow-black/20 backdrop-blur-2xl md:p-5 ${className}`}>{children}</section>;
 }
 
 function SectionKicker({ children }: { children: React.ReactNode }) {
@@ -1295,12 +1352,12 @@ function IconTile({ children, tone }: { children: React.ReactNode; tone: 'blue' 
     green: 'border-emerald-300/25 bg-emerald-300/12 text-emerald-200',
     amber: 'border-amber-300/25 bg-amber-300/12 text-amber-200',
   };
-  return <div className={`grid h-14 w-14 shrink-0 place-items-center rounded-[18px] border ${tones[tone]}`}>{children}</div>;
+  return <div className={`grid h-14 w-14 shrink-0 place-items-center rounded-xl border ${tones[tone]}`}>{children}</div>;
 }
 
 function MiniMetric({ label, value, normal = false }: { label: string; value: React.ReactNode; normal?: boolean }) {
   return (
-    <div className="rounded-[22px] border border-white/10 bg-white/[0.06] p-3">
+    <div className="rounded-xl border border-white/10 bg-white/[0.06] p-3">
       <p className="text-xs font-bold text-white/42">{label}</p>
       <p className={`mt-1 truncate text-sm font-black text-white ${normal ? 'normal-case' : 'capitalize'}`}>{value}</p>
     </div>
@@ -1309,7 +1366,7 @@ function MiniMetric({ label, value, normal = false }: { label: string; value: Re
 
 function HeroStat({ label, value }: { label: string; value: React.ReactNode }) {
   return (
-    <div className="min-w-36 rounded-[24px] border border-white/10 bg-white/[0.08] p-4 backdrop-blur-xl">
+    <div className="min-w-36 rounded-2xl border border-white/10 bg-white/[0.08] p-4 backdrop-blur-xl">
       <p className="text-xs font-bold text-white/45">{label}</p>
       <p className="mt-1 text-xl font-black text-white">{value}</p>
     </div>
@@ -1362,7 +1419,7 @@ function StepRail({ labels, active }: { labels: string[]; active: number }) {
 
 function TypeCard({ active, icon, title, onClick }: { active: boolean; icon: React.ReactNode; title: string; onClick: () => void }) {
   return (
-    <button type="button" onClick={onClick} className={`min-h-40 rounded-[30px] border p-5 text-left transition ${active ? 'border-cyan-300/40 bg-cyan-300/10' : 'border-white/10 bg-white/[0.05] hover:bg-white/[0.08]'}`}>
+    <button type="button" onClick={onClick} className={`min-h-40 rounded-2xl border p-5 text-left transition ${active ? 'border-cyan-300/40 bg-cyan-300/10' : 'border-white/10 bg-white/[0.05] hover:bg-white/[0.08]'}`}>
       <IconTile tone={title === 'Phone' ? 'blue' : 'cyan'}>{icon}</IconTile>
       <span className="mt-5 block text-3xl font-black text-white">{title}</span>
     </button>
@@ -1391,7 +1448,7 @@ function QrGlass({ value }: { value: string }) {
         <h2 className="text-xl font-black text-white">Passport QR</h2>
         <QrCode className="text-cyan-100" />
       </div>
-      <div className="mt-4 grid place-items-center rounded-[26px] border border-white/10 bg-white p-5">
+      <div className="mt-4 grid place-items-center rounded-2xl border border-white/10 bg-white p-5">
         <QRCodeSVG id={id} value={value} size={190} bgColor="#ffffff" fgColor="#080B11" />
       </div>
       <p className="mt-3 break-all font-mono text-xs text-white/42">{value}</p>
@@ -1405,7 +1462,7 @@ function QrGlass({ value }: { value: string }) {
 
 function AlertGlass({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="mb-4 rounded-[26px] border border-cyan-300/20 bg-cyan-300/10 p-4">
+    <div className="mb-4 rounded-2xl border border-cyan-300/20 bg-cyan-300/10 p-4">
       <p className="font-black text-cyan-100">{title}</p>
       <p className="mt-1 text-sm leading-7 text-white/68">{children}</p>
     </div>
@@ -1422,15 +1479,15 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 }
 
 function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
-  return <input {...props} className={`min-h-12 w-full rounded-[20px] border border-white/10 bg-white/[0.07] px-4 text-sm text-white outline-none placeholder:text-white/32 focus:border-cyan-300/50 ${props.className ?? ''}`} />;
+  return <input {...props} className={`min-h-12 w-full rounded-xl border border-white/10 bg-white/[0.07] px-4 text-sm text-white outline-none placeholder:text-white/32 focus:border-cyan-300/50 ${props.className ?? ''}`} />;
 }
 
 function Select(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
-  return <select {...props} className={`min-h-12 w-full rounded-[20px] border border-white/10 bg-[#0B1020] px-4 text-sm text-white outline-none focus:border-cyan-300/50 ${props.className ?? ''}`} />;
+  return <select {...props} className={`min-h-12 w-full rounded-xl border border-white/10 bg-[#0B1020] px-4 text-sm text-white outline-none focus:border-cyan-300/50 ${props.className ?? ''}`} />;
 }
 
 function Textarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
-  return <textarea {...props} className={`min-h-28 w-full rounded-[20px] border border-white/10 bg-white/[0.07] px-4 py-3 text-sm text-white outline-none placeholder:text-white/32 focus:border-cyan-300/50 ${props.className ?? ''}`} />;
+  return <textarea {...props} className={`min-h-28 w-full rounded-xl border border-white/10 bg-white/[0.07] px-4 py-3 text-sm text-white outline-none placeholder:text-white/32 focus:border-cyan-300/50 ${props.className ?? ''}`} />;
 }
 
 function Info({ label, value }: { label: string; value: React.ReactNode }) {
@@ -1487,4 +1544,23 @@ function numberOrNull(value: string): number | null {
 
 function pretty(value: string) {
   return value.replace(/_/g, ' ');
+}
+
+function getRegistrationErrorMessage(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error);
+  const lower = message.toLowerCase();
+
+  if (lower.includes('duplicate') || lower.includes('unique')) {
+    return 'A device with this serial or IMEI already exists.';
+  }
+
+  if (lower.includes('row-level security') || lower.includes('violates row-level security')) {
+    return 'Supabase blocked registration. Apply the latest profile bootstrap migration so signed-in users can create their own devices.';
+  }
+
+  if (lower.includes('jwt') || lower.includes('auth')) {
+    return 'Your sign-in session is missing the Supabase JWT. Sign out, sign in again, and confirm the Clerk Supabase JWT template is enabled.';
+  }
+
+  return `Could not register this device: ${message}`;
 }

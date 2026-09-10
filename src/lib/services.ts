@@ -9,6 +9,7 @@ import type {
   Part,
   PartWithWarranty,
   Profile,
+  ProfileRole,
   RepairEventWithParts,
   WarrantyRecord,
 } from '../types/database';
@@ -19,6 +20,7 @@ type PartInsert = Database['public']['Tables']['parts']['Insert'];
 type WarrantyRecordInsert =
   Database['public']['Tables']['warranty_records']['Insert'];
 type DocumentInsert = Database['public']['Tables']['documents']['Insert'];
+type ProfileInsert = Database['public']['Tables']['profiles']['Insert'];
 
 export type RegisterDeviceInput = Pick<
   DeviceInsert,
@@ -67,6 +69,42 @@ export async function getProfile(userId: string): Promise<Profile | null> {
     .maybeSingle();
 
   if (error) {
+    throw error;
+  }
+
+  return data;
+}
+
+export async function ensureProfile(
+  userId: string,
+  role: ProfileRole,
+  displayName?: string | null,
+): Promise<Profile> {
+  ensureSupabaseConfigured();
+
+  const existing = await getProfile(userId);
+
+  if (existing) {
+    return existing;
+  }
+
+  const profileInsert: ProfileInsert = {
+    id: userId,
+    role,
+    display_name: displayName?.trim() || null,
+  };
+
+  const { data, error } = await supabase
+    .from('profiles')
+    .insert(profileInsert)
+    .select()
+    .single();
+
+  if (error) {
+    const retry = await getProfile(userId);
+    if (retry) {
+      return retry;
+    }
     throw error;
   }
 
