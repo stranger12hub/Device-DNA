@@ -66,11 +66,17 @@ function ViewerBridge({ children }: { children: ReactNode }) {
   const role = getUserRole(metadata);
 
   useEffect(() => {
-    setSupabaseAccessTokenGetter(() =>
-      getToken({
-        template: 'supabase',
-      }),
-    );
+    setSupabaseAccessTokenGetter(async () => {
+      try {
+        return (
+          (await getToken({
+            template: 'supabase',
+          })) ?? (await getToken())
+        );
+      } catch {
+        return getToken();
+      }
+    });
 
     return () => setSupabaseAccessTokenGetter(null);
   }, [getToken]);

@@ -41,6 +41,7 @@ import {
   formatDate,
   formatDateTime,
   ensureProfile,
+  getServiceErrorMessage,
   getDeviceScore,
   getDeviceTimeline,
   getDevicesForUser,
@@ -65,15 +66,6 @@ import type {
 type Viewer = ReturnType<typeof useViewerContext>;
 type DeviceFilter = 'all' | 'phone' | 'laptop';
 type ActivityGroup = 'Today' | 'This week' | 'Earlier';
-type BarcodeDetectorResult = {
-  rawValue?: string;
-};
-type BarcodeDetectorInstance = {
-  detect: (source: HTMLVideoElement) => Promise<BarcodeDetectorResult[]>;
-};
-type BarcodeDetectorConstructor = new (options?: {
-  formats?: string[];
-}) => BarcodeDetectorInstance;
 
 const navItems = [
   { label: 'Home', href: '/', icon: Home },
@@ -146,6 +138,30 @@ const scoreFactors: {
     label: 'Warranty evidence',
     weight: 15,
     note: 'Evidence and active warranties improve transparency.',
+  },
+];
+
+const audienceTabs = [
+  {
+    label: 'YOUR DEVICE',
+    title: "Don't explain the last repair from memory.",
+    body: 'Open previous repairs. Find recorded warranty details. Share the history when selling.',
+    cta: 'Register device',
+    href: '/register',
+  },
+  {
+    label: 'FOR TECHNICIANS',
+    title: 'Know what came before. Show what you fixed.',
+    body: 'Review previous repair records. Document replaced parts. Give customers a clear record of your work.',
+    cta: 'Scan device QR',
+    href: '/scan',
+  },
+  {
+    label: 'BUYING USED',
+    title: "A clean screen doesn't tell you what's been repaired.",
+    body: 'See recorded part replacements. Look for repeated faults. Ask better questions before buying.',
+    cta: 'Check device history',
+    href: '/scan',
   },
 ];
 
@@ -265,84 +281,54 @@ function isActive(pathname: string, href: string) {
 
 export function HomePage() {
   const viewer = useViewer();
-  const [devices, setDevices] = useState<Device[]>([]);
-
-  useEffect(() => {
-    if (!viewer.signedIn || !viewer.id) return;
-    getDevicesForUser(viewer.id).then(setDevices).catch(() => setDevices([]));
-  }, [viewer.id, viewer.signedIn]);
 
   return (
     <AppShell>
-      <section className="relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.06] p-5 shadow-2xl shadow-black/30 backdrop-blur-2xl md:p-8">
-        <div className="absolute left-1/2 top-10 h-80 w-80 -translate-x-1/2 rounded-full bg-device-blue/20 blur-3xl" />
+      <section className="relative min-h-[calc(100vh-160px)] overflow-hidden rounded-2xl border border-white/10 bg-white/[0.06] p-5 shadow-2xl shadow-black/30 backdrop-blur-2xl md:p-8">
+        <div className="absolute left-1/2 top-8 h-[28rem] w-[28rem] -translate-x-1/2 rounded-full bg-device-blue/20 blur-3xl" />
+        <div className="absolute right-0 top-20 h-72 w-72 rounded-full bg-device-cyan/10 blur-3xl" />
         <div className="relative flex items-center justify-between gap-4">
           <LogoMark light />
           <AuthCluster viewer={viewer} />
         </div>
-        <div className="relative grid gap-8 py-12 md:grid-cols-[1.05fr_0.95fr] md:items-end md:py-16">
+        <div className="relative flex max-w-5xl flex-col justify-end py-16 md:min-h-[620px] md:py-20">
           <motion.div
             initial={{ opacity: 0, y: 18 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.34 }}
           >
-            <span className="inline-flex rounded-full border border-cyan-300/20 bg-cyan-300/10 px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-cyan-100">
-              Repair history that survives resale
-            </span>
-            <h1 className="mt-5 max-w-5xl text-5xl font-black leading-[0.98] tracking-tight text-white md:text-7xl">
-              Your device gets a permanent, scannable identity.
+            <h1 className="max-w-5xl text-5xl font-black leading-[0.96] text-white md:text-8xl">
+              What happened to this device?
             </h1>
+            <p className="mt-5 max-w-2xl text-3xl font-black leading-tight text-white/88 md:text-5xl">
+              Don't lose the answer after a repair.
+            </p>
             <p className="mt-5 max-w-2xl text-base leading-8 text-white/68 md:text-lg">
-              Device DNA links registration, QR passports, technician records,
-              OTP owner approval, health scoring, and AI market value into one
-              trusted timeline.
+              Keep repairs, replaced parts, and repair warranties in one digital passport.
             </p>
             <div className="mt-7 flex flex-wrap gap-3">
               <PrimaryButton href="/register">
                 Register device <ArrowRight size={18} />
               </PrimaryButton>
               <GlassButton href="/scan">
-                Scan passport <QrCode size={18} />
+                Scan QR <QrCode size={18} />
               </GlassButton>
             </div>
+            <p className="mt-5 text-sm font-black uppercase tracking-[0.18em] text-white/46">
+              For phones and laptops
+            </p>
           </motion.div>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <QuickTile icon={<Plus />} title="Register" body="Phone or laptop identity is locked from day one." tone="blue" />
-            <QuickTile icon={<QrCode />} title="QR" body="A public passport opens from any scan." tone="cyan" />
-            <QuickTile icon={<Wrench />} title="Technician" body="Credibility grows with verified names on records." tone="amber" />
-            <QuickTile icon={<LockKeyhole />} title="Permanent" body="Approved records enter read-only public history." tone="green" />
-          </div>
         </div>
       </section>
 
-      <section className="mt-5 grid gap-4 lg:grid-cols-[0.95fr_1.05fr]">
-        <GlassPanel>
-          <SectionKicker>How it works</SectionKicker>
-          <h2 className="mt-3 text-3xl font-black text-white md:text-4xl">
-            Register, QR, scan, permanent history.
-          </h2>
-          <p className="mt-3 text-sm leading-7 text-white/62">
-            Owners register the device and share a QR passport. Technicians scan
-            the device, submit a repair, and the owner approves by OTP before the
-            record becomes public.
-          </p>
-        </GlassPanel>
-        <GlassPanel>
-          <SectionKicker>Role entry</SectionKicker>
-          <div className="mt-3 grid gap-3 md:grid-cols-2">
-            <RoleCard title="Owner" body="Register devices, approve pending repairs, and share passports." href="/devices" />
-            <RoleCard title="Technician" body="Scan devices, submit locked repair records, and build trust." href="/scan" />
-          </div>
-        </GlassPanel>
+      <section className="mx-auto mt-12 max-w-5xl py-8 md:mt-16">
+        <p className="text-3xl font-black leading-tight text-white md:text-6xl">
+          The next repair shouldn't start from memory. Register your device. Get its QR. Build its repair history.
+        </p>
       </section>
 
-      {viewer.signedIn && devices.length === 0 && <FirstLoginGuide />}
-      {viewer.signedIn && devices.length > 0 && (
-        <section className="mt-6">
-          <HeaderBlock eyebrow="Continue" title="Recent devices" action={<GlassButton href="/devices">View all</GlassButton>} />
-          <DeviceGrid devices={devices.slice(0, 3)} />
-        </section>
-      )}
+      <AudienceTabs />
+      <TrustLimits />
     </AppShell>
   );
 }
@@ -395,6 +381,74 @@ function RoleCard({ title, body, href }: { title: string; body: string; href: st
         Enter <ChevronRight className="transition group-hover:translate-x-1" size={16} />
       </span>
     </Link>
+  );
+}
+
+function AudienceTabs() {
+  const [active, setActive] = useState(0);
+  const current = audienceTabs[active];
+
+  return (
+    <section className="relative mt-10 overflow-hidden rounded-2xl border border-white/10 bg-white/[0.07] p-4 shadow-2xl shadow-black/30 backdrop-blur-2xl md:p-6">
+      <div className="absolute left-1/2 top-0 h-80 w-80 -translate-x-1/2 rounded-full bg-device-blue/15 blur-3xl" />
+      <div className="relative grid gap-5 lg:grid-cols-[0.42fr_0.58fr] lg:items-stretch">
+        <div className="grid gap-2 lg:auto-rows-fr">
+          {audienceTabs.map((tab, index) => (
+            <button
+              key={tab.label}
+              type="button"
+              onClick={() => setActive(index)}
+              className={`rounded-2xl border p-4 text-left transition ${
+                active === index
+                  ? 'border-cyan-300/40 bg-cyan-300/10 text-white'
+                  : 'border-white/10 bg-black/10 text-white/58 hover:bg-white/[0.06] hover:text-white'
+              }`}
+            >
+              <span className="text-xs font-black tracking-[0.18em]">{tab.label}</span>
+              <span className="mt-3 block text-lg font-black leading-tight">{tab.title}</span>
+            </button>
+          ))}
+        </div>
+        <motion.div
+          key={current.label}
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.22 }}
+          className="relative flex min-h-[360px] flex-col justify-between rounded-2xl border border-white/10 bg-[#090E1A]/82 p-5 md:p-7"
+        >
+          <div>
+            <p className="text-xs font-black tracking-[0.2em] text-cyan-100/82">{current.label}</p>
+            <h2 className="mt-5 max-w-2xl text-4xl font-black leading-tight text-white md:text-6xl">
+              {current.title}
+            </h2>
+            <p className="mt-5 max-w-xl text-base leading-8 text-white/64 md:text-lg">
+              {current.body}
+            </p>
+          </div>
+          <div className="mt-8">
+            <PrimaryButton href={current.href}>
+              {current.cta} <ArrowRight size={18} />
+            </PrimaryButton>
+          </div>
+        </motion.div>
+      </div>
+    </section>
+  );
+}
+
+function TrustLimits() {
+  return (
+    <section className="mx-auto mt-14 max-w-4xl border-t border-white/10 py-10 md:mt-20">
+      <h2 className="text-2xl font-black leading-tight text-white/80 md:text-4xl">
+        See the record. Know its limits.
+      </h2>
+      <p className="mt-5 text-base leading-8 text-white/52">
+        Each repair shows who submitted it.
+      </p>
+      <p className="mt-3 text-sm leading-7 text-white/42 md:text-base">
+        Records may be incomplete or inaccurate. A device passport helps you understand the recorded history—it does not replace a physical inspection.
+      </p>
+    </section>
   );
 }
 
@@ -965,11 +1019,9 @@ export function ScanPage() {
 
 function ScanContent() {
   const router = useRouter();
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const streamRef = useRef<MediaStream | null>(null);
-  const scanLoopRef = useRef<number | null>(null);
+  const scannerRef = useRef<{ stop: () => Promise<void>; clear: () => void } | null>(null);
   const [query, setQuery] = useState('');
-  const [state, setState] = useState<'ready' | 'camera' | 'found' | 'missing' | 'invalid' | 'unsupported'>('ready');
+  const [state, setState] = useState<'ready' | 'camera' | 'found' | 'missing' | 'invalid'>('ready');
   const [cameraError, setCameraError] = useState('');
 
   async function find(value = query) {
@@ -990,74 +1042,47 @@ function ScanContent() {
   async function startCamera() {
     setCameraError('');
     setState('camera');
-
-    if (!('BarcodeDetector' in window)) {
-      setState('unsupported');
-      setCameraError('QR scanning is not supported in this browser. Use manual entry below.');
-      return;
-    }
-
     try {
-      stopCamera();
-
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: { ideal: 'environment' },
+      await stopCamera();
+      const { Html5Qrcode } = await import('html5-qrcode');
+      const scanner = new Html5Qrcode('device-dna-scanner');
+      scannerRef.current = scanner;
+      await scanner.start(
+        { facingMode: 'environment' },
+        {
+          fps: 10,
+          qrbox: { width: 240, height: 240 },
+          aspectRatio: 1,
         },
-        audio: false,
-      });
-      const video = videoRef.current;
-
-      if (!video) {
-        throw new Error('Video element unavailable');
-      }
-
-      streamRef.current = stream;
-      video.srcObject = stream;
-      await video.play();
-
-      const Detector = window.BarcodeDetector as BarcodeDetectorConstructor;
-      const detector = new Detector({ formats: ['qr_code'] });
-
-      const tick = async () => {
-        if (!videoRef.current || !streamRef.current) {
-          return;
-        }
-
-        try {
-          const codes = await detector.detect(videoRef.current);
-          const rawValue = codes[0]?.rawValue;
-
-          if (rawValue) {
-            stopCamera();
-            await find(rawValue);
-            return;
-          }
-        } catch {
-          setCameraError('Could not read the camera frame. Try manual entry.');
-        }
-
-        scanLoopRef.current = window.requestAnimationFrame(tick);
-      };
-
-      scanLoopRef.current = window.requestAnimationFrame(tick);
-    } catch {
-      setCameraError('Camera could not start. Check browser permission or use manual entry.');
+        async (decodedText: string) => {
+          await stopCamera();
+          await find(decodedText);
+        },
+        () => undefined,
+      );
+    } catch (error) {
+      await stopCamera();
+      setCameraError(`Camera could not start. ${getServiceErrorMessage(error)} Use manual entry below.`);
       setState('ready');
     }
   }
 
-  function stopCamera() {
-    if (scanLoopRef.current !== null) {
-      window.cancelAnimationFrame(scanLoopRef.current);
-      scanLoopRef.current = null;
-    }
+  async function stopCamera() {
+    const scanner = scannerRef.current;
+    scannerRef.current = null;
 
-    streamRef.current?.getTracks().forEach((track) => track.stop());
-    streamRef.current = null;
+    if (scanner) {
+      try {
+        await scanner.stop();
+      } catch {
+        // Already stopped.
+      }
 
-    if (videoRef.current) {
-      videoRef.current.srcObject = null;
+      try {
+        await scanner.clear();
+      } catch {
+        // Already cleared.
+      }
     }
 
     if (state === 'camera') {
@@ -1066,7 +1091,7 @@ function ScanContent() {
   }
 
   useEffect(() => () => {
-    stopCamera();
+    void stopCamera();
   }, []);
 
   return (
@@ -1084,7 +1109,7 @@ function ScanContent() {
             <Badge tone={state === 'found' ? 'approved' : state === 'missing' ? 'danger' : 'neutral'}>{state}</Badge>
           </div>
           <div className="relative mx-auto mt-8 grid h-72 w-full max-w-sm place-items-center overflow-hidden rounded-2xl border border-white/12 bg-black/24">
-            <video ref={videoRef} muted playsInline className="absolute inset-0 h-full w-full object-cover" />
+            <div id="device-dna-scanner" className="absolute inset-0 [&_video]:h-full [&_video]:w-full [&_video]:object-cover" />
             <div className="pointer-events-none absolute inset-8 rounded-2xl border border-cyan-200/50">
               <div className="scanner-line absolute left-5 right-5 top-8 h-px bg-cyan-200" />
             </div>
@@ -1547,7 +1572,7 @@ function pretty(value: string) {
 }
 
 function getRegistrationErrorMessage(error: unknown) {
-  const message = error instanceof Error ? error.message : String(error);
+  const message = getServiceErrorMessage(error);
   const lower = message.toLowerCase();
 
   if (lower.includes('duplicate') || lower.includes('unique')) {

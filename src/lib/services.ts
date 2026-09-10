@@ -111,6 +111,52 @@ export async function ensureProfile(
   return data;
 }
 
+export function getServiceErrorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  if (typeof error === 'string') {
+    return error;
+  }
+
+  if (error && typeof error === 'object') {
+    const details = error as {
+      message?: unknown;
+      details?: unknown;
+      hint?: unknown;
+      code?: unknown;
+      status?: unknown;
+      name?: unknown;
+    };
+    const parts = [
+      details.message,
+      details.details,
+      details.hint,
+      details.code,
+      details.status,
+      details.name,
+    ]
+      .filter((value): value is string | number => (
+        typeof value === 'string' || typeof value === 'number'
+      ))
+      .map(String)
+      .filter(Boolean);
+
+    if (parts.length) {
+      return parts.join(' ');
+    }
+
+    try {
+      return JSON.stringify(error);
+    } catch {
+      return 'Unknown service error';
+    }
+  }
+
+  return 'Unknown service error';
+}
+
 export async function getDevicesForUser(userId: string): Promise<Device[]> {
   ensureSupabaseConfigured();
 
