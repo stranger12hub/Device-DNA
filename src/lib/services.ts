@@ -8,6 +8,7 @@ import type {
   DocumentRecord,
   Part,
   PartWithWarranty,
+  Profile,
   RepairEventWithParts,
   WarrantyRecord,
 } from '../types/database';
@@ -55,6 +56,54 @@ export type DocumentType = DocumentInsert['doc_type'];
 export type VerifyOtpResult = {
   approved: boolean;
 };
+
+export async function getProfile(userId: string): Promise<Profile | null> {
+  ensureSupabaseConfigured();
+
+  const { data, error } = await supabase
+    .from('profiles')
+    .select()
+    .eq('id', userId)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  return data;
+}
+
+export async function getDevicesForUser(userId: string): Promise<Device[]> {
+  ensureSupabaseConfigured();
+
+  const { data, error } = await supabase
+    .from('devices')
+    .select()
+    .eq('owner_id', userId)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    throw error;
+  }
+
+  return data;
+}
+
+export async function getRecentVisibleDevices(limit = 24): Promise<Device[]> {
+  ensureSupabaseConfigured();
+
+  const { data, error } = await supabase
+    .from('devices')
+    .select()
+    .order('created_at', { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    throw error;
+  }
+
+  return data;
+}
 
 export async function registerDevice(
   data: RegisterDeviceInput,
@@ -190,6 +239,23 @@ export async function getDeviceTimeline(
   return device;
 }
 
+export async function getPublicPassportTimeline(
+  deviceId: string,
+): Promise<DeviceTimeline | null> {
+  const timeline = await getDeviceTimeline(deviceId);
+
+  if (!timeline) {
+    return null;
+  }
+
+  return {
+    ...timeline,
+    repair_events: timeline.repair_events.filter(
+      (event) => event.status === 'approved',
+    ),
+  };
+}
+
 export async function getDeviceScore(
   deviceId: string,
 ): Promise<DeviceScore | null> {
@@ -323,6 +389,63 @@ export async function lookupDeviceBySerial(
   return data;
 }
 
+export async function lookupDevice(query: string): Promise<Device | null> {
+  ensureSupabaseConfigured();
+
+  const clean = query.trim();
+
+  if (!clean) {
+    return null;
+  }
+
+  const { data, error } = await supabase
+    .from('devices')
+    .select()
+    .or(`id.eq.${clean},serial_imei.eq.${clean}`)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  return data;
+}
+
+export function formatCurrency(value: number | null | undefined): string {
+  if (typeof value !== 'number') {
+    return 'Not enough data';
+  }
+
+  return new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',
+    maximumFractionDigits: 0,
+  }).format(value);
+}
+
+export function formatDate(value: string | null | undefined): string {
+  if (!value) {
+    return 'Not recorded';
+  }
+
+  return new Intl.DateTimeFormat('en-IN', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  }).format(new Date(value));
+}
+
+export function formatDateTime(value: string): string {
+  return new Intl.DateTimeFormat('en-IN', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  }).format(new Date(value));
+}
+
 export type LogRepairPartInput = {
   partName: string;
   isGenuine?: boolean;
@@ -444,7 +567,7 @@ function toDateOnly(date: Date): string {
 function ensureSupabaseConfigured() {
   if (!isSupabaseConfigured) {
     throw new Error(
-      'Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY. Add them to .env and restart Vite.',
+      'Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY. Add them to .env and restart Next.js.',
     );
   }
 }

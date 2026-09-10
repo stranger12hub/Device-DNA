@@ -1,3 +1,5 @@
-import RolePage from './role/page';
+import { HomePage } from '@/components/device-dna';
 
-export default RolePage;
+export default function Page() {
+  return <HomePage />;
+}
