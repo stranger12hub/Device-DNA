@@ -12,7 +12,6 @@ import {
   Activity,
   ArrowRight,
   BadgeCheck,
-  Camera,
   ChevronRight,
   CircleUserRound,
   Clock3,
@@ -30,7 +29,6 @@ import {
   ShieldCheck,
   Smartphone,
   Sparkles,
-  StopCircle,
   Wrench,
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
@@ -590,7 +588,6 @@ function RegisterContent() {
     setBusy(true);
     setError('');
     try {
-      await ensureProfile(viewer.id, 'owner', viewer.name);
       const device = await registerDevice({
         owner_id: viewer.id,
         device_type: type,
@@ -1019,10 +1016,10 @@ export function ScanPage() {
 
 function ScanContent() {
   const router = useRouter();
-  const scannerRef = useRef<{ stop: () => Promise<void>; clear: () => void } | null>(null);
+  const scannerRef = useRef<{ clear: () => Promise<void> } | null>(null);
   const [query, setQuery] = useState('');
-  const [state, setState] = useState<'ready' | 'camera' | 'found' | 'missing' | 'invalid'>('ready');
-  const [cameraError, setCameraError] = useState('');
+  const [state, setState] = useState<'scanner' | 'found' | 'missing' | 'invalid'>('scanner');
+  const [scannerError, setScannerError] = useState('');
 
   async function find(value = query) {
     const parsed = parseDeviceCode(value);
@@ -1039,59 +1036,63 @@ function ScanContent() {
     router.push(`/passport/${device.id}`);
   }
 
-  async function startCamera() {
-    setCameraError('');
-    setState('camera');
-    try {
-      await stopCamera();
-      const { Html5Qrcode } = await import('html5-qrcode');
-      const scanner = new Html5Qrcode('device-dna-scanner');
-      scannerRef.current = scanner;
-      await scanner.start(
-        { facingMode: 'environment' },
-        {
-          fps: 10,
-          qrbox: { width: 240, height: 240 },
-          aspectRatio: 1,
-        },
-        async (decodedText: string) => {
-          await stopCamera();
-          await find(decodedText);
-        },
-        () => undefined,
-      );
-    } catch (error) {
-      await stopCamera();
-      setCameraError(`Camera could not start. ${getServiceErrorMessage(error)} Use manual entry below.`);
-      setState('ready');
-    }
-  }
-
-  async function stopCamera() {
+  async function clearScanner() {
     const scanner = scannerRef.current;
     scannerRef.current = null;
 
     if (scanner) {
-      try {
-        await scanner.stop();
-      } catch {
-        // Already stopped.
-      }
-
       try {
         await scanner.clear();
       } catch {
         // Already cleared.
       }
     }
-
-    if (state === 'camera') {
-      setState('ready');
-    }
   }
 
-  useEffect(() => () => {
-    void stopCamera();
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadScanner() {
+      setScannerError('');
+
+      try {
+        await clearScanner();
+        const { Html5QrcodeScanner } = await import('html5-qrcode');
+
+        if (cancelled) {
+          return;
+        }
+
+        const scanner = new Html5QrcodeScanner(
+          'device-dna-scanner',
+          {
+            fps: 10,
+            qrbox: { width: 250, height: 250 },
+            rememberLastUsedCamera: true,
+          },
+          false,
+        );
+
+        scannerRef.current = scanner;
+        scanner.render(
+          async (decodedText: string) => {
+            await clearScanner();
+            await find(decodedText);
+          },
+          () => undefined,
+        );
+        setState('scanner');
+      } catch (error) {
+        setScannerError(`Scanner could not open. ${getServiceErrorMessage(error)}`);
+      }
+    }
+
+    void loadScanner();
+
+    return () => {
+      cancelled = true;
+      void clearScanner();
+    };
   }, []);
 
   return (
@@ -1102,39 +1103,24 @@ function ScanContent() {
         description="Use the camera or manual Device DNA ID entry. Results open as public read-only passports."
       />
       <div className="grid gap-5 lg:grid-cols-[1fr_390px]">
-        <section className="relative min-h-[460px] overflow-hidden rounded-2xl border border-white/10 bg-white/[0.07] p-5 shadow-2xl shadow-black/30 backdrop-blur-2xl">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_10%,rgba(56,189,248,0.18),transparent_42%)]" />
-          <div className="relative flex items-center justify-between">
+        <section className="rounded-2xl border border-white/10 bg-white/[0.07] p-4 shadow-2xl shadow-black/30 backdrop-blur-2xl md:p-5">
+          <div className="mb-4 flex items-center justify-between">
             <LogoMark compact light />
             <Badge tone={state === 'found' ? 'approved' : state === 'missing' ? 'danger' : 'neutral'}>{state}</Badge>
           </div>
-          <div className="relative mx-auto mt-8 grid h-72 w-full max-w-sm place-items-center overflow-hidden rounded-2xl border border-white/12 bg-black/24">
-            <div id="device-dna-scanner" className="absolute inset-0 [&_video]:h-full [&_video]:w-full [&_video]:object-cover" />
-            <div className="pointer-events-none absolute inset-8 rounded-2xl border border-cyan-200/50">
-              <div className="scanner-line absolute left-5 right-5 top-8 h-px bg-cyan-200" />
-            </div>
-            {state !== 'camera' && (
-              <div className="text-center text-white/60">
-                <Camera className="mx-auto mb-3" />
-                Camera scanner ready
-              </div>
-            )}
+          <div className="normal-qr-scanner rounded-xl border border-white/10 bg-white p-3 text-device-midnight">
+            <div id="device-dna-scanner" />
           </div>
+          {scannerError && <p className="mt-3 text-sm font-bold text-amber-100">{scannerError}</p>}
         </section>
         <GlassPanel>
           <h2 className="text-2xl font-black text-white">Manual fallback</h2>
           <p className="mt-2 text-sm leading-7 text-white/60">Paste a public passport URL, device ID, serial, or IMEI.</p>
           <div className="mt-5 space-y-3">
             <Field label="Device DNA ID or passport link"><Input value={query} onChange={(event) => setQuery(event.target.value)} /></Field>
-            {cameraError && <p className="text-sm font-bold text-amber-100">{cameraError}</p>}
             {state === 'missing' && <p className="text-sm font-bold text-red-300">No device found.</p>}
             {state === 'invalid' && <p className="text-sm font-bold text-red-300">Enter a valid code or link.</p>}
             <PrimaryButton onClick={() => find()}>Find device</PrimaryButton>
-            {state === 'camera' ? (
-              <GlassButton onClick={stopCamera}><StopCircle size={17} /> Stop camera</GlassButton>
-            ) : (
-              <GlassButton onClick={startCamera}><Camera size={17} /> Start camera</GlassButton>
-            )}
           </div>
         </GlassPanel>
       </div>

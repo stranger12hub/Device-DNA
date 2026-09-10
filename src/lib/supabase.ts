@@ -20,3 +20,7 @@ export function setSupabaseAccessTokenGetter(
 ) {
   clerkAccessTokenGetter = getter;
 }
+
+export async function getClerkAccessToken(): Promise<string | null> {
+  return clerkAccessTokenGetter?.() ?? null;
+}

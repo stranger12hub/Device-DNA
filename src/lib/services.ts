@@ -1,4 +1,4 @@
-import { isSupabaseConfigured, supabase } from './supabase';
+import { getClerkAccessToken, isSupabaseConfigured, supabase } from './supabase';
 import type {
   Database,
   Device,
@@ -57,6 +57,12 @@ export type SubmitRepairRecordInput = {
 export type DocumentType = DocumentInsert['doc_type'];
 export type VerifyOtpResult = {
   approved: boolean;
+};
+
+type RegisterDeviceResponse = {
+  ok: boolean;
+  device?: Device;
+  error?: string;
 };
 
 export async function getProfile(userId: string): Promise<Profile | null> {
@@ -194,25 +200,59 @@ export async function registerDevice(
 ): Promise<Device> {
   ensureSupabaseConfigured();
 
-  const { data: device, error } = await supabase
-    .from('devices')
-    .insert({
-      owner_id: data.owner_id,
+  const { data: response, error } = await supabase.functions.invoke<RegisterDeviceResponse>(
+    'register-device',
+    {
+      body: {
+        device_type: data.device_type,
+        brand: data.brand,
+        model: data.model,
+        serial_imei: data.serial_imei,
+        specs: data.specs ?? {},
+        purchase_date: data.purchase_date ?? null,
+      },
+    },
+  );
+
+  if (!error && response?.ok && response.device) {
+    return response.device;
+  }
+
+  return registerDeviceViaApi(data, response?.error || error);
+}
+
+async function registerDeviceViaApi(
+  data: RegisterDeviceInput,
+  originalError?: unknown,
+): Promise<Device> {
+  const token = await getClerkAccessToken();
+
+  if (!token) {
+    throw originalError ?? new Error('Sign in again and retry registration');
+  }
+
+  const response = await fetch('/api/register-device', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
       device_type: data.device_type,
       brand: data.brand,
       model: data.model,
       serial_imei: data.serial_imei,
       specs: data.specs ?? {},
       purchase_date: data.purchase_date ?? null,
-    })
-    .select()
-    .single();
+    }),
+  });
+  const body = (await response.json().catch(() => ({}))) as RegisterDeviceResponse;
 
-  if (error) {
-    throw error;
+  if (!response.ok || !body.ok || !body.device) {
+    throw new Error(body.error || getServiceErrorMessage(originalError));
   }
 
-  return device;
+  return body.device;
 }
 
 export async function submitRepairRecord(
@@ -254,13 +294,33 @@ export async function submitRepairRecord(
   );
 
   if (approvalError) {
-    console.error('Approval request failed:', approvalError);
+    await requestApprovalViaApi(repairEvent.id).catch((error) => {
+      console.error('Approval request failed:', getServiceErrorMessage(error));
+    });
   }
 
   return {
     ...repairEvent,
     parts: attachWarrantyRecords(parts, warrantyRecords),
   };
+}
+
+async function requestApprovalViaApi(repairEventId: string): Promise<void> {
+  const response = await fetch('/api/request-approval', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ repair_event_id: repairEventId }),
+  });
+  const body = (await response.json().catch(() => ({}))) as {
+    ok?: boolean;
+    error?: string;
+  };
+
+  if (!response.ok || !body.ok) {
+    throw new Error(body.error || 'Could not send approval request');
+  }
 }
 
 export async function verifyOtpAndApprove(

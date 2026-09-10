@@ -1,0 +1,7 @@
+project_id = "ulinfmdcyvjqlqcurmex"
+
+[functions.register-device]
+verify_jwt = false
+
+[functions.request-approval]
+verify_jwt = false
