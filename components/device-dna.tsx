@@ -958,8 +958,8 @@ function RepairSubmissionContent() {
           : [],
       });
       router.push(`/devices/${params.id}`);
-    } catch {
-      setError('Could not submit the record or send the owner OTP email.');
+    } catch (error) {
+      setError(getServiceErrorMessage(error));
     } finally {
       setBusy(false);
     }
@@ -1098,7 +1098,7 @@ function ScanContent() {
       <HeaderBlock
         eyebrow="Scan"
         title="Scan a Device DNA passport."
-        description="Use the camera or manual Device DNA ID entry. Results open as public read-only passports."
+        description="Use the camera, upload a QR image, or enter a Device DNA ID manually. Results open as public read-only passports."
       />
       <div className="grid gap-5 lg:grid-cols-[1fr_390px]">
         <section className="rounded-2xl border border-white/10 bg-white/[0.07] p-4 shadow-2xl shadow-black/30 backdrop-blur-2xl md:p-5">
@@ -1112,7 +1112,7 @@ function ScanContent() {
           {scannerError && <p className="mt-3 text-sm font-bold text-amber-100">{scannerError}</p>}
         </section>
         <GlassPanel>
-          <h2 className="text-2xl font-black text-white">Manual fallback</h2>
+          <h2 className="text-2xl font-black text-white">Manual lookup</h2>
           <p className="mt-2 text-sm leading-7 text-white/60">Paste a public passport URL, device ID, serial, or IMEI.</p>
           <div className="mt-5 space-y-3">
             <Field label="Device DNA ID or passport link"><Input value={query} onChange={(event) => setQuery(event.target.value)} /></Field>
