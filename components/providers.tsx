@@ -25,7 +25,7 @@ const guestViewer: ViewerContextValue = {
   role: null,
   name: 'Visitor',
   email: 'No email on account',
-  phone: 'No phone on account',
+  phone: 'Phone number not added',
 };
 
 const ViewerContext = createContext<ViewerContextValue>(guestViewer);
@@ -86,7 +86,7 @@ function ViewerBridge({ children }: { children: ReactNode }) {
     role: null,
     name: user?.fullName ?? user?.username ?? 'Device DNA user',
     email: user?.primaryEmailAddress?.emailAddress ?? 'No email on account',
-    phone: user?.primaryPhoneNumber?.phoneNumber ?? 'No phone on account',
+    phone: user?.primaryPhoneNumber?.phoneNumber ?? 'Phone number not added',
     imageUrl: user?.imageUrl,
   };
 

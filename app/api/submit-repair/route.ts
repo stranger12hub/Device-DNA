@@ -167,11 +167,11 @@ async function ensureProfile(
   supabase: ReturnType<typeof getServiceClient>,
   { id, displayName }: { id: string; displayName?: string | null },
 ) {
-  const { error } = await supabase
+    const { error } = await supabase
     .from('profiles')
     .insert({
       id,
-      role: 'owner',
+      role: 'technician',
       display_name: displayName?.trim() || null,
     });
 

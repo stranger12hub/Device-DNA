@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createHash, randomInt } from 'node:crypto';
-import nodemailer from 'nodemailer';
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from '@/src/types/database';
 
@@ -185,96 +184,28 @@ async function sendApprovalEmail({
   technicianName: string;
   deviceName: string;
 }) {
-  const from = process.env.GMAIL_ADDRESS;
-  const password = process.env.GMAIL_APP_PASSWORD;
+  const webhookUrl = process.env.N8N_APPROVAL_WEBHOOK_URL;
 
-  if (!from || !password) {
-    throw new Error('Missing Gmail SMTP configuration');
+  if (!webhookUrl) {
+    throw new Error('Missing N8N_APPROVAL_WEBHOOK_URL');
   }
 
-  const transport = nodemailer.createTransport({
-    host: 'smtp.gmail.com',
-    port: 465,
-    secure: true,
-    auth: {
-      user: from,
-      pass: password,
+  const response = await fetch(webhookUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
     },
+    body: JSON.stringify({
+      to,
+      otp,
+      technicianName,
+      deviceName,
+    }),
   });
 
-  await transport.sendMail({
-    from,
-    to,
-    subject: 'Approve your Device DNA repair record',
-    text: [
-      `Your Device DNA approval code is ${otp}.`,
-      `${technicianName} submitted a pending repair record for ${deviceName}.`,
-      `This code expires in ${OTP_EXPIRY_MINUTES} minutes.`,
-    ].join('\n'),
-    html: renderEmail({ otp, technicianName, deviceName }),
-  });
-}
-
-function renderEmail({
-  otp,
-  technicianName,
-  deviceName,
-}: {
-  otp: string;
-  technicianName: string;
-  deviceName: string;
-}) {
-  return `<!doctype html>
-<html lang="en">
-  <body style="margin:0;background:#F6F8FC;color:#111827;font-family:Arial,Helvetica,sans-serif;">
-    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#F6F8FC;margin:0;padding:32px 16px;">
-      <tr>
-        <td align="center">
-          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:560px;background:#ffffff;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;">
-            <tr>
-              <td style="padding:24px 28px;border-top:4px solid #2764FF;">
-                <p style="margin:0 0 8px;color:#2764FF;font-size:13px;font-weight:700;text-transform:uppercase;">Device DNA</p>
-                <h1 style="margin:0;color:#111827;font-size:24px;line-height:1.25;font-weight:700;">Approve repair record</h1>
-                <p style="margin:16px 0 0;color:#374151;font-size:15px;line-height:1.6;">
-                  ${escapeHtml(technicianName)} submitted a pending repair record for <strong>${escapeHtml(deviceName)}</strong>.
-                </p>
-                <div style="margin:24px 0;padding:20px;border:1px solid #dbe4ff;background:#F6F8FC;border-radius:8px;text-align:center;">
-                  <p style="margin:0 0 8px;color:#4b5563;font-size:13px;font-weight:700;text-transform:uppercase;">Approval OTP</p>
-                  <p style="margin:0;color:#2764FF;font-size:36px;line-height:1;font-weight:800;letter-spacing:8px;">${otp}</p>
-                </div>
-                <p style="margin:0;color:#111827;font-size:15px;line-height:1.6;font-weight:700;">
-                  This OTP expires in ${OTP_EXPIRY_MINUTES} minutes.
-                </p>
-                <p style="margin:16px 0 0;color:#6b7280;font-size:13px;line-height:1.6;">
-                  If you did not expect this request, ignore this email and do not share the OTP.
-                </p>
-              </td>
-            </tr>
-          </table>
-        </td>
-      </tr>
-    </table>
-  </body>
-</html>`;
-}
-
-function escapeHtml(value: string): string {
-  return value.replace(/[&<>"']/g, (character) => {
-    switch (character) {
-      case '&':
-        return '&amp;';
-      case '<':
-        return '&lt;';
-      case '>':
-        return '&gt;';
-      case '"':
-        return '&quot;';
-      case "'":
-        return '&#39;';
-      default:
-        return character;
-    }
-  });
+  if (!response.ok) {
+    throw new Error(`n8n webhook failed with ${response.status}`);
+  }
 }
 
 function json(body: { ok: boolean; error?: string }, status: number) {

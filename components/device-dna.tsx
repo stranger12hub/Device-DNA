@@ -12,6 +12,7 @@ import {
   Activity,
   ArrowRight,
   BadgeCheck,
+  Camera,
   ChevronRight,
   CircleUserRound,
   Clock3,
@@ -29,6 +30,7 @@ import {
   ShieldCheck,
   Smartphone,
   Sparkles,
+  Upload,
   Wrench,
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
@@ -191,8 +193,8 @@ function useViewer(): Viewer {
 export function AppShell({ children, publicMode = false }: { children: React.ReactNode; publicMode?: boolean }) {
   return (
     <div className="min-h-screen overflow-hidden bg-[#050712] text-white">
-      <div className="fixed inset-0 -z-10 bg-[radial-gradient(circle_at_20%_0%,rgba(39,100,255,0.28),transparent_32%),radial-gradient(circle_at_82%_18%,rgba(56,189,248,0.18),transparent_28%),linear-gradient(155deg,#101A34_0%,#080B11_46%,#03040A_100%)]" />
-      <div className="fixed inset-x-0 top-0 -z-10 h-72 bg-[radial-gradient(circle_at_center,rgba(39,100,255,0.22),transparent_60%)] blur-2xl" />
+      <div className="fixed inset-0 -z-10 bg-device-midnight" />
+      <div className="fixed inset-x-0 top-0 -z-10 h-72 bg-[radial-gradient(circle_at_center,rgba(39,100,255,0.12),transparent_62%)]" />
       {!publicMode && <DesktopRail />}
       <main className={`mx-auto min-h-screen w-full max-w-[1440px] px-4 pb-28 pt-5 ${publicMode ? 'md:px-6' : 'md:pl-28 md:pr-6 md:pt-6'}`}>
         {children}
@@ -281,27 +283,23 @@ export function HomePage() {
 
   return (
     <AppShell>
-      <section className="relative min-h-[calc(100vh-160px)] overflow-hidden rounded-2xl border border-white/10 bg-white/[0.06] p-5 shadow-2xl shadow-black/30 backdrop-blur-2xl md:p-8">
-        <div className="absolute left-1/2 top-8 h-[28rem] w-[28rem] -translate-x-1/2 rounded-full bg-device-blue/20 blur-3xl" />
-        <div className="absolute right-0 top-20 h-72 w-72 rounded-full bg-device-cyan/10 blur-3xl" />
-        <div className="relative flex items-center justify-between gap-4">
+      <section className="rounded-2xl border border-white/10 bg-white/[0.06] p-5 shadow-xl shadow-black/20 backdrop-blur-xl md:p-8">
+        <div className="flex items-center justify-between gap-4">
           <LogoMark light />
           <AuthCluster viewer={viewer} />
         </div>
-        <div className="relative flex max-w-5xl flex-col justify-end py-16 md:min-h-[620px] md:py-20">
+        <div className="grid gap-8 py-12 lg:grid-cols-[0.9fr_1.1fr] lg:items-end">
           <motion.div
             initial={{ opacity: 0, y: 18 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.34 }}
           >
-            <h1 className="max-w-5xl text-5xl font-black leading-[0.96] text-white md:text-8xl">
-              What happened to this device?
+            <SectionKicker>Device DNA</SectionKicker>
+            <h1 className="mt-4 max-w-3xl text-4xl font-black leading-tight text-white md:text-7xl">
+              The complete history of your device.
             </h1>
-            <p className="mt-5 max-w-2xl text-3xl font-black leading-tight text-white/88 md:text-5xl">
-              Don't lose the answer after a repair.
-            </p>
-            <p className="mt-5 max-w-2xl text-base leading-8 text-white/68 md:text-lg">
-              Keep repairs, replaced parts, and repair warranties in one digital passport.
+            <p className="mt-5 max-w-2xl text-base leading-8 text-white/68">
+              Register a phone or laptop, print its QR passport, let technicians add pending repair records, then approve them with OTP.
             </p>
             <div className="mt-7 flex flex-wrap gap-3">
               <PrimaryButton href="/register">
@@ -315,18 +313,30 @@ export function HomePage() {
               For phones and laptops
             </p>
           </motion.div>
+          <div className="grid gap-3 md:grid-cols-2">
+            <StepCard index="01" icon={<Smartphone />} title="Register identity" body="Add brand, model, serial or IMEI, purchase date, and device type." />
+            <StepCard index="02" icon={<QrCode />} title="Create QR passport" body="Download or print a public link that opens the device history directly." />
+            <StepCard index="03" icon={<Wrench />} title="Log repair" body="Technicians submit pending repair records with part and warranty details." />
+            <StepCard index="04" icon={<ShieldCheck />} title="Approve by OTP" body="Owner confirms the repair before it becomes public history." />
+          </div>
         </div>
       </section>
-
-      <section className="mx-auto mt-12 max-w-5xl py-8 md:mt-16">
-        <p className="text-3xl font-black leading-tight text-white md:text-6xl">
-          The next repair shouldn't start from memory. Register your device. Get its QR. Build its repair history.
-        </p>
-      </section>
-
-      <AudienceTabs />
+      <FirstLoginGuide />
       <TrustLimits />
     </AppShell>
+  );
+}
+
+function StepCard({ index, icon, title, body }: { index: string; icon: React.ReactNode; title: string; body: string }) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-white/[0.07] p-4">
+      <div className="flex items-center justify-between">
+        <IconTile tone="blue">{icon}</IconTile>
+        <span className="font-mono text-xs font-black text-white/36">{index}</span>
+      </div>
+      <h2 className="mt-4 text-xl font-black text-white">{title}</h2>
+      <p className="mt-2 text-sm leading-6 text-white/60">{body}</p>
+    </div>
   );
 }
 
@@ -691,6 +701,7 @@ function DeviceContent() {
   const [score, setScore] = useState<DeviceScore | null>(null);
   const [otp, setOtp] = useState<Record<string, string>>({});
   const [notice, setNotice] = useState('');
+  const [scoreBusy, setScoreBusy] = useState(false);
 
   useEffect(() => {
     loadDevice(params.id, setTimeline, setScore);
@@ -712,6 +723,20 @@ function DeviceContent() {
     await loadDevice(params.id, setTimeline, setScore);
   }
 
+  async function refreshScore() {
+    setScoreBusy(true);
+    setNotice('');
+    try {
+      const nextScore = await recalculateDeviceScore(params.id);
+      setScore(nextScore);
+      setNotice(nextScore ? 'AI score and summary refreshed.' : 'Score could not be generated yet. Add approved repair history or check edge function secrets.');
+    } catch (error) {
+      setNotice(`Score refresh failed: ${getServiceErrorMessage(error)}`);
+    } finally {
+      setScoreBusy(false);
+    }
+  }
+
   if (timeline === undefined) return <AppShell><LoadingGlass title="Loading device timeline" /></AppShell>;
   if (!timeline) return <AppShell><EmptyGlass title="Device not found" body="Scan again or check the Device DNA ID." /></AppShell>;
 
@@ -731,7 +756,14 @@ function DeviceContent() {
             eyebrow="Timeline"
             title="Locked repair history"
             description="Pending repairs are waiting on owner OTP and do not appear on the public passport."
-            action={canAddRepair ? <PrimaryButton href={`/devices/${timeline.id}/repair`}><Wrench size={17} /> Add repair</PrimaryButton> : null}
+            action={
+              <div className="flex flex-wrap gap-2">
+                <GlassButton disabled={scoreBusy} onClick={refreshScore}>
+                  <Sparkles size={17} /> {scoreBusy ? 'Scoring...' : 'Refresh AI score'}
+                </GlassButton>
+                {canAddRepair ? <PrimaryButton href={`/devices/${timeline.id}/repair`}><Wrench size={17} /> Add repair</PrimaryButton> : null}
+              </div>
+            }
           />
           {notice && <AlertGlass title="Approval update">{notice}</AlertGlass>}
           <RepairTimeline
@@ -977,9 +1009,9 @@ function RepairSubmissionContent() {
           This creates a locked pending record. The owner must approve with OTP before it becomes public.
         </AlertGlass>
         <div className="grid gap-4">
-          <Field label="Symptoms"><Textarea value={form.symptom} onChange={(event) => setForm({ ...form, symptom: event.target.value })} /></Field>
-          <Field label="Diagnosis"><Textarea value={form.diagnosis} onChange={(event) => setForm({ ...form, diagnosis: event.target.value })} /></Field>
-          <Field label="Action taken"><Textarea value={form.actionTaken} onChange={(event) => setForm({ ...form, actionTaken: event.target.value })} /></Field>
+          <Field label="Symptoms"><Textarea value={form.symptom} onChange={(event) => setForm({ ...form, symptom: event.target.value })} placeholder="Example: Phone charges only at an angle; customer reports intermittent fast charging." /></Field>
+          <Field label="Diagnosis"><Textarea value={form.diagnosis} onChange={(event) => setForm({ ...form, diagnosis: event.target.value })} placeholder="Example: Charging connector pins worn; no motherboard damage found during inspection." /></Field>
+          <Field label="Action taken"><Textarea value={form.actionTaken} onChange={(event) => setForm({ ...form, actionTaken: event.target.value })} placeholder="Example: Replaced charging assembly, cleaned connector path, tested fast charging and data transfer." /></Field>
           <div className="grid gap-4 md:grid-cols-2">
             <Field label="Component">
               <Select value={form.componentName} onChange={(event) => setForm({ ...form, componentName: event.target.value as ComponentName })}>
@@ -991,11 +1023,11 @@ function RepairSubmissionContent() {
                 {partTypes.map((option) => <option key={option} value={option}>{pretty(option)}</option>)}
               </Select>
             </Field>
-            <Field label="Part number"><Input value={form.partNumber} onChange={(event) => setForm({ ...form, partNumber: event.target.value })} /></Field>
-            <Field label="Supplier"><Input value={form.supplier} onChange={(event) => setForm({ ...form, supplier: event.target.value })} /></Field>
-            <Field label="Part cost"><Input type="number" min="0" value={form.partCost} onChange={(event) => setForm({ ...form, partCost: event.target.value })} /></Field>
-            <Field label="Warranty days"><Input type="number" min="0" value={form.warrantyDays} onChange={(event) => setForm({ ...form, warrantyDays: event.target.value })} /></Field>
-            <Field label="Service cost"><Input type="number" min="0" value={form.serviceCost} onChange={(event) => setForm({ ...form, serviceCost: event.target.value })} /></Field>
+            <Field label="Part number"><Input value={form.partNumber} onChange={(event) => setForm({ ...form, partNumber: event.target.value })} placeholder="Example: GH96-16522A or supplier SKU" /></Field>
+            <Field label="Supplier"><Input value={form.supplier} onChange={(event) => setForm({ ...form, supplier: event.target.value })} placeholder="Example: Metro Device Care stock" /></Field>
+            <Field label="Part cost"><Input type="number" min="0" value={form.partCost} onChange={(event) => setForm({ ...form, partCost: event.target.value })} placeholder="Example: 1450" /></Field>
+            <Field label="Warranty days"><Input type="number" min="0" value={form.warrantyDays} onChange={(event) => setForm({ ...form, warrantyDays: event.target.value })} placeholder="Example: 90" /></Field>
+            <Field label="Service cost"><Input type="number" min="0" value={form.serviceCost} onChange={(event) => setForm({ ...form, serviceCost: event.target.value })} placeholder="Example: 2300" /></Field>
           </div>
           {error && <p className="text-sm font-black text-red-300">{error}</p>}
           <div className="flex flex-wrap gap-3">
@@ -1014,9 +1046,10 @@ export function ScanPage() {
 
 function ScanContent() {
   const router = useRouter();
-  const scannerRef = useRef<{ clear: () => Promise<void> } | null>(null);
+  const scannerRef = useRef<Html5ScannerInstance | null>(null);
+  const scannerRunningRef = useRef(false);
   const [query, setQuery] = useState('');
-  const [state, setState] = useState<'scanner' | 'found' | 'missing' | 'invalid'>('scanner');
+  const [state, setState] = useState<'scanner' | 'found' | 'missing' | 'invalid' | 'camera-off'>('scanner');
   const [scannerError, setScannerError] = useState('');
 
   async function find(value = query) {
@@ -1031,7 +1064,7 @@ function ScanContent() {
       return;
     }
     setState('found');
-    router.push(`/passport/${device.id}`);
+    router.push(`/devices/${device.id}`);
   }
 
   async function clearScanner() {
@@ -1040,10 +1073,31 @@ function ScanContent() {
 
     if (scanner) {
       try {
-        await scanner.clear();
+        if (scannerRunningRef.current) {
+          await scanner.stop();
+        }
       } catch {
-        // Already cleared.
+        // Camera was already stopped.
+      } finally {
+        scannerRunningRef.current = false;
+        scanner.clear();
       }
+    }
+  }
+
+  async function scanUploadedQr(file: File | undefined) {
+    if (!file) return;
+
+    try {
+      await clearScanner();
+      const { Html5Qrcode } = await import('html5-qrcode');
+      const scanner = new Html5Qrcode('device-dna-upload-scanner') as Html5ScannerInstance;
+      const decodedText = await scanner.scanFile(file, true);
+      scanner.clear();
+      await find(decodedText);
+    } catch (error) {
+      setState('invalid');
+      setScannerError(`Could not read that QR image. ${getServiceErrorMessage(error)}`);
     }
   }
 
@@ -1055,33 +1109,56 @@ function ScanContent() {
 
       try {
         await clearScanner();
-        const { Html5QrcodeScanner } = await import('html5-qrcode');
+        const { Html5Qrcode } = await import('html5-qrcode');
 
         if (cancelled) {
           return;
         }
 
-        const scanner = new Html5QrcodeScanner(
-          'device-dna-scanner',
-          {
-            fps: 10,
-            qrbox: { width: 250, height: 250 },
-            rememberLastUsedCamera: true,
-          },
-          false,
-        );
-
+        const scanner = new Html5Qrcode('device-dna-scanner') as Html5ScannerInstance;
         scannerRef.current = scanner;
-        scanner.render(
-          async (decodedText: string) => {
-            await clearScanner();
-            await find(decodedText);
-          },
-          () => undefined,
-        );
+        const config = {
+          fps: 10,
+          qrbox: { width: 240, height: 240 },
+          aspectRatio: 1,
+        };
+        const onSuccess = async (decodedText: string) => {
+          await clearScanner();
+          await find(decodedText);
+        };
+
+        try {
+          await scanner.start(
+            { facingMode: { exact: 'environment' } },
+            config,
+            onSuccess,
+            () => undefined,
+          );
+        } catch {
+          try {
+            await scanner.start(
+              { facingMode: 'environment' },
+              config,
+              onSuccess,
+              () => undefined,
+            );
+          } catch {
+            await scanner.start(
+              { facingMode: undefined },
+              config,
+              onSuccess,
+              () => undefined,
+            );
+          }
+        }
+
+        scannerRunningRef.current = true;
         setState('scanner');
       } catch (error) {
-        setScannerError(`Scanner could not open. ${getServiceErrorMessage(error)}`);
+        setState('camera-off');
+        setScannerError(
+          `Camera could not open. Use manual lookup or upload a QR image. ${getServiceErrorMessage(error)}`,
+        );
       }
     }
 
@@ -1108,6 +1185,7 @@ function ScanContent() {
           </div>
           <div className="normal-qr-scanner rounded-xl border border-white/10 bg-white p-3 text-device-midnight">
             <div id="device-dna-scanner" />
+            <div id="device-dna-upload-scanner" className="hidden" />
           </div>
           {scannerError && <p className="mt-3 text-sm font-bold text-amber-100">{scannerError}</p>}
         </section>
@@ -1115,16 +1193,49 @@ function ScanContent() {
           <h2 className="text-2xl font-black text-white">Manual lookup</h2>
           <p className="mt-2 text-sm leading-7 text-white/60">Paste a public passport URL, device ID, serial, or IMEI.</p>
           <div className="mt-5 space-y-3">
-            <Field label="Device DNA ID or passport link"><Input value={query} onChange={(event) => setQuery(event.target.value)} /></Field>
+            <Field label="Device DNA ID or passport link">
+              <Input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Paste a QR link or enter a serial/IMEI"
+              />
+            </Field>
             {state === 'missing' && <p className="text-sm font-bold text-red-300">No device found.</p>}
             {state === 'invalid' && <p className="text-sm font-bold text-red-300">Enter a valid code or link.</p>}
+            {state === 'camera-off' && <p className="text-sm font-bold text-amber-100">Camera is unavailable. Manual lookup still works.</p>}
             <PrimaryButton onClick={() => find()}>Find device</PrimaryButton>
+            <label className="inline-flex min-h-12 w-full cursor-pointer items-center justify-center gap-2 rounded-full border border-white/10 bg-white/[0.07] px-5 text-sm font-black text-white shadow-lg shadow-black/10 backdrop-blur-xl transition hover:bg-white/[0.11]">
+              <Upload size={16} />
+              Upload QR image
+              <input
+                type="file"
+                accept="image/*"
+                className="sr-only"
+                onChange={(event) => void scanUploadedQr(event.target.files?.[0])}
+              />
+            </label>
           </div>
         </GlassPanel>
       </div>
     </AppShell>
   );
 }
+
+type Html5ScannerInstance = {
+  start: (
+    cameraConfig: string | MediaTrackConstraints,
+    configuration: {
+      fps: number;
+      qrbox: { width: number; height: number };
+      aspectRatio: number;
+    },
+    qrCodeSuccessCallback: (decodedText: string) => void,
+    qrCodeErrorCallback?: () => void,
+  ) => Promise<unknown>;
+  stop: () => Promise<unknown>;
+  clear: () => void;
+  scanFile: (imageFile: File, showImage?: boolean) => Promise<string>;
+};
 
 export function ActivityPage() {
   return (
