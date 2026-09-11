@@ -20,10 +20,6 @@ drop function if exists public.approve_repair_event(uuid, text);
 alter table public.repair_events
   alter column status set default 'approved';
 
-update public.repair_events
-set status = 'approved'
-where status = 'pending';
-
 create index if not exists repair_access_requests_device_id_idx
   on public.repair_access_requests(device_id);
 
