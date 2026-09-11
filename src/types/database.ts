@@ -345,12 +345,6 @@ export type Database = {
     };
     Views: Record<string, never>;
     Functions: {
-      approve_repair_event: {
-        Args: {
-          repair_event_id: string;
-        };
-        Returns: boolean;
-      };
       decide_repair_access_request: {
         Args: {
           request_id: string;

@@ -57,10 +57,6 @@ export type SubmitRepairRecordInput = {
 };
 
 export type DocumentType = DocumentInsert['doc_type'];
-export type VerifyOtpResult = {
-  approved: boolean;
-};
-
 export type RepairAccessRequestWithDevice = RepairAccessRequest & {
   devices?: Device | Device[] | null;
 };
@@ -435,29 +431,6 @@ export async function getRepairAccessStatus(
   return match?.status ?? null;
 }
 
-export async function verifyOtpAndApprove(
-  repairEventId: string,
-  _otp?: string,
-): Promise<VerifyOtpResult> {
-  return approveRepairEvent(repairEventId);
-}
-
-export async function approveRepairEvent(
-  repairEventId: string,
-): Promise<VerifyOtpResult> {
-  ensureSupabaseConfigured();
-
-  const { data, error } = await supabase.rpc('approve_repair_event', {
-    repair_event_id: repairEventId,
-  });
-
-  if (error) {
-    throw error;
-  }
-
-  return { approved: data === true };
-}
-
 export async function getDeviceTimeline(
   deviceId: string,
 ): Promise<DeviceTimeline | null> {
@@ -811,7 +784,7 @@ export async function logRepair(
 }
 
 export async function approveRepair(): Promise<void> {
-  throw new Error('Use approveRepairEvent(repairEventId) for approvals.');
+  throw new Error('Repair logs are added by technicians after owner-approved access.');
 }
 
 async function insertParts(

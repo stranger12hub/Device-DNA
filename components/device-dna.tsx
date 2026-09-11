@@ -860,7 +860,7 @@ function RepairTimeline({
             <div className="flex flex-col justify-between gap-3 md:flex-row md:items-start">
               <div>
                 <div className="flex flex-wrap gap-2">
-                  <Badge tone={pending ? 'pending' : 'approved'}>{pending ? 'Pending owner approval' : 'Approved'}</Badge>
+                  <Badge tone={pending ? 'pending' : 'approved'}>{pending ? 'Legacy pending record' : 'Recorded'}</Badge>
                   <Badge tone="locked">{pending ? 'Locked, waiting' : 'Permanent public history'}</Badge>
                 </div>
                 <h3 className="mt-4 text-2xl font-black text-device-ink">{repair.symptom}</h3>
@@ -877,7 +877,7 @@ function RepairTimeline({
               <div className="mt-5 rounded-2xl border border-amber-300/20 bg-amber-300/10 p-4">
                 <p className="flex items-center gap-2 text-sm font-black text-amber-100">
                   <LockKeyhole size={16} />
-                  Waiting for owner approval. Not visible on the public passport yet.
+                  This is an older pending record from before technician access requests were introduced.
                 </p>
                 {isOwner && <p className="mt-2 text-sm text-device-slate">Open Activity to review technician access requests.</p>}
               </div>

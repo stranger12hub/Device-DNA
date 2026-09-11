@@ -14,6 +14,16 @@ create table if not exists public.repair_access_requests (
   decided_at timestamptz
 );
 
+drop function if exists public.approve_repair_event(uuid);
+drop function if exists public.approve_repair_event(uuid, text);
+
+alter table public.repair_events
+  alter column status set default 'approved';
+
+update public.repair_events
+set status = 'approved'
+where status = 'pending';
+
 create index if not exists repair_access_requests_device_id_idx
   on public.repair_access_requests(device_id);
 
@@ -131,3 +141,29 @@ $$;
 
 revoke all on function public.decide_repair_access_request(uuid, text) from public;
 grant execute on function public.decide_repair_access_request(uuid, text) to authenticated;
+
+drop policy if exists "technicians insert pending repairs" on public.repair_events;
+drop policy if exists "technicians insert repair events" on public.repair_events;
+drop policy if exists "approved access technicians insert repair logs" on public.repair_events;
+
+create policy "approved access technicians insert repair logs"
+on public.repair_events
+for insert
+to authenticated
+with check (
+  technician_id = (auth.jwt() ->> 'sub')
+  and status = 'approved'
+  and exists (
+    select 1
+    from public.repair_access_requests rar
+    where rar.device_id = repair_events.device_id
+      and rar.requester_id = (auth.jwt() ->> 'sub')
+      and rar.status = 'approved'
+  )
+  and not exists (
+    select 1
+    from public.devices d
+    where d.id = repair_events.device_id
+      and d.owner_id = (auth.jwt() ->> 'sub')
+  )
+);
