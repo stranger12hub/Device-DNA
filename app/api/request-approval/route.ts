@@ -7,6 +7,10 @@ export const runtime = 'nodejs';
 
 type Body = {
   repair_event_id?: string;
+  device_id?: string;
+  requester_name?: string;
+  requester_phone?: string;
+  shop_name?: string;
 };
 
 type RepairLookup = {
@@ -34,22 +38,20 @@ export async function POST(request: NextRequest) {
   try {
     const body = (await request.json().catch(() => ({}))) as Body;
 
-    if (!body.repair_event_id) {
-      return json({ ok: false, error: 'repair_event_id is required' }, 400);
-    }
-
     const supabase = getServiceClient();
-    const repair = await getRepairLookup(supabase, body.repair_event_id);
+    const notification = body.repair_event_id
+      ? await getRepairNotification(supabase, body.repair_event_id)
+      : await getAccessRequestNotification(supabase, body);
 
-    if (!repair || !repair.devices) {
-      return json({ ok: false, error: 'Repair event not found' }, 404);
+    if (!notification) {
+      return json({ ok: false, error: 'Notification target not found' }, 404);
     }
 
-    if (!repair.devices.owner_id) {
+    if (!notification.ownerId) {
       return json({ ok: false, error: 'Device owner is not available' }, 400);
     }
 
-    const ownerEmail = await getClerkUserEmail(repair.devices.owner_id);
+    const ownerEmail = await getClerkUserEmail(notification.ownerId);
 
     if (!ownerEmail) {
       return json({ ok: false, error: 'Device owner email could not be resolved' }, 400);
@@ -57,12 +59,9 @@ export async function POST(request: NextRequest) {
 
     await sendRepairNotification({
       to: ownerEmail,
-      technicianName:
-        repair.profiles?.display_name?.trim() || 'Device DNA technician',
-      deviceName: [repair.devices.brand, repair.devices.model]
-        .filter(Boolean)
-        .join(' ')
-        .trim() || 'your device',
+      technicianName: notification.technicianName,
+      deviceName: notification.deviceName,
+      reason: notification.reason,
     });
 
     return json({ ok: true }, 200);
@@ -71,6 +70,50 @@ export async function POST(request: NextRequest) {
     console.error('request-approval API failed', message);
     return json({ ok: false, error: message }, 500);
   }
+}
+
+async function getRepairNotification(
+  supabase: ReturnType<typeof getServiceClient>,
+  repairEventId: string,
+): Promise<{ ownerId: string | null; technicianName: string; deviceName: string; reason: string } | null> {
+  const repair = await getRepairLookup(supabase, repairEventId);
+
+  if (!repair?.devices) {
+    return null;
+  }
+
+  return {
+    ownerId: repair.devices.owner_id,
+    technicianName: repair.profiles?.display_name?.trim() || 'Device DNA technician',
+    deviceName: [repair.devices.brand, repair.devices.model].filter(Boolean).join(' ').trim() || 'your device',
+    reason: 'submitted a new repair record',
+  };
+}
+
+async function getAccessRequestNotification(
+  supabase: ReturnType<typeof getServiceClient>,
+  body: Body,
+): Promise<{ ownerId: string | null; technicianName: string; deviceName: string; reason: string } | null> {
+  if (!body.device_id || !body.requester_name || !body.requester_phone || !body.shop_name) {
+    return null;
+  }
+
+  const { data: device, error } = await supabase
+    .from('devices')
+    .select('owner_id, brand, model')
+    .eq('id', body.device_id)
+    .maybeSingle();
+
+  if (error || !device) {
+    return null;
+  }
+
+  return {
+    ownerId: device.owner_id,
+    technicianName: `${body.requester_name.trim()} (${body.shop_name.trim()}, ${body.requester_phone.trim()})`,
+    deviceName: [device.brand, device.model].filter(Boolean).join(' ').trim() || 'your device',
+    reason: 'requested permission to add repair logs',
+  };
 }
 
 async function getRepairLookup(
@@ -148,10 +191,12 @@ async function sendRepairNotification({
   to,
   technicianName,
   deviceName,
+  reason,
 }: {
   to: string;
   technicianName: string;
   deviceName: string;
+  reason: string;
 }) {
   const webhookUrl = process.env.N8N_APPROVAL_WEBHOOK_URL;
 
@@ -165,6 +210,7 @@ async function sendRepairNotification({
         to,
         technicianName,
         deviceName,
+        reason,
         type: 'repair_record_pending',
       }),
     });
@@ -176,17 +222,19 @@ async function sendRepairNotification({
     return;
   }
 
-  await sendGmailRepairNotification({ to, technicianName, deviceName });
+  await sendGmailRepairNotification({ to, technicianName, deviceName, reason });
 }
 
 async function sendGmailRepairNotification({
   to,
   technicianName,
   deviceName,
+  reason,
 }: {
   to: string;
   technicianName: string;
   deviceName: string;
+  reason: string;
 }) {
   const gmailAddress = process.env.GMAIL_ADDRESS;
   const gmailAppPassword = process.env.GMAIL_APP_PASSWORD;
@@ -207,18 +255,17 @@ async function sendGmailRepairNotification({
   await transporter.sendMail({
     from: `"Device DNA" <${gmailAddress}>`,
     to,
-    subject: `New repair record added for ${deviceName}`,
+    subject: `Device DNA update for ${deviceName}`,
     text: [
-      `${technicianName} submitted a repair record for ${deviceName}.`,
-      'Open Device DNA Activity to review and approve it from your owner account.',
+      `${technicianName} ${reason} for ${deviceName}.`,
+      'Open Device DNA Activity to review it from your owner account.',
       '',
       'If you did not request this, you can ignore this email.',
     ].join('\n'),
     html: `
       <div style="font-family:Arial,sans-serif;line-height:1.5;color:#111827">
-        <p style="margin:0 0 12px">A repair record was submitted for <strong>${escapeHtml(deviceName)}</strong>.</p>
-        <p style="margin:0 0 12px">Technician: <strong>${escapeHtml(technicianName)}</strong></p>
-        <p style="margin:0;color:#667085">Open Device DNA Activity to review and approve it from your owner account.</p>
+        <p style="margin:0 0 12px"><strong>${escapeHtml(technicianName)}</strong> ${escapeHtml(reason)} for <strong>${escapeHtml(deviceName)}</strong>.</p>
+        <p style="margin:0;color:#667085">Open Device DNA Activity to review it from your owner account.</p>
       </div>
     `,
   });

@@ -26,6 +26,7 @@ export type WarrantyRecordStatus = 'active' | 'expired' | 'void';
 export type AccessRole = 'owner' | 'family';
 export type DocumentType = 'invoice' | 'warranty_cert' | 'evidence';
 export type RepairStatus = 'pending' | 'approved';
+export type RepairAccessStatus = 'pending' | 'approved' | 'declined';
 
 export type ScoreBreakdown = {
   deviceAge: number;
@@ -299,12 +300,61 @@ export type Database = {
           },
         ];
       };
+      repair_access_requests: {
+        Row: {
+          id: string;
+          device_id: string;
+          requester_id: string;
+          requester_name: string;
+          requester_phone: string;
+          shop_name: string;
+          status: RepairAccessStatus;
+          created_at: string;
+          decided_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          device_id: string;
+          requester_id: string;
+          requester_name: string;
+          requester_phone: string;
+          shop_name: string;
+          status?: RepairAccessStatus;
+          created_at?: string;
+          decided_at?: string | null;
+        };
+        Update: {
+          status?: RepairAccessStatus;
+          decided_at?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'repair_access_requests_device_id_fkey';
+            columns: ['device_id'];
+            referencedRelation: 'devices';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'repair_access_requests_requester_id_fkey';
+            columns: ['requester_id'];
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
     };
     Views: Record<string, never>;
     Functions: {
       approve_repair_event: {
         Args: {
           repair_event_id: string;
+        };
+        Returns: boolean;
+      };
+      decide_repair_access_request: {
+        Args: {
+          request_id: string;
+          decision: 'approved' | 'declined';
         };
         Returns: boolean;
       };
@@ -325,6 +375,8 @@ export type DeviceAccess = Database['public']['Tables']['device_access']['Row'];
 export type DocumentRecord = Database['public']['Tables']['documents']['Row'];
 export type ApprovalRequest =
   Database['public']['Tables']['approval_requests']['Row'];
+export type RepairAccessRequest =
+  Database['public']['Tables']['repair_access_requests']['Row'];
 
 export type PartWithWarranty = Part & {
   warranty_records: WarrantyRecord[];

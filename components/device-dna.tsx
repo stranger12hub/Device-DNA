@@ -19,7 +19,6 @@ import {
   Download,
   Filter,
   Home,
-  IndianRupee,
   Laptop,
   LockKeyhole,
   LogOut,
@@ -45,13 +44,17 @@ import {
   getDeviceTimeline,
   getDevicesForUser,
   getPublicPassportTimeline,
+  getRepairAccessRequests,
+  getRepairAccessStatus,
   getRecentVisibleDevices,
   lookupDevice,
   recalculateDeviceScore,
   registerDevice,
+  requestRepairAccess,
+  decideRepairAccessRequest,
   submitRepairRecord,
-  approveRepairEvent,
 } from '@/src/lib/services';
+import type { RepairAccessRequestWithDevice } from '@/src/lib/services';
 import type {
   ComponentName,
   Device,
@@ -686,6 +689,7 @@ function DeviceContent() {
   const viewer = useViewer();
   const [timeline, setTimeline] = useState<DeviceTimeline | null | undefined>(undefined);
   const [score, setScore] = useState<DeviceScore | null>(null);
+  const [accessStatus, setAccessStatus] = useState<'pending' | 'approved' | 'declined' | null>(null);
   const [notice, setNotice] = useState('');
   const [scoreBusy, setScoreBusy] = useState(false);
 
@@ -693,16 +697,16 @@ function DeviceContent() {
     loadDevice(params.id, setTimeline, setScore);
   }, [params.id]);
 
-  async function approve(repairId: string) {
-    const result = await approveRepairEvent(repairId);
-    if (!result.approved) {
-      setNotice('Approval was not accepted. Only the device owner can approve this request.');
+  useEffect(() => {
+    if (!viewer.id || !timeline || viewer.id === timeline.owner_id) {
+      setAccessStatus(null);
       return;
     }
-    setNotice('Approved. This repair is now part of the permanent public history.');
-    await recalculateDeviceScore(params.id).catch(() => null);
-    await loadDevice(params.id, setTimeline, setScore);
-  }
+
+    getRepairAccessStatus(timeline.id, viewer.id)
+      .then(setAccessStatus)
+      .catch(() => setAccessStatus(null));
+  }, [viewer.id, timeline]);
 
   async function refreshScore() {
     setScoreBusy(true);
@@ -722,7 +726,7 @@ function DeviceContent() {
   if (!timeline) return <AppShell><EmptyGlass title="Device not found" body="Scan again or check the Device DNA ID." /></AppShell>;
 
   const isOwner = viewer.id === timeline.owner_id;
-  const canAddRepair = Boolean(viewer.signedIn);
+  const canAddRepair = Boolean(viewer.signedIn && !isOwner && accessStatus === 'approved');
 
   return (
     <AppShell>
@@ -750,8 +754,14 @@ function DeviceContent() {
           <RepairTimeline
             repairs={timeline.repair_events}
             isOwner={isOwner}
-            onApprove={approve}
           />
+          {!isOwner && (
+            <RepairAccessPanel
+              device={timeline}
+              status={accessStatus}
+              onSubmitted={() => setAccessStatus('pending')}
+            />
+          )}
         </section>
       </div>
     </AppShell>
@@ -786,9 +796,8 @@ function DeviceHero({ device, score }: { device: DeviceTimeline; score: DeviceSc
           <h1 className="mt-3 text-4xl font-black text-device-ink md:text-6xl">{device.brand} {device.model}</h1>
           <p className="mt-3 font-mono text-sm text-device-slate">{device.serial_imei} · {formatDate(device.created_at)}</p>
         </div>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3">
           <HeroStat label="Health" value={score ? `${score.health_score}/100` : 'No score'} />
-          <HeroStat label="Market" value={formatCurrency(score?.market_value_estimate)} />
         </div>
       </div>
     </section>
@@ -812,18 +821,6 @@ function ScoreSuite({ score }: { score: DeviceScore | null }) {
           ))}
         </div>
       </GlassPanel>
-      <GlassPanel>
-        <div className="flex items-center gap-3">
-          <IconTile tone="cyan"><IndianRupee /></IconTile>
-          <div>
-            <SectionKicker>AI Market Value Estimate</SectionKicker>
-            <h2 className="mt-2 text-3xl font-black text-device-ink">{formatCurrency(score?.market_value_estimate)}</h2>
-          </div>
-        </div>
-        <p className="mt-4 text-sm leading-7 text-device-slate">
-          {score?.market_value_summary ?? 'Not enough approved data yet for a credible estimate.'}
-        </p>
-      </GlassPanel>
     </div>
   );
 }
@@ -846,12 +843,10 @@ function ScoreRow({ factor, value }: { factor: (typeof scoreFactors)[number]; va
 function RepairTimeline({
   repairs,
   isOwner,
-  onApprove,
   publicOnly = false,
 }: {
   repairs: RepairEventWithParts[];
   isOwner: boolean;
-  onApprove: (repairId: string) => void;
   publicOnly?: boolean;
 }) {
   if (!repairs.length) return <EmptyGlass title="No repairs logged yet" body={publicOnly ? 'No approved public records yet.' : 'A technician can add the first pending record after scanning this device.'} />;
@@ -884,17 +879,113 @@ function RepairTimeline({
                   <LockKeyhole size={16} />
                   Waiting for owner approval. Not visible on the public passport yet.
                 </p>
-                {isOwner && (
-                  <div className="mt-3 flex flex-col gap-2 md:flex-row">
-                    <PrimaryButton onClick={() => onApprove(repair.id)}>Approve</PrimaryButton>
-                  </div>
-                )}
+                {isOwner && <p className="mt-2 text-sm text-device-slate">Open Activity to review technician access requests.</p>}
               </div>
             )}
           </article>
         );
       })}
     </div>
+  );
+}
+
+function RepairAccessPanel({
+  device,
+  status,
+  onSubmitted,
+}: {
+  device: DeviceTimeline;
+  status: 'pending' | 'approved' | 'declined' | null;
+  onSubmitted: () => void;
+}) {
+  const viewer = useViewer();
+  const [form, setForm] = useState({
+    requesterName: viewer.name === 'Visitor' ? '' : viewer.name,
+    requesterPhone: '',
+    shopName: '',
+  });
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+
+  if (status === 'approved') {
+    return (
+      <AlertGlass title="Access approved">
+        You can add repair logs for this device. New logs become part of the permanent public history.
+      </AlertGlass>
+    );
+  }
+
+  if (status === 'pending') {
+    return (
+      <AlertGlass title="Request sent">
+        The owner will see this technician access request in Activity.
+      </AlertGlass>
+    );
+  }
+
+  async function submit() {
+    if (!viewer.signedIn) {
+      setError('Sign in before requesting repair access.');
+      return;
+    }
+
+    if (!form.requesterName.trim() || !form.requesterPhone.trim() || !form.shopName.trim()) {
+      setError('Name, phone number, and shop name are required.');
+      return;
+    }
+
+    setBusy(true);
+    setError('');
+    setSuccess('');
+    try {
+      await requestRepairAccess({
+        deviceId: device.id,
+        requesterName: form.requesterName,
+        requesterPhone: form.requesterPhone,
+        shopName: form.shopName,
+      });
+      setSuccess('Request sent to the owner activity page.');
+      onSubmitted();
+    } catch (error) {
+      setError(getServiceErrorMessage(error));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <GlassPanel className="mt-5">
+      <SectionKicker>Technician access</SectionKicker>
+      <h2 className="mt-2 text-2xl font-black text-device-ink">Request permission to add a repair log</h2>
+      <p className="mt-2 text-sm leading-7 text-device-slate">
+        The owner must approve technician access before any repair log can be added to {device.brand} {device.model}.
+      </p>
+      <div className="mt-5 grid gap-4 md:grid-cols-3">
+        <Field label="Your name">
+          <Input value={form.requesterName} onChange={(event) => setForm({ ...form, requesterName: event.target.value })} placeholder="Example: Arun Kumar" />
+        </Field>
+        <Field label="Phone number">
+          <Input value={form.requesterPhone} onChange={(event) => setForm({ ...form, requesterPhone: event.target.value })} placeholder="Example: +91 98765 43210" />
+        </Field>
+        <Field label="Shop name">
+          <Input value={form.shopName} onChange={(event) => setForm({ ...form, shopName: event.target.value })} placeholder="Example: Metro Device Care" />
+        </Field>
+      </div>
+      {error && <p className="mt-4 text-sm font-black text-device-critical">{error}</p>}
+      {success && <p className="mt-4 text-sm font-black text-device-healthy">{success}</p>}
+      <div className="mt-5">
+        {viewer.signedIn ? (
+          <PrimaryButton disabled={busy} onClick={submit}>{busy ? 'Sending...' : 'Request access'}</PrimaryButton>
+        ) : (
+          <SignInButton mode="modal">
+            <button className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-device-blue px-5 text-sm font-black text-white shadow-sm transition hover:bg-device-cobalt">
+              Sign in to request access
+            </button>
+          </SignInButton>
+        )}
+      </div>
+    </GlassPanel>
   );
 }
 
@@ -911,6 +1002,7 @@ function RepairSubmissionContent() {
   const router = useRouter();
   const viewer = useViewer();
   const [timeline, setTimeline] = useState<DeviceTimeline | null>(null);
+  const [accessStatus, setAccessStatus] = useState<'pending' | 'approved' | 'declined' | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [form, setForm] = useState({
@@ -929,6 +1021,17 @@ function RepairSubmissionContent() {
   useEffect(() => {
     getDeviceTimeline(params.id).then(setTimeline).catch(() => setTimeline(null));
   }, [params.id]);
+
+  useEffect(() => {
+    if (!viewer.id || !timeline || viewer.id === timeline.owner_id) {
+      setAccessStatus(null);
+      return;
+    }
+
+    getRepairAccessStatus(timeline.id, viewer.id)
+      .then(setAccessStatus)
+      .catch(() => setAccessStatus(null));
+  }, [viewer.id, timeline]);
 
   async function submit() {
     if (!viewer.id) {
@@ -973,12 +1076,24 @@ function RepairSubmissionContent() {
     <AppShell>
       <HeaderBlock
         eyebrow="Technician record"
-        title="Submit pending repair"
-        description={timeline ? `${timeline.brand} ${timeline.model} · the owner can approve this from Activity.` : 'Loading device...'}
+        title="Add repair log"
+        description={timeline ? `${timeline.brand} ${timeline.model} · logs are available after owner-approved technician access.` : 'Loading device...'}
       />
+      {timeline && viewer.id === timeline.owner_id && (
+        <EmptyGlass title="Owner accounts cannot add repair logs" body="Scan this QR at a technician account. The technician requests access, then adds the repair record after you approve it in Activity." />
+      )}
+      {timeline && viewer.id !== timeline.owner_id && accessStatus !== 'approved' && (
+        <GlassPanel>
+          <AlertGlass title="Owner approval required">
+            Request access from the device page first. After the owner approves it in Activity, this repair form unlocks.
+          </AlertGlass>
+          <RepairAccessPanel device={timeline} status={accessStatus} onSubmitted={() => setAccessStatus('pending')} />
+        </GlassPanel>
+      )}
+      {timeline && viewer.id !== timeline.owner_id && accessStatus === 'approved' && (
       <GlassPanel>
-        <AlertGlass title="Approval required">
-          This creates a locked pending record. The owner approves it from their Activity page before it becomes public.
+        <AlertGlass title="Permanent record">
+          This repair log becomes visible on the device timeline after submission. It cannot be edited or deleted.
         </AlertGlass>
         <div className="grid gap-4">
           <Field label="Symptoms"><Textarea value={form.symptom} onChange={(event) => setForm({ ...form, symptom: event.target.value })} placeholder="Example: Phone charges only at an angle; customer reports intermittent fast charging." /></Field>
@@ -1008,6 +1123,7 @@ function RepairSubmissionContent() {
           </div>
         </div>
       </GlassPanel>
+      )}
     </AppShell>
   );
 }
@@ -1221,7 +1337,7 @@ export function ActivityPage() {
 
 function ActivityContent() {
   const viewer = useViewer();
-  const [groups, setGroups] = useState<Record<ActivityGroup, RepairEventWithParts[]>>({
+  const [groups, setGroups] = useState<Record<ActivityGroup, RepairAccessRequestWithDevice[]>>({
     Today: [],
     'This week': [],
     Earlier: [],
@@ -1230,46 +1346,44 @@ function ActivityContent() {
 
   useEffect(() => {
     if (!viewer.id) return;
-    loadActivity(viewer.id).then(setGroups).catch(() => undefined);
+    loadActivity().then(setGroups).catch(() => undefined);
   }, [viewer.id]);
 
-  async function approve(repairId: string) {
-    const result = await approveRepairEvent(repairId);
-    if (!result.approved) {
-      setNotice('Approval failed. Only the device owner can approve this request.');
-      return;
-    }
-
-    setNotice('Repair approved and added to the public device passport.');
-    if (viewer.id) {
-      setGroups(await loadActivity(viewer.id));
-    }
+  async function decide(requestId: string, decision: 'approved' | 'declined') {
+    await decideRepairAccessRequest(requestId, decision);
+    setNotice(decision === 'approved' ? 'Technician access approved.' : 'Technician access declined.');
+    setGroups(await loadActivity());
   }
 
   return (
     <AppShell>
-      <HeaderBlock eyebrow="Activity" title="Device requests" description="Review technician repair entries and approve them from your owner account." />
+      <HeaderBlock eyebrow="Activity" title="Technician access requests" description="Approve a technician once, then they can add repair logs for that device." />
       {notice && <AlertGlass title="Activity update">{notice}</AlertGlass>}
       <div className="space-y-5">
         {(['Today', 'This week', 'Earlier'] as ActivityGroup[]).map((group) => (
           <GlassPanel key={group}>
             <h2 className="text-2xl font-black text-device-ink">{group}</h2>
             <div className="mt-4 space-y-3">
-              {groups[group].length ? groups[group].map((repair) => (
-                <div key={repair.id} className="flex flex-col gap-3 rounded-2xl border border-device-border bg-white p-3 md:flex-row md:items-center">
-                  <IconTile tone={repair.status === 'approved' ? 'green' : 'amber'}>{repair.status === 'approved' ? <BadgeCheck /> : <Clock3 />}</IconTile>
+              {groups[group].length ? groups[group].map((request) => {
+                const device = getRequestDevice(request);
+                return (
+                <div key={request.id} className="flex flex-col gap-3 rounded-2xl border border-device-border bg-white p-3 md:flex-row md:items-center">
+                  <IconTile tone={request.status === 'approved' ? 'green' : 'amber'}>{request.status === 'approved' ? <BadgeCheck /> : <Clock3 />}</IconTile>
                   <div className="min-w-0 flex-1">
-                    <p className="break-words font-black text-device-ink">{repair.symptom}</p>
-                    <p className="mt-1 text-sm text-device-slate">{repair.status === 'approved' ? 'Approved repair' : 'Pending owner approval'} · {formatDateTime(repair.created_at)}</p>
+                    <p className="break-words font-black text-device-ink">{request.requester_name} from {request.shop_name}</p>
+                    <p className="mt-1 text-sm text-device-slate">{request.status === 'approved' ? 'Approved access' : 'Pending access request'} - {formatDateTime(request.created_at)}</p>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    <GlassButton href={`/devices/${repair.device_id}`}>Open</GlassButton>
-                    {repair.status === 'pending' ? (
-                      <PrimaryButton onClick={() => approve(repair.id)}>Approve</PrimaryButton>
+                    <GlassButton href={`/devices/${request.device_id}`}>Open</GlassButton>
+                    {request.status === 'pending' ? (
+                      <>
+                        <PrimaryButton onClick={() => decide(request.id, 'approved')}>Approve</PrimaryButton>
+                        <GlassButton onClick={() => decide(request.id, 'declined')}>Decline</GlassButton>
+                      </>
                     ) : null}
                   </div>
                 </div>
-              )) : <p className="text-sm text-device-slate">No activity in this group.</p>}
+              );}) : <p className="text-sm text-device-slate">No requests in this group.</p>}
             </div>
           </GlassPanel>
         ))}
@@ -1278,18 +1392,18 @@ function ActivityContent() {
   );
 }
 
-async function loadActivity(userId: string): Promise<Record<ActivityGroup, RepairEventWithParts[]>> {
-  const devices = await getDevicesForUser(userId);
-  const timelines = await Promise.all(devices.slice(0, 12).map((device) => getDeviceTimeline(device.id)));
-  const repairs = timelines
-    .filter((timeline): timeline is DeviceTimeline => Boolean(timeline))
-    .flatMap((timeline) => timeline.repair_events)
-    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+async function loadActivity(): Promise<Record<ActivityGroup, RepairAccessRequestWithDevice[]>> {
+  const requests = await getRepairAccessRequests();
 
-  return repairs.reduce<Record<ActivityGroup, RepairEventWithParts[]>>((acc, repair) => {
-    acc[groupForDate(repair.created_at)].push(repair);
+  return requests.reduce<Record<ActivityGroup, RepairAccessRequestWithDevice[]>>((acc, request) => {
+    acc[groupForDate(request.created_at)].push(request);
     return acc;
   }, { Today: [], 'This week': [], Earlier: [] });
+}
+
+function getRequestDevice(request: RepairAccessRequestWithDevice): Device | null {
+  if (!request.devices) return null;
+  return Array.isArray(request.devices) ? request.devices[0] ?? null : request.devices;
 }
 
 function groupForDate(value: string): ActivityGroup {
@@ -1371,7 +1485,7 @@ export function PassportPage() {
         <ScoreSuite score={score} />
         <section>
           <HeaderBlock eyebrow="Public passport" title="Approved history only" description="No owner contact details or pending repair records are shown here." />
-          <RepairTimeline repairs={timeline.repair_events} isOwner={false} onApprove={() => undefined} publicOnly />
+          <RepairTimeline repairs={timeline.repair_events} isOwner={false} publicOnly />
         </section>
       </div>
     </AppShell>

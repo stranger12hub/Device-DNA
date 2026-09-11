@@ -10,6 +10,8 @@ import type {
   PartWithWarranty,
   Profile,
   ProfileRole,
+  RepairAccessRequest,
+  RepairAccessStatus,
   RepairEventWithParts,
   WarrantyRecord,
 } from '../types/database';
@@ -59,6 +61,17 @@ export type VerifyOtpResult = {
   approved: boolean;
 };
 
+export type RepairAccessRequestWithDevice = RepairAccessRequest & {
+  devices?: Device | Device[] | null;
+};
+
+export type RequestRepairAccessInput = {
+  deviceId: string;
+  requesterName: string;
+  requesterPhone: string;
+  shopName: string;
+};
+
 type RegisterDeviceResponse = {
   ok: boolean;
   device?: Device;
@@ -67,6 +80,12 @@ type RegisterDeviceResponse = {
 type SubmitRepairResponse = {
   ok: boolean;
   repair?: RepairEventWithParts;
+  error?: string;
+};
+type RepairAccessResponse = {
+  ok: boolean;
+  request?: RepairAccessRequestWithDevice;
+  requests?: RepairAccessRequestWithDevice[];
   error?: string;
 };
 const LOCAL_DEVICE_CACHE_KEY = 'device-dna-local-devices-v1';
@@ -319,6 +338,101 @@ export async function submitRepairRecord(
 
   cacheRepair(body.repair);
   return body.repair;
+}
+
+export async function requestRepairAccess(
+  input: RequestRepairAccessInput,
+): Promise<RepairAccessRequestWithDevice> {
+  ensureSupabaseConfigured();
+  const token = await getClerkAccessToken();
+
+  if (!token) {
+    throw new Error('Sign in before requesting repair access');
+  }
+
+  const response = await fetch('/api/repair-access', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(input),
+  });
+  const body = (await response.json().catch(() => ({}))) as RepairAccessResponse;
+
+  if (!response.ok || !body.ok || !body.request) {
+    throw new Error(body.error || 'Could not request repair access');
+  }
+
+  return body.request;
+}
+
+export async function getRepairAccessRequests(): Promise<RepairAccessRequestWithDevice[]> {
+  ensureSupabaseConfigured();
+  const token = await getClerkAccessToken();
+
+  if (!token) {
+    return [];
+  }
+
+  const response = await fetch('/api/repair-access', {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  const body = (await response.json().catch(() => ({}))) as RepairAccessResponse;
+
+  if (!response.ok || !body.ok) {
+    throw new Error(body.error || 'Could not load repair access requests');
+  }
+
+  return body.requests ?? [];
+}
+
+export async function decideRepairAccessRequest(
+  requestId: string,
+  decision: Extract<RepairAccessStatus, 'approved' | 'declined'>,
+): Promise<boolean> {
+  ensureSupabaseConfigured();
+  const token = await getClerkAccessToken();
+
+  if (!token) {
+    throw new Error('Sign in again');
+  }
+
+  const response = await fetch(`/api/repair-access/${requestId}`, {
+    method: 'PATCH',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ decision }),
+  });
+  const body = (await response.json().catch(() => ({}))) as RepairAccessResponse;
+
+  if (!response.ok || !body.ok) {
+    throw new Error(body.error || 'Could not update request');
+  }
+
+  return true;
+}
+
+export async function getRepairAccessStatus(
+  deviceId: string,
+  userId: string | null,
+): Promise<RepairAccessStatus | null> {
+  if (!userId) {
+    return null;
+  }
+
+  const requests = await getRepairAccessRequests().catch(() => []);
+  const match = requests.find((request) =>
+    request.requester_id === userId &&
+    request.device_id === deviceId &&
+    (request.status === 'pending' || request.status === 'approved')
+  );
+
+  return match?.status ?? null;
 }
 
 export async function verifyOtpAndApprove(

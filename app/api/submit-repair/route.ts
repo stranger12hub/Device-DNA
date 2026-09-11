@@ -53,6 +53,40 @@ export async function POST(request: NextRequest) {
     > & SubmitRepairBody;
     const supabase = getServiceClient();
 
+    const { data: device, error: deviceError } = await supabase
+      .from('devices')
+      .select('id, owner_id')
+      .eq('id', input.deviceId)
+      .maybeSingle();
+
+    if (deviceError) {
+      return json({ ok: false, error: `Device lookup failed: ${deviceError.message}` }, 500);
+    }
+
+    if (!device) {
+      return json({ ok: false, error: 'Device not found' }, 404);
+    }
+
+    if (device.owner_id === userId) {
+      return json({ ok: false, error: 'Device owners cannot add repair logs to their own device' }, 403);
+    }
+
+    const { data: approvedAccess, error: accessError } = await supabase
+      .from('repair_access_requests')
+      .select('id')
+      .eq('device_id', input.deviceId)
+      .eq('requester_id', userId)
+      .eq('status', 'approved')
+      .limit(1);
+
+    if (accessError) {
+      return json({ ok: false, error: `Access check failed: ${accessError.message}` }, 500);
+    }
+
+    if (!approvedAccess?.length) {
+      return json({ ok: false, error: 'Owner approval is required before adding repair logs' }, 403);
+    }
+
     await ensureProfile(supabase, {
       id: userId,
       displayName: body.displayName,
@@ -68,7 +102,7 @@ export async function POST(request: NextRequest) {
         action_taken: input.actionTaken.trim(),
         cost: input.cost ?? null,
         parent_repair_id: input.parentRepairId ?? null,
-        status: 'pending',
+        status: 'approved',
       })
       .select()
       .single();
