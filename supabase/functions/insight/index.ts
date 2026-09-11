@@ -109,17 +109,15 @@ Deno.serve(async (request) => {
       ),
     };
     const recurring = detectRecurringFault(approvedTimeline);
-    const warrantyStatus = getWarrantyStatus(approvedTimeline);
     const scoreResult = calculateHealthScore(
       approvedTimeline,
       recurring.recurringFault,
-      warrantyStatus,
     );
     const previousScore = await getPreviousScore(approvedTimeline.id);
     const [aiSummary, marketValue] = await Promise.all([
       generateAiSummary(approvedTimeline, {
         ...recurring,
-        warrantyStatus,
+        warrantyStatus: [],
         health_score: scoreResult.health_score,
         score_breakdown: scoreResult.score_breakdown,
         previous_score: previousScore,
@@ -128,7 +126,7 @@ Deno.serve(async (request) => {
     ]);
     const response: InsightResponse = {
       ...recurring,
-      warrantyStatus,
+      warrantyStatus: [],
       health_score: scoreResult.health_score,
       score_breakdown: scoreResult.score_breakdown,
       ai_summary: aiSummary,
@@ -179,22 +177,29 @@ function detectRecurringFault(timeline: DeviceTimeline): {
 function calculateHealthScore(
   timeline: DeviceTimeline,
   recurringFault: boolean,
-  warrantyStatus: WarrantyStatus[],
 ): { health_score: number; score_breakdown: ScoreBreakdown } {
+  if (timeline.repair_events.length === 0) {
+    return {
+      health_score: 100,
+      score_breakdown: {
+        deviceAge: 100,
+        repairFrequency: 100,
+        recurringFaults: 100,
+        criticalComponentHistory: 100,
+        warrantyEvidenceCompleteness: 100,
+      },
+    };
+  }
+
   const deviceAge = scoreDeviceAge(timeline);
   const repairFrequency = scoreRepairFrequency(timeline);
   const recurringFaults = recurringFault ? 35 : 100;
   const criticalComponentHistory = scoreCriticalComponents(timeline);
-  const warrantyEvidenceCompleteness = scoreWarrantyEvidence(
-    timeline,
-    warrantyStatus,
-  );
   const score =
     deviceAge * 0.15 +
-    repairFrequency * 0.25 +
-    recurringFaults * 0.25 +
-    criticalComponentHistory * 0.2 +
-    warrantyEvidenceCompleteness * 0.15;
+    repairFrequency * 0.35 +
+    recurringFaults * 0.3 +
+    criticalComponentHistory * 0.2;
 
   return {
     health_score: Math.max(0, Math.min(100, Math.round(score))),
@@ -203,7 +208,7 @@ function calculateHealthScore(
       repairFrequency,
       recurringFaults,
       criticalComponentHistory,
-      warrantyEvidenceCompleteness,
+      warrantyEvidenceCompleteness: 100,
     },
   };
 }
@@ -234,7 +239,7 @@ async function generateMarketValue(
 }> {
   const parsed = await callGemini([
     'Estimate an Indian resale market value in INR for this device.',
-    'Base it only on device age, brand/model, specs, health score, repair frequency, component history, part types, warranties, and evidence.',
+    'Base it only on device age, brand/model, specs, health score, repair frequency, component history, part types, and evidence.',
     'If the data is too thin or confidence is low, return null for both fields. Do not guess.',
     'Return only JSON: { "market_value_estimate": number | null, "market_value_summary": string | null }',
     JSON.stringify({ timeline, healthScore }),
@@ -351,45 +356,6 @@ function scoreCriticalComponents(timeline: DeviceTimeline): number {
   return Math.max(20, 100 - criticalCount * 14 - nonGenuineCount * 8);
 }
 
-function scoreWarrantyEvidence(
-  timeline: DeviceTimeline,
-  warrantyStatus: WarrantyStatus[],
-): number {
-  const parts = timeline.repair_events.flatMap((event) => event.parts);
-
-  if (parts.length === 0) {
-    return 100;
-  }
-
-  const withEvidence = parts.filter((part) => Boolean(part.evidence_url)).length;
-  const withWarranty = warrantyStatus.length;
-  const completeness = (withEvidence + withWarranty) / (parts.length * 2);
-
-  return Math.round(completeness * 100);
-}
-
-function getWarrantyStatus(timeline: DeviceTimeline): WarrantyStatus[] {
-  const today = new Date();
-
-  return timeline.repair_events.flatMap((event) =>
-    event.parts.flatMap((part) =>
-      part.warranty_records
-        .filter((record) => record.status === 'active')
-        .map((record) => ({
-          partName: part.component_name,
-          daysRemaining: Math.max(
-            0,
-            Math.ceil(
-              (new Date(record.end_date).getTime() - today.getTime()) /
-                (1000 * 60 * 60 * 24),
-            ),
-          ),
-        }))
-        .filter((record) => record.daysRemaining > 0),
-    ),
-  );
-}
-
 async function getPreviousScore(deviceId: string): Promise<number | null> {
   const { data, error } = await getServiceClient()
     .from('device_scores')
@@ -438,13 +404,13 @@ function fallbackInsight(): InsightResponse {
   return {
     recurringFault: false,
     warrantyStatus: [],
-    health_score: 0,
+    health_score: 100,
     score_breakdown: {
-      deviceAge: 0,
-      repairFrequency: 0,
-      recurringFaults: 0,
-      criticalComponentHistory: 0,
-      warrantyEvidenceCompleteness: 0,
+      deviceAge: 100,
+      repairFrequency: 100,
+      recurringFaults: 100,
+      criticalComponentHistory: 100,
+      warrantyEvidenceCompleteness: 100,
     },
     ai_summary: null,
     previous_score: null,

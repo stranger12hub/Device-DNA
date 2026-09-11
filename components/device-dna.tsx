@@ -118,26 +118,20 @@ const scoreFactors: {
   {
     key: 'repairFrequency',
     label: 'Repair frequency',
-    weight: 25,
+    weight: 35,
     note: 'Fewer approved service events improve confidence.',
   },
   {
     key: 'recurringFaults',
     label: 'Recurring faults',
-    weight: 25,
+    weight: 30,
     note: 'Repeated symptoms reduce buyer confidence.',
   },
   {
     key: 'criticalComponentHistory',
-    label: 'Critical components',
+    label: 'Replaced components',
     weight: 20,
     note: 'Board, display, battery, and storage history matter most.',
-  },
-  {
-    key: 'warrantyEvidenceCompleteness',
-    label: 'Warranty evidence',
-    weight: 15,
-    note: 'Evidence and active warranties improve transparency.',
   },
 ];
 
@@ -145,7 +139,7 @@ const audienceTabs = [
   {
     label: 'YOUR DEVICE',
     title: "Don't explain the last repair from memory.",
-    body: 'Open previous repairs. Find recorded warranty details. Share the history when selling.',
+    body: 'Open previous repairs. Review replaced parts and share the history when selling.',
     cta: 'Register device',
     href: '/register',
   },
@@ -317,7 +311,7 @@ export function HomePage() {
           <div className="grid gap-3 md:grid-cols-2">
             <StepCard index="01" icon={<Smartphone />} title="Register identity" body="Add brand, model, serial or IMEI, purchase date, and device type." />
             <StepCard index="02" icon={<QrCode />} title="Create QR passport" body="Download or print a public link that opens the device history directly." />
-            <StepCard index="03" icon={<Wrench />} title="Log repair" body="Technicians submit pending repair records with part and warranty details." />
+            <StepCard index="03" icon={<Wrench />} title="Log repair" body="Technicians submit pending repair records with parts, cost, and service notes." />
             <StepCard index="04" icon={<ShieldCheck />} title="Approve by OTP" body="Owner confirms the repair before it becomes public history." />
           </div>
         </div>

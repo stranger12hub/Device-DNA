@@ -459,6 +459,11 @@ export async function getDeviceScore(
   }
 
   if (data) {
+    const timeline = await getDeviceTimeline(deviceId);
+    if (timeline && getApprovedRepairCount(timeline) === 0) {
+      return getFallbackDeviceScore(timeline);
+    }
+
     return data;
   }
 
@@ -1132,30 +1137,57 @@ function mergeRepairs(
 }
 
 function getFallbackDeviceScore(timeline: DeviceTimeline): DeviceScore {
-  const repairCount = timeline.repair_events.filter(
-    (repair) => repair.status === 'approved',
-  ).length;
-  const healthScore = Math.max(45, Math.min(92, 92 - repairCount * 8));
+  const repairCount = getApprovedRepairCount(timeline);
+  const hasRepairs = repairCount > 0;
+  const replacedCriticalParts = timeline.repair_events
+    .filter((repair) => repair.status === 'approved')
+    .flatMap((repair) => repair.parts)
+    .filter((part) => [
+      'motherboard',
+      'display',
+      'battery',
+      'storage',
+      'charging_assembly',
+      'charging_port',
+    ].includes(part.component_name)).length;
+  const repairFrequency = hasRepairs ? Math.max(45, 100 - repairCount * 12) : 100;
+  const recurringFaults = hasRepairs ? 90 : 100;
+  const criticalComponentHistory = hasRepairs
+    ? Math.max(45, 100 - replacedCriticalParts * 10)
+    : 100;
+  const deviceAge = hasRepairs ? 95 : 100;
+  const healthScore = hasRepairs
+    ? Math.round(
+        deviceAge * 0.15 +
+        repairFrequency * 0.30 +
+        recurringFaults * 0.30 +
+        criticalComponentHistory * 0.25,
+      )
+    : 100;
 
   return {
     id: `local-score-${timeline.id}`,
     device_id: timeline.id,
     health_score: healthScore,
     score_breakdown: {
-      deviceAge: 80,
-      repairFrequency: repairCount === 0 ? 100 : 75,
-      recurringFaults: 90,
-      criticalComponentHistory: 82,
-      warrantyEvidenceCompleteness: repairCount === 0 ? 45 : 70,
+      deviceAge,
+      repairFrequency,
+      recurringFaults,
+      criticalComponentHistory,
+      warrantyEvidenceCompleteness: 100,
     },
-    ai_summary: repairCount === 0
-      ? 'This device has no approved repair history yet. The score is a temporary estimate until repair and warranty records are available.'
-      : 'This score is a local fallback because the AI service did not return a fresh result. Review the approved repair records before making a resale decision.',
+    ai_summary: hasRepairs
+      ? 'This score is based on the available repair history and replaced component records. Review the timeline before making a resale decision.'
+      : 'No faults or replaced parts are recorded for this device. Until a repair is logged, Device DNA treats the device as full health.',
     previous_score: null,
     market_value_estimate: null,
     market_value_summary: null,
     generated_at: new Date().toISOString(),
   };
+}
+
+function getApprovedRepairCount(timeline: DeviceTimeline): number {
+  return timeline.repair_events.filter((repair) => repair.status === 'approved').length;
 }
 
 function getDemoRepairs(deviceId: string): RepairEventWithParts[] {
