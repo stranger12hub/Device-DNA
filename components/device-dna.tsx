@@ -961,8 +961,9 @@ function RepairSubmissionContent() {
     setBusy(true);
     setError('');
     try {
+      const deviceId = timeline?.id ?? params.id;
       await submitRepairRecord({
-        deviceId: params.id,
+        deviceId,
         technicianId: viewer.id,
         symptom: form.symptom.trim(),
         diagnosis: form.diagnosis.trim() || null,
@@ -979,7 +980,7 @@ function RepairSubmissionContent() {
             }]
           : [],
       });
-      router.push(`/devices/${params.id}`);
+      router.push(`/devices/${deviceId}`);
     } catch (error) {
       setError(getServiceErrorMessage(error));
     } finally {

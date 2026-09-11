@@ -4,6 +4,7 @@ import { createClient } from '@supabase/supabase-js';
 import type { Database } from '@/src/types/database';
 
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
 type Body = {
   repair_event_id?: string;

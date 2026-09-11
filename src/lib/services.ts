@@ -275,7 +275,16 @@ export async function registerDevice(
 export async function submitRepairRecord(
   data: SubmitRepairRecordInput,
 ): Promise<RepairEventWithParts> {
-  if (!isUuid(data.deviceId)) {
+  const resolvedDevice = isUuid(data.deviceId)
+    ? null
+    : await lookupDevice(data.deviceId).catch(() => null);
+  const resolvedDeviceId = resolvedDevice?.id ?? data.deviceId;
+  const payload: SubmitRepairRecordInput = {
+    ...data,
+    deviceId: resolvedDeviceId,
+  };
+
+  if (!isUuid(payload.deviceId)) {
     const repair = createLocalRepairRecord(data);
     cacheRepair(repair);
     return repair;
@@ -294,7 +303,7 @@ export async function submitRepairRecord(
       Authorization: `Bearer ${token}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify(data),
+    body: JSON.stringify(payload),
   });
   const body = (await response.json().catch(() => ({}))) as SubmitRepairResponse;
 

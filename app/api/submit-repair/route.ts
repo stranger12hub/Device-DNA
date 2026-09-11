@@ -10,6 +10,7 @@ import type {
 } from '@/src/types/database';
 
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
 type RepairPartInput = {
   componentName: ComponentName;
