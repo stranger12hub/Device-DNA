@@ -46,7 +46,6 @@ import {
   getPublicPassportTimeline,
   getRepairAccessRequests,
   getRepairAccessStatus,
-  getRecentVisibleDevices,
   lookupDevice,
   recalculateDeviceScore,
   registerDevice,
@@ -68,7 +67,6 @@ import type {
 
 type Viewer = ReturnType<typeof useViewerContext>;
 type DeviceFilter = 'all' | 'phone' | 'laptop';
-type ActivityGroup = 'Today' | 'This week' | 'Earlier';
 
 const navItems = [
   { label: 'Home', href: '/', icon: Home },
@@ -281,42 +279,33 @@ export function HomePage() {
 
   return (
     <AppShell>
-      <section className="rounded-2xl border border-device-border bg-white p-5 shadow-sm backdrop-blur-xl md:p-8">
+      <section className="pb-10 pt-3 md:pt-8">
         <div className="flex items-center justify-between gap-4">
           <LogoMark light />
           <AuthCluster viewer={viewer} />
         </div>
-        <div className="grid gap-8 py-12 lg:grid-cols-[0.9fr_1.1fr] lg:items-end">
-          <motion.div
-            initial={{ opacity: 0, y: 18 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.34 }}
-          >
-            <SectionKicker>Device DNA</SectionKicker>
-            <h1 className="mt-4 max-w-3xl text-4xl font-black leading-tight text-device-ink md:text-7xl">
-              The complete history of your device.
-            </h1>
-            <p className="mt-5 max-w-2xl text-base leading-8 text-device-slate">
-              Register a phone or laptop, print its QR passport, let technicians add pending repair records, then approve them from Activity.
-            </p>
-            <div className="mt-7 flex flex-wrap gap-3">
-              <PrimaryButton href="/register">
-                Register device <ArrowRight size={18} />
-              </PrimaryButton>
-              <GlassButton href="/scan">
-                Scan QR <QrCode size={18} />
-              </GlassButton>
-            </div>
-            <p className="mt-5 text-sm font-black uppercase tracking-[0.18em] text-device-slate">
-              For phones and laptops
-            </p>
-          </motion.div>
-          <div className="grid gap-3 md:grid-cols-2">
-            <StepCard index="01" icon={<Smartphone />} title="Register identity" body="Add brand, model, serial or IMEI, purchase date, and device type." />
-            <StepCard index="02" icon={<QrCode />} title="Create QR passport" body="Download or print a public link that opens the device history directly." />
-            <StepCard index="03" icon={<Wrench />} title="Log repair" body="Technicians submit pending repair records with parts, cost, and service notes." />
-            <StepCard index="04" icon={<ShieldCheck />} title="Owner approval" body="Owner reviews the request in Activity before it becomes public history." />
+        <motion.div
+          initial={{ opacity: 0, y: 18 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.34 }}
+          className="mt-12 max-w-5xl"
+        >
+          <SectionKicker>Phones and laptops</SectionKicker>
+          <h1 className="mt-4 text-5xl font-black leading-[0.95] tracking-tight text-device-ink md:text-8xl">
+            A service passport for every device.
+          </h1>
+          <p className="mt-6 max-w-2xl text-base leading-8 text-device-slate md:text-lg">
+            Device DNA links ownership, repair history, replaced parts, and technician access into one clean record that follows the device through its life.
+          </p>
+          <div className="mt-8 flex flex-wrap gap-3">
+            <PrimaryButton href="/register">Register a device <ArrowRight size={18} /></PrimaryButton>
+            <GlassButton href="/scan">Scan a passport <QrCode size={18} /></GlassButton>
           </div>
+        </motion.div>
+        <div className="mt-12 grid gap-4 md:grid-cols-3">
+          <StepCard index="01" icon={<Smartphone />} title="Create the identity" body="Owner records brand, model, IMEI/serial internally, purchase date, and device type." />
+          <StepCard index="02" icon={<QrCode />} title="Attach the passport" body="A QR label opens the signed-in device passport without exposing private identifiers." />
+          <StepCard index="03" icon={<Wrench />} title="Control repair access" body="Technicians request access first. Owners approve from Activity before logs can be added." />
         </div>
       </section>
       <FirstLoginGuide />
@@ -476,7 +465,11 @@ function FirstLoginGuide() {
 }
 
 export function DevicesPage() {
-  return <DevicesContent />;
+  return (
+    <AuthGate>
+      <DevicesContent />
+    </AuthGate>
+  );
 }
 
 function DevicesContent() {
@@ -486,8 +479,8 @@ function DevicesContent() {
   const [filter, setFilter] = useState<DeviceFilter>('all');
 
   useEffect(() => {
-    const loader = viewer.id ? getDevicesForUser(viewer.id) : getRecentVisibleDevices();
-    loader.then(setDevices).catch(() => setDevices([]));
+    if (!viewer.id) return;
+    getDevicesForUser(viewer.id).then(setDevices).catch(() => setDevices([]));
   }, [viewer.id]);
 
   const filtered = devices.filter((device) => {
@@ -537,7 +530,7 @@ function DeviceGrid({ devices }: { devices: Device[] }) {
             <ChevronRight className="text-device-slate transition group-hover:translate-x-1 group-hover:text-device-ink" />
           </div>
           <h3 className="mt-5 truncate text-2xl font-black text-device-ink">{device.brand} {device.model}</h3>
-          <p className="mt-2 truncate font-mono text-xs text-device-slate">{device.serial_imei}</p>
+          <p className="mt-2 text-xs text-device-slate">Registered {formatDate(device.created_at)}</p>
           <div className="mt-5 grid grid-cols-2 gap-2">
             <MiniMetric label="Type" value={device.device_type} />
             <MiniMetric label="Registered" value={formatDate(device.created_at)} />
@@ -681,7 +674,11 @@ function RegisterContent() {
 }
 
 export function DevicePage() {
-  return <DeviceContent />;
+  return (
+    <AuthGate>
+      <DeviceContent />
+    </AuthGate>
+  );
 }
 
 function DeviceContent() {
@@ -794,7 +791,7 @@ function DeviceHero({ device, score }: { device: DeviceTimeline; score: DeviceSc
         <div>
           <SectionKicker>Device log</SectionKicker>
           <h1 className="mt-3 text-4xl font-black text-device-ink md:text-6xl">{device.brand} {device.model}</h1>
-          <p className="mt-3 font-mono text-sm text-device-slate">{device.serial_imei} · {formatDate(device.created_at)}</p>
+          <p className="mt-3 text-sm text-device-slate">Registered {formatDate(device.created_at)}</p>
         </div>
         <div className="grid grid-cols-1 gap-3">
           <HeroStat label="Health" value={score ? `${score.health_score}/100` : 'No score'} />
@@ -1152,7 +1149,7 @@ function ScanContent() {
       return;
     }
     setState('found');
-    router.push(`/devices/${device.id}`);
+    router.push(`/passport/${device.id}`);
   }
 
   async function clearScanner() {
@@ -1337,80 +1334,59 @@ export function ActivityPage() {
 
 function ActivityContent() {
   const viewer = useViewer();
-  const [groups, setGroups] = useState<Record<ActivityGroup, RepairAccessRequestWithDevice[]>>({
-    Today: [],
-    'This week': [],
-    Earlier: [],
-  });
+  const [requests, setRequests] = useState<RepairAccessRequestWithDevice[]>([]);
   const [notice, setNotice] = useState('');
 
   useEffect(() => {
     if (!viewer.id) return;
-    loadActivity().then(setGroups).catch(() => undefined);
+    getRepairAccessRequests().then(setRequests).catch(() => setRequests([]));
   }, [viewer.id]);
 
   async function decide(requestId: string, decision: 'approved' | 'declined') {
     await decideRepairAccessRequest(requestId, decision);
     setNotice(decision === 'approved' ? 'Technician access approved.' : 'Technician access declined.');
-    setGroups(await loadActivity());
+    setRequests(await getRepairAccessRequests());
   }
 
   return (
     <AppShell>
       <HeaderBlock eyebrow="Activity" title="Technician access requests" description="Approve a technician once, then they can add repair logs for that device." />
       {notice && <AlertGlass title="Activity update">{notice}</AlertGlass>}
-      <div className="space-y-5">
-        {(['Today', 'This week', 'Earlier'] as ActivityGroup[]).map((group) => (
-          <GlassPanel key={group}>
-            <h2 className="text-2xl font-black text-device-ink">{group}</h2>
-            <div className="mt-4 space-y-3">
-              {groups[group].length ? groups[group].map((request) => {
-                const device = getRequestDevice(request);
-                return (
-                <div key={request.id} className="flex flex-col gap-3 rounded-2xl border border-device-border bg-white p-3 md:flex-row md:items-center">
-                  <IconTile tone={request.status === 'approved' ? 'green' : 'amber'}>{request.status === 'approved' ? <BadgeCheck /> : <Clock3 />}</IconTile>
-                  <div className="min-w-0 flex-1">
-                    <p className="break-words font-black text-device-ink">{request.requester_name} from {request.shop_name}</p>
-                    <p className="mt-1 text-sm text-device-slate">{request.status === 'approved' ? 'Approved access' : 'Pending access request'} - {formatDateTime(request.created_at)}</p>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    <GlassButton href={`/devices/${request.device_id}`}>Open</GlassButton>
-                    {request.status === 'pending' ? (
-                      <>
-                        <PrimaryButton onClick={() => decide(request.id, 'approved')}>Approve</PrimaryButton>
-                        <GlassButton onClick={() => decide(request.id, 'declined')}>Decline</GlassButton>
-                      </>
-                    ) : null}
-                  </div>
+      <GlassPanel>
+        <div className="space-y-3">
+          {requests.length ? requests.map((request) => {
+            const device = getRequestDevice(request);
+            return (
+              <div key={request.id} className="flex flex-col gap-3 rounded-2xl border border-device-border bg-device-ice p-3 md:flex-row md:items-center">
+                <IconTile tone={request.status === 'approved' ? 'green' : 'amber'}>{request.status === 'approved' ? <BadgeCheck /> : <Clock3 />}</IconTile>
+                <div className="min-w-0 flex-1">
+                  <p className="break-words font-black text-device-ink">{request.requester_name} from {request.shop_name}</p>
+                  <p className="mt-1 text-sm text-device-slate">
+                    {device ? `${device.brand} ${device.model}` : 'Device'} - {request.requester_phone} - {formatDateTime(request.created_at)}
+                  </p>
+                  <p className="mt-2"><Badge tone={request.status === 'approved' ? 'approved' : request.status === 'declined' ? 'danger' : 'pending'}>{request.status}</Badge></p>
                 </div>
-              );}) : <p className="text-sm text-device-slate">No requests in this group.</p>}
-            </div>
-          </GlassPanel>
-        ))}
-      </div>
+                <div className="flex flex-wrap gap-2">
+                  <GlassButton href={`/devices/${request.device_id}`}>Open</GlassButton>
+                  {request.status === 'pending' ? (
+                    <>
+                      <PrimaryButton onClick={() => decide(request.id, 'approved')}>Approve</PrimaryButton>
+                      <GlassButton onClick={() => decide(request.id, 'declined')}>Decline</GlassButton>
+                    </>
+                  ) : null}
+                </div>
+              </div>
+            );
+          }) : <p className="text-sm text-device-slate">No technician access requests yet.</p>}
+        </div>
+      </GlassPanel>
     </AppShell>
   );
-}
-
-async function loadActivity(): Promise<Record<ActivityGroup, RepairAccessRequestWithDevice[]>> {
-  const requests = await getRepairAccessRequests();
-
-  return requests.reduce<Record<ActivityGroup, RepairAccessRequestWithDevice[]>>((acc, request) => {
-    acc[groupForDate(request.created_at)].push(request);
-    return acc;
-  }, { Today: [], 'This week': [], Earlier: [] });
 }
 
 function getRequestDevice(request: RepairAccessRequestWithDevice): Device | null {
   if (!request.devices) return null;
   return Array.isArray(request.devices) ? request.devices[0] ?? null : request.devices;
-}
-
-function groupForDate(value: string): ActivityGroup {
-  const age = Date.now() - new Date(value).getTime();
-  if (age < 24 * 60 * 60 * 1000) return 'Today';
-  if (age < 7 * 24 * 60 * 60 * 1000) return 'This week';
-  return 'Earlier';
 }
 
 export function AccountPage() {
@@ -1423,6 +1399,15 @@ export function AccountPage() {
 
 function AccountContent() {
   const viewer = useViewer();
+  const [phone, setPhone] = useState(viewer.phone === 'Phone number not added' ? '' : viewer.phone);
+  const [saved, setSaved] = useState(false);
+
+  function savePhone() {
+    if (!viewer.id) return;
+    window.localStorage.setItem(`device-dna-phone-${viewer.id}`, phone.trim());
+    setSaved(true);
+  }
+
   return (
     <AppShell>
       <HeaderBlock eyebrow="Account" title="Profile" description="Your Google/Clerk identity used across Device DNA." />
@@ -1437,7 +1422,14 @@ function AccountContent() {
             <h2 className="text-4xl font-black text-device-ink">{viewer.name}</h2>
             <div className="mt-5 grid gap-3 md:grid-cols-3">
               <MiniMetric label="Email" value={viewer.email} normal />
-              <MiniMetric label="Phone" value={viewer.phone} normal />
+              <div className="rounded-xl border border-device-border bg-white p-3">
+                <p className="text-xs font-bold text-device-slate">Phone</p>
+                <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+                  <Input value={phone} onChange={(event) => setPhone(event.target.value)} placeholder="Example: +91 98765 43210" />
+                  <GlassButton onClick={savePhone}>Save</GlassButton>
+                </div>
+                {saved && <p className="mt-2 text-xs font-bold text-device-healthy">Saved on this device.</p>}
+              </div>
               <MiniMetric label="Access" value="Signed in" />
             </div>
           </div>
@@ -1455,9 +1447,19 @@ function AccountContent() {
 }
 
 export function PassportPage() {
+  return (
+    <AuthGate>
+      <PassportContent />
+    </AuthGate>
+  );
+}
+
+function PassportContent() {
   const params = useParams<{ id: string }>();
+  const viewer = useViewer();
   const [timeline, setTimeline] = useState<DeviceTimeline | null | undefined>(undefined);
   const [score, setScore] = useState<DeviceScore | null>(null);
+  const [accessStatus, setAccessStatus] = useState<'pending' | 'approved' | 'declined' | null>(null);
 
   useEffect(() => {
     Promise.all([getPublicPassportTimeline(params.id), getDeviceScore(params.id)])
@@ -1471,21 +1473,29 @@ export function PassportPage() {
       });
   }, [params.id]);
 
-  if (timeline === undefined) return <AppShell publicMode><LoadingGlass title="Loading passport" /></AppShell>;
-  if (!timeline) return <AppShell publicMode><EmptyGlass title="Passport not found" body="Check the QR code or scan again." /></AppShell>;
+  useEffect(() => {
+    if (!viewer.id || !timeline || viewer.id === timeline.owner_id) {
+      setAccessStatus(null);
+      return;
+    }
+
+    getRepairAccessStatus(timeline.id, viewer.id)
+      .then(setAccessStatus)
+      .catch(() => setAccessStatus(null));
+  }, [viewer.id, timeline]);
+
+  if (timeline === undefined) return <AppShell><LoadingGlass title="Loading passport" /></AppShell>;
+  if (!timeline) return <AppShell><EmptyGlass title="Passport not found" body="Check the QR code or scan again." /></AppShell>;
 
   return (
-    <AppShell publicMode>
-      <div className="mb-5 flex items-center justify-between">
-        <LogoMark light />
-        <GlassButton href="/">Open portal</GlassButton>
-      </div>
+    <AppShell>
       <DeviceHero device={timeline} score={score} />
       <div className="mt-6 grid gap-5 xl:grid-cols-[0.88fr_1.12fr]">
         <ScoreSuite score={score} />
         <section>
-          <HeaderBlock eyebrow="Public passport" title="Approved history only" description="No owner contact details or pending repair records are shown here." />
+          <HeaderBlock eyebrow="Timeline" title="Repair log" description="Only recorded repair history is shown here." />
           <RepairTimeline repairs={timeline.repair_events} isOwner={false} publicOnly />
+          <RepairAccessPanel device={timeline} status={accessStatus} onSubmitted={() => setAccessStatus('pending')} />
         </section>
       </div>
     </AppShell>

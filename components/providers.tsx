@@ -1,7 +1,7 @@
 'use client';
 
 import { ClerkProvider, useAuth, useUser } from '@clerk/clerk-react';
-import { createContext, type ReactNode, useContext, useEffect } from 'react';
+import { createContext, type ReactNode, useContext, useEffect, useState } from 'react';
 import { setSupabaseAccessTokenGetter } from '@/src/lib/supabase';
 import type { ProfileRole } from '@/src/types/database';
 
@@ -61,6 +61,7 @@ export function useViewerContext() {
 function ViewerBridge({ children }: { children: ReactNode }) {
   const { getToken, isLoaded, isSignedIn, userId } = useAuth();
   const { user } = useUser();
+  const [savedPhone, setSavedPhone] = useState('');
 
   useEffect(() => {
     setSupabaseAccessTokenGetter(async () => {
@@ -78,6 +79,15 @@ function ViewerBridge({ children }: { children: ReactNode }) {
     return () => setSupabaseAccessTokenGetter(null);
   }, [getToken]);
 
+  useEffect(() => {
+    if (!userId) {
+      setSavedPhone('');
+      return;
+    }
+
+    setSavedPhone(window.localStorage.getItem(`device-dna-phone-${userId}`) ?? '');
+  }, [userId]);
+
   const viewer: ViewerContextValue = {
     configured: true,
     ready: isLoaded,
@@ -86,7 +96,7 @@ function ViewerBridge({ children }: { children: ReactNode }) {
     role: null,
     name: user?.fullName ?? user?.username ?? 'Device DNA user',
     email: user?.primaryEmailAddress?.emailAddress ?? 'No email on account',
-    phone: user?.primaryPhoneNumber?.phoneNumber ?? 'Phone number not added',
+    phone: user?.primaryPhoneNumber?.phoneNumber ?? (savedPhone || 'Phone number not added'),
     imageUrl: user?.imageUrl,
   };
 

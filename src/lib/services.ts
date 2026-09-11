@@ -357,7 +357,7 @@ export async function requestRepairAccess(
   const body = (await response.json().catch(() => ({}))) as RepairAccessResponse;
 
   if (!response.ok || !body.ok || !body.request) {
-    throw new Error(body.error || 'Could not request repair access');
+    throw new Error(normalizeRepairAccessError(body.error || 'Could not request repair access'));
   }
 
   return body.request;
@@ -379,7 +379,11 @@ export async function getRepairAccessRequests(): Promise<RepairAccessRequestWith
   const body = (await response.json().catch(() => ({}))) as RepairAccessResponse;
 
   if (!response.ok || !body.ok) {
-    throw new Error(body.error || 'Could not load repair access requests');
+    const message = normalizeRepairAccessError(body.error || 'Could not load repair access requests');
+    if (message.includes('Repair access table is missing')) {
+      return [];
+    }
+    throw new Error(message);
   }
 
   return body.requests ?? [];
@@ -407,7 +411,7 @@ export async function decideRepairAccessRequest(
   const body = (await response.json().catch(() => ({}))) as RepairAccessResponse;
 
   if (!response.ok || !body.ok) {
-    throw new Error(body.error || 'Could not update request');
+    throw new Error(normalizeRepairAccessError(body.error || 'Could not update request'));
   }
 
   return true;
@@ -857,6 +861,14 @@ function attachWarrantyRecords(
 
 function sanitizeFileName(fileName: string): string {
   return fileName.replace(/[^a-zA-Z0-9._-]/g, '-');
+}
+
+function normalizeRepairAccessError(message: string): string {
+  if (message.includes('repair_access_requests') || message.includes('schema cache')) {
+    return 'Repair access table is missing. Run supabase/migrations/202609110002_repair_access_requests.sql in Supabase SQL Editor.';
+  }
+
+  return message;
 }
 
 function toDateOnly(date: Date): string {
