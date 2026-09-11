@@ -10,9 +10,9 @@ export default {
     extend: {
       colors: {
         device: {
-          blue: '#2764FF',
-          cobalt: '#1746C7',
-          cyan: '#38BDF8',
+          blue: '#315A7D',
+          cobalt: '#244762',
+          cyan: '#57A6B8',
           midnight: '#080B11',
           carbon: '#111722',
           ice: '#F6F8FC',

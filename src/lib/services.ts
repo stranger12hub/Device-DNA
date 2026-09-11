@@ -323,13 +323,18 @@ export async function submitRepairRecord(
 
 export async function verifyOtpAndApprove(
   repairEventId: string,
-  otp: string,
+  _otp?: string,
+): Promise<VerifyOtpResult> {
+  return approveRepairEvent(repairEventId);
+}
+
+export async function approveRepairEvent(
+  repairEventId: string,
 ): Promise<VerifyOtpResult> {
   ensureSupabaseConfigured();
 
   const { data, error } = await supabase.rpc('approve_repair_event', {
     repair_event_id: repairEventId,
-    otp_code: otp,
   });
 
   if (error) {
@@ -692,11 +697,7 @@ export async function logRepair(
 }
 
 export async function approveRepair(): Promise<void> {
-  throw new Error('Use verifyOtpAndApprove(repairEventId, otp) for approvals.');
-}
-
-export async function approveRepairEvent(): Promise<void> {
-  return approveRepair();
+  throw new Error('Use approveRepairEvent(repairEventId) for approvals.');
 }
 
 async function insertParts(

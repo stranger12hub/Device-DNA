@@ -3,8 +3,8 @@
 @tailwind utilities;
 
 :root {
-  color: #ffffff;
-  background: #050712;
+  color: #111827;
+  background: #f6f8fc;
 }
 
 * {
@@ -18,14 +18,14 @@ html {
 body {
   min-height: 100vh;
   margin: 0;
-  background: #050712;
-  color: #ffffff;
+  background: #f6f8fc;
+  color: #111827;
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
 }
 
 ::selection {
-  background: rgba(56, 189, 248, 0.32);
-  color: #ffffff;
+  background: rgba(49, 90, 125, 0.22);
+  color: #111827;
 }
 
 button,
@@ -46,14 +46,14 @@ textarea:focus-visible {
 
 .subtle-blue-field {
   background:
-    radial-gradient(circle at 50% 0%, rgba(39, 100, 255, 0.16), transparent 38%),
-    #080b11;
+    radial-gradient(circle at 50% 0%, rgba(49, 90, 125, 0.10), transparent 38%),
+    #ffffff;
 }
 
 .score-field {
   background:
-    radial-gradient(circle at 20% 0%, rgba(56, 189, 248, 0.14), transparent 36%),
-    #080b11;
+    radial-gradient(circle at 20% 0%, rgba(87, 166, 184, 0.12), transparent 36%),
+    #ffffff;
 }
 
 .scanner-line {

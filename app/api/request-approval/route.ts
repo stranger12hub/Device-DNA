@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createHash, randomInt } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from '@/src/types/database';
 
@@ -31,8 +30,6 @@ type ClerkUser = {
   primary_email_address_id?: string;
 };
 
-const OTP_EXPIRY_MINUTES = 15;
-
 export async function POST(request: NextRequest) {
   try {
     const body = (await request.json().catch(() => ({}))) as Body;
@@ -48,10 +45,6 @@ export async function POST(request: NextRequest) {
       return json({ ok: false, error: 'Repair event not found' }, 404);
     }
 
-    if (repair.status !== 'pending') {
-      return json({ ok: false, error: 'Repair event is not pending approval' }, 409);
-    }
-
     if (!repair.devices.owner_id) {
       return json({ ok: false, error: 'Device owner is not available' }, 400);
     }
@@ -62,27 +55,8 @@ export async function POST(request: NextRequest) {
       return json({ ok: false, error: 'Device owner email could not be resolved' }, 400);
     }
 
-    const otp = randomInt(0, 1_000_000).toString().padStart(6, '0');
-    const expiresAt = new Date(
-      Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000,
-    ).toISOString();
-
-    const { error: insertError } = await supabase
-      .from('approval_requests')
-      .insert({
-        repair_event_id: repair.id,
-        otp_hash: hashOtp(repair.id, otp),
-        expires_at: expiresAt,
-      });
-
-    if (insertError) {
-      console.error('Approval insert failed', insertError.code, insertError.message);
-      return json({ ok: false, error: `Could not create approval request: ${insertError.message}` }, 500);
-    }
-
-    await sendApprovalEmail({
+    await sendRepairNotification({
       to: ownerEmail,
-      otp,
       technicianName:
         repair.profiles?.display_name?.trim() || 'Device DNA technician',
       deviceName: [repair.devices.brand, repair.devices.model]
@@ -170,18 +144,12 @@ async function getClerkUserEmail(userId: string): Promise<string | null> {
   );
 }
 
-function hashOtp(repairEventId: string, otp: string): string {
-  return createHash('sha256').update(`${repairEventId}:${otp}`).digest('hex');
-}
-
-async function sendApprovalEmail({
+async function sendRepairNotification({
   to,
-  otp,
   technicianName,
   deviceName,
 }: {
   to: string;
-  otp: string;
   technicianName: string;
   deviceName: string;
 }) {
@@ -195,9 +163,9 @@ async function sendApprovalEmail({
       },
       body: JSON.stringify({
         to,
-        otp,
         technicianName,
         deviceName,
+        type: 'repair_record_pending',
       }),
     });
 
@@ -208,17 +176,15 @@ async function sendApprovalEmail({
     return;
   }
 
-  await sendGmailApprovalEmail({ to, otp, technicianName, deviceName });
+  await sendGmailRepairNotification({ to, technicianName, deviceName });
 }
 
-async function sendGmailApprovalEmail({
+async function sendGmailRepairNotification({
   to,
-  otp,
   technicianName,
   deviceName,
 }: {
   to: string;
-  otp: string;
   technicianName: string;
   deviceName: string;
 }) {
@@ -241,12 +207,10 @@ async function sendGmailApprovalEmail({
   await transporter.sendMail({
     from: `"Device DNA" <${gmailAddress}>`,
     to,
-    subject: `Approve repair record for ${deviceName}`,
+    subject: `New repair record added for ${deviceName}`,
     text: [
-      `Your Device DNA approval code is ${otp}.`,
-      '',
       `${technicianName} submitted a repair record for ${deviceName}.`,
-      'This code expires in 15 minutes.',
+      'Open Device DNA Activity to review and approve it from your owner account.',
       '',
       'If you did not request this, you can ignore this email.',
     ].join('\n'),
@@ -254,8 +218,7 @@ async function sendGmailApprovalEmail({
       <div style="font-family:Arial,sans-serif;line-height:1.5;color:#111827">
         <p style="margin:0 0 12px">A repair record was submitted for <strong>${escapeHtml(deviceName)}</strong>.</p>
         <p style="margin:0 0 12px">Technician: <strong>${escapeHtml(technicianName)}</strong></p>
-        <p style="font-size:28px;font-weight:700;letter-spacing:6px;margin:18px 0">${otp}</p>
-        <p style="margin:0;color:#667085">This code expires in 15 minutes.</p>
+        <p style="margin:0;color:#667085">Open Device DNA Activity to review and approve it from your owner account.</p>
       </div>
     `,
   });

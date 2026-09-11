@@ -50,7 +50,7 @@ import {
   recalculateDeviceScore,
   registerDevice,
   submitRepairRecord,
-  verifyOtpAndApprove,
+  approveRepairEvent,
 } from '@/src/lib/services';
 import type {
   ComponentName,
@@ -165,14 +165,14 @@ export function LogoMark({ compact = false, light = false }: { compact?: boolean
       <img
         src="/device-dna-logo.jpeg"
         alt="Device DNA"
-        className={`${compact ? 'h-10 w-10' : 'h-12 w-12'} rounded-xl border border-white/10 object-cover shadow-lg`}
+        className={`${compact ? 'h-10 w-10' : 'h-12 w-12'} rounded-xl border border-device-border object-cover shadow-lg`}
       />
       {!compact && (
         <span>
-          <span className={`block text-sm font-black uppercase tracking-[0.16em] ${light ? 'text-white' : 'text-device-ink'}`}>
+          <span className={`block text-sm font-black uppercase tracking-[0.16em] ${light ? 'text-device-ink' : 'text-device-ink'}`}>
             Device DNA
           </span>
-          <span className={light ? 'block text-xs text-white/58' : 'block text-xs text-device-slate'}>
+          <span className={light ? 'block text-xs text-device-slate' : 'block text-xs text-device-slate'}>
             Permanent device passport
           </span>
         </span>
@@ -187,8 +187,8 @@ function useViewer(): Viewer {
 
 export function AppShell({ children, publicMode = false }: { children: React.ReactNode; publicMode?: boolean }) {
   return (
-    <div className="min-h-screen overflow-hidden bg-[#050712] text-white">
-      <div className="fixed inset-0 -z-10 bg-device-midnight" />
+    <div className="min-h-screen overflow-hidden bg-device-ice text-device-ink">
+      <div className="fixed inset-0 -z-10 bg-device-ice" />
       <div className="fixed inset-x-0 top-0 -z-10 h-72 bg-[radial-gradient(circle_at_center,rgba(39,100,255,0.12),transparent_62%)]" />
       {!publicMode && <DesktopRail />}
       <main className={`mx-auto min-h-screen w-full max-w-[1440px] px-4 pb-28 pt-5 ${publicMode ? 'md:px-6' : 'md:pl-28 md:pr-6 md:pt-6'}`}>
@@ -203,7 +203,7 @@ function DesktopRail() {
   const pathname = usePathname();
 
   return (
-    <aside className="fixed left-4 top-4 z-40 hidden h-[calc(100vh-32px)] w-20 rounded-2xl border border-white/10 bg-white/[0.06] p-3 shadow-2xl shadow-black/30 backdrop-blur-2xl md:block">
+    <aside className="fixed left-4 top-4 z-40 hidden h-[calc(100vh-32px)] w-20 rounded-2xl border border-device-border bg-white p-3 shadow-sm backdrop-blur-2xl md:block">
       <div className="flex h-full flex-col items-center gap-5">
         <LogoMark compact light />
         <nav className="flex flex-1 flex-col items-center justify-center gap-3">
@@ -225,10 +225,10 @@ function RailItem({ item, active }: { item: (typeof navItems)[number]; active: b
       title={item.label}
       className={`grid h-14 w-14 place-items-center rounded-xl border transition ${
         item.featured
-          ? 'border-device-blue bg-device-blue text-white shadow-lg shadow-device-blue/20'
+          ? 'border-device-blue bg-device-blue text-white shadow-sm'
           : active
-            ? 'border-white/20 bg-white/14 text-white'
-            : 'border-transparent text-white/52 hover:border-white/10 hover:bg-white/[0.08] hover:text-white'
+            ? 'border-device-border bg-device-ice text-device-ink'
+            : 'border-transparent text-device-slate hover:border-device-border hover:bg-white hover:text-device-ink'
       }`}
     >
       <Icon size={21} />
@@ -240,7 +240,7 @@ function BottomNav() {
   const pathname = usePathname();
 
   return (
-    <nav className="fixed bottom-4 left-1/2 z-50 grid h-[78px] w-[calc(100%-24px)] max-w-md -translate-x-1/2 grid-cols-5 items-center rounded-full border border-white/12 bg-[#0A1020]/78 px-2 shadow-2xl shadow-black/40 backdrop-blur-2xl md:hidden">
+    <nav className="fixed bottom-4 left-1/2 z-50 grid h-[78px] w-[calc(100%-24px)] max-w-md -translate-x-1/2 grid-cols-5 items-center rounded-full border border-device-border bg-white px-2 shadow-sm backdrop-blur-2xl md:hidden">
       {navItems.map((item) => {
         const Icon = item.icon;
         const active = isActive(pathname, item.href);
@@ -249,18 +249,18 @@ function BottomNav() {
           <Link
             key={item.href}
             href={item.href}
-            className="flex min-h-14 flex-col items-center justify-center gap-1 text-[11px] font-bold text-white/52"
+            className="flex min-h-14 flex-col items-center justify-center gap-1 text-[11px] font-bold text-device-slate"
           >
             <span
               className={`grid place-items-center rounded-full ${
                 item.featured
-                  ? '-mt-10 h-[66px] w-[66px] border-[6px] border-[#050712] bg-device-blue text-white shadow-xl shadow-device-blue/25'
-                  : `h-9 w-9 ${active ? 'bg-white/14 text-white' : ''}`
+                  ? '-mt-10 h-[66px] w-[66px] border-[6px] border-device-ice bg-device-blue text-white shadow-sm'
+                  : `h-9 w-9 ${active ? 'bg-device-ice text-device-ink' : ''}`
               }`}
             >
               <Icon size={item.featured ? 25 : 19} />
             </span>
-            <span className={active ? 'text-white' : ''}>{item.label}</span>
+            <span className={active ? 'text-device-ink' : ''}>{item.label}</span>
           </Link>
         );
       })}
@@ -278,7 +278,7 @@ export function HomePage() {
 
   return (
     <AppShell>
-      <section className="rounded-2xl border border-white/10 bg-white/[0.06] p-5 shadow-xl shadow-black/20 backdrop-blur-xl md:p-8">
+      <section className="rounded-2xl border border-device-border bg-white p-5 shadow-sm backdrop-blur-xl md:p-8">
         <div className="flex items-center justify-between gap-4">
           <LogoMark light />
           <AuthCluster viewer={viewer} />
@@ -290,11 +290,11 @@ export function HomePage() {
             transition={{ duration: 0.34 }}
           >
             <SectionKicker>Device DNA</SectionKicker>
-            <h1 className="mt-4 max-w-3xl text-4xl font-black leading-tight text-white md:text-7xl">
+            <h1 className="mt-4 max-w-3xl text-4xl font-black leading-tight text-device-ink md:text-7xl">
               The complete history of your device.
             </h1>
-            <p className="mt-5 max-w-2xl text-base leading-8 text-white/68">
-              Register a phone or laptop, print its QR passport, let technicians add pending repair records, then approve them with OTP.
+            <p className="mt-5 max-w-2xl text-base leading-8 text-device-slate">
+              Register a phone or laptop, print its QR passport, let technicians add pending repair records, then approve them from Activity.
             </p>
             <div className="mt-7 flex flex-wrap gap-3">
               <PrimaryButton href="/register">
@@ -304,7 +304,7 @@ export function HomePage() {
                 Scan QR <QrCode size={18} />
               </GlassButton>
             </div>
-            <p className="mt-5 text-sm font-black uppercase tracking-[0.18em] text-white/46">
+            <p className="mt-5 text-sm font-black uppercase tracking-[0.18em] text-device-slate">
               For phones and laptops
             </p>
           </motion.div>
@@ -312,7 +312,7 @@ export function HomePage() {
             <StepCard index="01" icon={<Smartphone />} title="Register identity" body="Add brand, model, serial or IMEI, purchase date, and device type." />
             <StepCard index="02" icon={<QrCode />} title="Create QR passport" body="Download or print a public link that opens the device history directly." />
             <StepCard index="03" icon={<Wrench />} title="Log repair" body="Technicians submit pending repair records with parts, cost, and service notes." />
-            <StepCard index="04" icon={<ShieldCheck />} title="Approve by OTP" body="Owner confirms the repair before it becomes public history." />
+            <StepCard index="04" icon={<ShieldCheck />} title="Owner approval" body="Owner reviews the request in Activity before it becomes public history." />
           </div>
         </div>
       </section>
@@ -324,13 +324,13 @@ export function HomePage() {
 
 function StepCard({ index, icon, title, body }: { index: string; icon: React.ReactNode; title: string; body: string }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.07] p-4">
+    <div className="rounded-2xl border border-device-border bg-white p-4">
       <div className="flex items-center justify-between">
         <IconTile tone="blue">{icon}</IconTile>
-        <span className="font-mono text-xs font-black text-white/36">{index}</span>
+        <span className="font-mono text-xs font-black text-device-slate">{index}</span>
       </div>
-      <h2 className="mt-4 text-xl font-black text-white">{title}</h2>
-      <p className="mt-2 text-sm leading-6 text-white/60">{body}</p>
+      <h2 className="mt-4 text-xl font-black text-device-ink">{title}</h2>
+      <p className="mt-2 text-sm leading-6 text-device-slate">{body}</p>
     </div>
   );
 }
@@ -341,7 +341,7 @@ function AuthCluster({ viewer }: { viewer: Viewer }) {
 
   if (viewer.signedIn) {
     return (
-      <Link href="/account" className="hidden items-center gap-3 rounded-full border border-white/10 bg-white/[0.08] px-4 py-2 text-sm font-bold text-white backdrop-blur-xl md:flex">
+      <Link href="/account" className="hidden items-center gap-3 rounded-full border border-device-border bg-white px-4 py-2 text-sm font-bold text-device-ink backdrop-blur-xl md:flex">
         {viewer.imageUrl ? <img src={viewer.imageUrl} alt="" className="h-7 w-7 rounded-full" /> : <CircleUserRound size={18} />}
         {viewer.name}
       </Link>
@@ -351,12 +351,12 @@ function AuthCluster({ viewer }: { viewer: Viewer }) {
   return (
     <div className="hidden gap-2 md:flex">
       <SignInButton mode="modal">
-        <button className="min-h-11 rounded-full border border-white/12 bg-white/[0.06] px-5 text-sm font-black text-white backdrop-blur-xl">
+        <button className="min-h-11 rounded-full border border-device-border bg-white px-5 text-sm font-black text-device-ink backdrop-blur-xl">
           Sign in
         </button>
       </SignInButton>
       <SignUpButton mode="modal">
-        <button className="min-h-11 rounded-full bg-device-blue px-5 text-sm font-black text-white shadow-lg shadow-device-blue/20 transition hover:bg-device-cobalt">
+        <button className="min-h-11 rounded-full bg-device-blue px-5 text-sm font-black text-device-ink shadow-lg shadow-device-blue/20 transition hover:bg-device-cobalt">
           Get started
         </button>
       </SignUpButton>
@@ -366,19 +366,19 @@ function AuthCluster({ viewer }: { viewer: Viewer }) {
 
 function QuickTile({ icon, title, body, tone }: { icon: React.ReactNode; title: string; body: string; tone: 'blue' | 'cyan' | 'green' | 'amber' }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.07] p-4 backdrop-blur-xl">
+    <div className="rounded-2xl border border-device-border bg-white p-4 backdrop-blur-xl">
       <IconTile tone={tone}>{icon}</IconTile>
-      <h3 className="mt-4 text-xl font-black text-white">{title}</h3>
-      <p className="mt-2 text-sm leading-6 text-white/60">{body}</p>
+      <h3 className="mt-4 text-xl font-black text-device-ink">{title}</h3>
+      <p className="mt-2 text-sm leading-6 text-device-slate">{body}</p>
     </div>
   );
 }
 
 function RoleCard({ title, body, href }: { title: string; body: string; href: string }) {
   return (
-    <Link href={href} className="group rounded-2xl border border-white/10 bg-white/[0.07] p-4 transition hover:border-cyan-300/40 hover:bg-white/[0.1]">
-      <h3 className="text-xl font-black text-white">{title}</h3>
-      <p className="mt-2 text-sm leading-6 text-white/60">{body}</p>
+    <Link href={href} className="group rounded-2xl border border-device-border bg-white p-4 transition hover:border-cyan-300/40 hover:bg-device-ice">
+      <h3 className="text-xl font-black text-device-ink">{title}</h3>
+      <p className="mt-2 text-sm leading-6 text-device-slate">{body}</p>
       <span className="mt-4 inline-flex items-center gap-2 text-sm font-black text-cyan-100">
         Enter <ChevronRight className="transition group-hover:translate-x-1" size={16} />
       </span>
@@ -391,7 +391,7 @@ function AudienceTabs() {
   const current = audienceTabs[active];
 
   return (
-    <section className="relative mt-10 overflow-hidden rounded-2xl border border-white/10 bg-white/[0.07] p-4 shadow-2xl shadow-black/30 backdrop-blur-2xl md:p-6">
+    <section className="relative mt-10 overflow-hidden rounded-2xl border border-device-border bg-white p-4 shadow-sm backdrop-blur-2xl md:p-6">
       <div className="absolute left-1/2 top-0 h-80 w-80 -translate-x-1/2 rounded-full bg-device-blue/15 blur-3xl" />
       <div className="relative grid gap-5 lg:grid-cols-[0.42fr_0.58fr] lg:items-stretch">
         <div className="grid gap-2 lg:auto-rows-fr">
@@ -402,8 +402,8 @@ function AudienceTabs() {
               onClick={() => setActive(index)}
               className={`rounded-2xl border p-4 text-left transition ${
                 active === index
-                  ? 'border-cyan-300/40 bg-cyan-300/10 text-white'
-                  : 'border-white/10 bg-black/10 text-white/58 hover:bg-white/[0.06] hover:text-white'
+                  ? 'border-cyan-300/40 bg-cyan-300/10 text-device-ink'
+                  : 'border-device-border bg-black/10 text-device-slate hover:bg-white hover:text-device-ink'
               }`}
             >
               <span className="text-xs font-black tracking-[0.18em]">{tab.label}</span>
@@ -416,14 +416,14 @@ function AudienceTabs() {
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.22 }}
-          className="relative flex min-h-[360px] flex-col justify-between rounded-2xl border border-white/10 bg-[#090E1A]/82 p-5 md:p-7"
+          className="relative flex min-h-[360px] flex-col justify-between rounded-2xl border border-device-border bg-[#090E1A]/82 p-5 md:p-7"
         >
           <div>
             <p className="text-xs font-black tracking-[0.2em] text-cyan-100/82">{current.label}</p>
-            <h2 className="mt-5 max-w-2xl text-4xl font-black leading-tight text-white md:text-6xl">
+            <h2 className="mt-5 max-w-2xl text-4xl font-black leading-tight text-device-ink md:text-6xl">
               {current.title}
             </h2>
-            <p className="mt-5 max-w-xl text-base leading-8 text-white/64 md:text-lg">
+            <p className="mt-5 max-w-xl text-base leading-8 text-device-slate md:text-lg">
               {current.body}
             </p>
           </div>
@@ -440,14 +440,14 @@ function AudienceTabs() {
 
 function TrustLimits() {
   return (
-    <section className="mx-auto mt-14 max-w-4xl border-t border-white/10 py-10 md:mt-20">
-      <h2 className="text-2xl font-black leading-tight text-white/80 md:text-4xl">
+    <section className="mx-auto mt-14 max-w-4xl border-t border-device-border py-10 md:mt-20">
+      <h2 className="text-2xl font-black leading-tight text-device-slate md:text-4xl">
         See the record. Know its limits.
       </h2>
-      <p className="mt-5 text-base leading-8 text-white/52">
+      <p className="mt-5 text-base leading-8 text-device-slate">
         Each repair shows who submitted it.
       </p>
-      <p className="mt-3 text-sm leading-7 text-white/42 md:text-base">
+      <p className="mt-3 text-sm leading-7 text-device-slate md:text-base">
         Records may be incomplete or inaccurate. A device passport helps you understand the recorded history—it does not replace a physical inspection.
       </p>
     </section>
@@ -460,8 +460,8 @@ function FirstLoginGuide() {
       <div className="grid gap-4 md:grid-cols-[1fr_auto] md:items-center">
         <div>
           <SectionKicker>First login guide</SectionKicker>
-          <h2 className="mt-2 text-3xl font-black text-white">Start by registering your first device.</h2>
-          <p className="mt-2 text-sm leading-7 text-white/62">
+          <h2 className="mt-2 text-3xl font-black text-device-ink">Start by registering your first device.</h2>
+          <p className="mt-2 text-sm leading-7 text-device-slate">
             Pick phone or laptop, add identity fields, review the permanent
             record notice, then download or print the QR passport.
           </p>
@@ -525,16 +525,16 @@ function DeviceGrid({ devices }: { devices: Device[] }) {
         <Link
           key={device.id}
           href={`/devices/${device.id}`}
-          className="group rounded-2xl border border-white/10 bg-white/[0.07] p-4 shadow-xl shadow-black/20 backdrop-blur-2xl transition hover:-translate-y-0.5 hover:border-cyan-300/40 hover:bg-white/[0.1]"
+          className="group rounded-2xl border border-device-border bg-white p-4 shadow-sm backdrop-blur-2xl transition hover:-translate-y-0.5 hover:border-cyan-300/40 hover:bg-device-ice"
         >
           <div className="flex items-start justify-between gap-3">
             <IconTile tone={device.device_type === 'phone' ? 'blue' : 'cyan'}>
               {device.device_type === 'phone' ? <Smartphone /> : <Laptop />}
             </IconTile>
-            <ChevronRight className="text-white/36 transition group-hover:translate-x-1 group-hover:text-white" />
+            <ChevronRight className="text-device-slate transition group-hover:translate-x-1 group-hover:text-device-ink" />
           </div>
-          <h3 className="mt-5 truncate text-2xl font-black text-white">{device.brand} {device.model}</h3>
-          <p className="mt-2 truncate font-mono text-xs text-white/48">{device.serial_imei}</p>
+          <h3 className="mt-5 truncate text-2xl font-black text-device-ink">{device.brand} {device.model}</h3>
+          <p className="mt-2 truncate font-mono text-xs text-device-slate">{device.serial_imei}</p>
           <div className="mt-5 grid grid-cols-2 gap-2">
             <MiniMetric label="Type" value={device.device_type} />
             <MiniMetric label="Registered" value={formatDate(device.created_at)} />
@@ -649,8 +649,8 @@ function RegisterContent() {
           <div className="grid gap-6 lg:grid-cols-[1fr_340px]">
             <div>
               <IconTile tone="green"><BadgeCheck /></IconTile>
-              <h2 className="mt-5 text-4xl font-black text-white">QR passport ready.</h2>
-              <p className="mt-3 max-w-xl text-sm leading-7 text-white/62">
+              <h2 className="mt-5 text-4xl font-black text-device-ink">QR passport ready.</h2>
+              <p className="mt-3 max-w-xl text-sm leading-7 text-device-slate">
                 {created.brand} {created.model} has a Device DNA public passport.
                 Download or print the QR for service counters and resale.
               </p>
@@ -686,7 +686,6 @@ function DeviceContent() {
   const viewer = useViewer();
   const [timeline, setTimeline] = useState<DeviceTimeline | null | undefined>(undefined);
   const [score, setScore] = useState<DeviceScore | null>(null);
-  const [otp, setOtp] = useState<Record<string, string>>({});
   const [notice, setNotice] = useState('');
   const [scoreBusy, setScoreBusy] = useState(false);
 
@@ -695,14 +694,9 @@ function DeviceContent() {
   }, [params.id]);
 
   async function approve(repairId: string) {
-    const code = otp[repairId]?.trim();
-    if (!code || code.length !== 6) {
-      setNotice('Enter the 6-digit OTP from the approval email.');
-      return;
-    }
-    const result = await verifyOtpAndApprove(repairId, code);
+    const result = await approveRepairEvent(repairId);
     if (!result.approved) {
-      setNotice('OTP was not accepted. Check the code and expiry.');
+      setNotice('Approval was not accepted. Only the device owner can approve this request.');
       return;
     }
     setNotice('Approved. This repair is now part of the permanent public history.');
@@ -742,7 +736,7 @@ function DeviceContent() {
           <HeaderBlock
             eyebrow="Timeline"
             title="Locked repair history"
-            description="Pending repairs are waiting on owner OTP and do not appear on the public passport."
+            description="Pending repairs wait for owner approval and do not appear on the public passport."
             action={
               <div className="flex flex-wrap gap-2">
                 <GlassButton disabled={scoreBusy} onClick={refreshScore}>
@@ -756,8 +750,6 @@ function DeviceContent() {
           <RepairTimeline
             repairs={timeline.repair_events}
             isOwner={isOwner}
-            otp={otp}
-            setOtp={setOtp}
             onApprove={approve}
           />
         </section>
@@ -786,13 +778,13 @@ async function loadDevice(
 
 function DeviceHero({ device, score }: { device: DeviceTimeline; score: DeviceScore | null }) {
   return (
-    <section className="relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.07] p-5 shadow-2xl shadow-black/30 backdrop-blur-2xl md:p-7">
+    <section className="relative overflow-hidden rounded-2xl border border-device-border bg-white p-5 shadow-sm backdrop-blur-2xl md:p-7">
       <div className="absolute right-10 top-0 h-56 w-56 rounded-full bg-device-blue/20 blur-3xl" />
       <div className="relative flex flex-col justify-between gap-6 md:flex-row md:items-end">
         <div>
           <SectionKicker>Device log</SectionKicker>
-          <h1 className="mt-3 text-4xl font-black text-white md:text-6xl">{device.brand} {device.model}</h1>
-          <p className="mt-3 font-mono text-sm text-white/50">{device.serial_imei} · {formatDate(device.created_at)}</p>
+          <h1 className="mt-3 text-4xl font-black text-device-ink md:text-6xl">{device.brand} {device.model}</h1>
+          <p className="mt-3 font-mono text-sm text-device-slate">{device.serial_imei} · {formatDate(device.created_at)}</p>
         </div>
         <div className="grid grid-cols-2 gap-3">
           <HeroStat label="Health" value={score ? `${score.health_score}/100` : 'No score'} />
@@ -810,7 +802,7 @@ function ScoreSuite({ score }: { score: DeviceScore | null }) {
         <div className="flex items-center justify-between gap-3">
           <div>
             <SectionKicker>Health Score</SectionKicker>
-            <p className="mt-3 text-6xl font-black text-white">{score?.health_score ?? '--'}<span className="text-xl text-white/38">/100</span></p>
+            <p className="mt-3 text-6xl font-black text-device-ink">{score?.health_score ?? '--'}<span className="text-xl text-device-slate">/100</span></p>
           </div>
           <IconTile tone="blue"><ShieldCheck /></IconTile>
         </div>
@@ -825,10 +817,10 @@ function ScoreSuite({ score }: { score: DeviceScore | null }) {
           <IconTile tone="cyan"><IndianRupee /></IconTile>
           <div>
             <SectionKicker>AI Market Value Estimate</SectionKicker>
-            <h2 className="mt-2 text-3xl font-black text-white">{formatCurrency(score?.market_value_estimate)}</h2>
+            <h2 className="mt-2 text-3xl font-black text-device-ink">{formatCurrency(score?.market_value_estimate)}</h2>
           </div>
         </div>
-        <p className="mt-4 text-sm leading-7 text-white/62">
+        <p className="mt-4 text-sm leading-7 text-device-slate">
           {score?.market_value_summary ?? 'Not enough approved data yet for a credible estimate.'}
         </p>
       </GlassPanel>
@@ -840,13 +832,13 @@ function ScoreRow({ factor, value }: { factor: (typeof scoreFactors)[number]; va
   return (
     <div>
       <div className="flex items-center justify-between gap-3 text-sm">
-        <span className="font-black text-white">{factor.label} <span className="font-medium text-white/38">({factor.weight}%)</span></span>
+        <span className="font-black text-device-ink">{factor.label} <span className="font-medium text-device-slate">({factor.weight}%)</span></span>
         <span className="font-mono text-cyan-100">{value}/100</span>
       </div>
       <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/10">
         <div className="h-full rounded-full bg-device-blue" style={{ width: `${Math.max(0, Math.min(100, value))}%` }} />
       </div>
-      <p className="mt-1 text-xs text-white/40">{factor.note}</p>
+      <p className="mt-1 text-xs text-device-slate">{factor.note}</p>
     </div>
   );
 }
@@ -854,15 +846,11 @@ function ScoreRow({ factor, value }: { factor: (typeof scoreFactors)[number]; va
 function RepairTimeline({
   repairs,
   isOwner,
-  otp,
-  setOtp,
   onApprove,
   publicOnly = false,
 }: {
   repairs: RepairEventWithParts[];
   isOwner: boolean;
-  otp: Record<string, string>;
-  setOtp: (value: Record<string, string>) => void;
   onApprove: (repairId: string) => void;
   publicOnly?: boolean;
 }) {
@@ -873,17 +861,17 @@ function RepairTimeline({
       {repairs.map((repair) => {
         const pending = repair.status === 'pending';
         return (
-          <article key={repair.id} className="rounded-2xl border border-white/10 bg-white/[0.07] p-4 shadow-xl shadow-black/20 backdrop-blur-2xl">
+          <article key={repair.id} className="rounded-2xl border border-device-border bg-white p-4 shadow-sm backdrop-blur-2xl">
             <div className="flex flex-col justify-between gap-3 md:flex-row md:items-start">
               <div>
                 <div className="flex flex-wrap gap-2">
                   <Badge tone={pending ? 'pending' : 'approved'}>{pending ? 'Pending owner approval' : 'Approved'}</Badge>
                   <Badge tone="locked">{pending ? 'Locked, waiting' : 'Permanent public history'}</Badge>
                 </div>
-                <h3 className="mt-4 text-2xl font-black text-white">{repair.symptom}</h3>
-                <p className="mt-1 text-sm text-white/50">{formatDateTime(repair.created_at)} · {repair.profiles?.display_name ?? 'Verified technician'}</p>
+                <h3 className="mt-4 text-2xl font-black text-device-ink">{repair.symptom}</h3>
+                <p className="mt-1 text-sm text-device-slate">{formatDateTime(repair.created_at)} · {repair.profiles?.display_name ?? 'Verified technician'}</p>
               </div>
-              <p className="text-lg font-black text-white">{formatCurrency(repair.cost)}</p>
+              <p className="text-lg font-black text-device-ink">{formatCurrency(repair.cost)}</p>
             </div>
             <dl className="mt-5 grid gap-3 text-sm md:grid-cols-3">
               <Info label="Diagnosis" value={repair.diagnosis ?? 'Not provided'} />
@@ -894,17 +882,10 @@ function RepairTimeline({
               <div className="mt-5 rounded-2xl border border-amber-300/20 bg-amber-300/10 p-4">
                 <p className="flex items-center gap-2 text-sm font-black text-amber-100">
                   <LockKeyhole size={16} />
-                  Locked but waiting. Not visible on the public passport until owner OTP approval.
+                  Waiting for owner approval. Not visible on the public passport yet.
                 </p>
                 {isOwner && (
                   <div className="mt-3 flex flex-col gap-2 md:flex-row">
-                    <Input
-                      inputMode="numeric"
-                      maxLength={6}
-                      placeholder="6-digit OTP"
-                      value={otp[repair.id] ?? ''}
-                      onChange={(event) => setOtp({ ...otp, [repair.id]: event.target.value.replace(/\D/g, '').slice(0, 6) })}
-                    />
                     <PrimaryButton onClick={() => onApprove(repair.id)}>Approve</PrimaryButton>
                   </div>
                 )}
@@ -993,11 +974,11 @@ function RepairSubmissionContent() {
       <HeaderBlock
         eyebrow="Technician record"
         title="Submit pending repair"
-        description={timeline ? `${timeline.brand} ${timeline.model} · owner OTP email is sent after submission.` : 'Loading device...'}
+        description={timeline ? `${timeline.brand} ${timeline.model} · the owner can approve this from Activity.` : 'Loading device...'}
       />
       <GlassPanel>
         <AlertGlass title="Approval required">
-          This creates a locked pending record. The owner must approve with OTP before it becomes public.
+          This creates a locked pending record. The owner approves it from their Activity page before it becomes public.
         </AlertGlass>
         <div className="grid gap-4">
           <Field label="Symptoms"><Textarea value={form.symptom} onChange={(event) => setForm({ ...form, symptom: event.target.value })} placeholder="Example: Phone charges only at an angle; customer reports intermittent fast charging." /></Field>
@@ -1171,20 +1152,20 @@ function ScanContent() {
         description="Use the camera, upload a QR image, or enter a Device DNA ID manually. Results open as public read-only passports."
       />
       <div className="grid gap-5 lg:grid-cols-[1fr_390px]">
-        <section className="rounded-2xl border border-white/10 bg-white/[0.07] p-4 shadow-2xl shadow-black/30 backdrop-blur-2xl md:p-5">
+        <section className="rounded-2xl border border-device-border bg-white p-4 shadow-sm backdrop-blur-2xl md:p-5">
           <div className="mb-4 flex items-center justify-between">
             <LogoMark compact light />
             <Badge tone={state === 'found' ? 'approved' : state === 'missing' ? 'danger' : 'neutral'}>{state}</Badge>
           </div>
-          <div className="normal-qr-scanner rounded-xl border border-white/10 bg-white p-3 text-device-midnight">
+          <div className="normal-qr-scanner rounded-xl border border-device-border bg-white p-3 text-device-midnight">
             <div id="device-dna-scanner" />
             <div id="device-dna-upload-scanner" className="hidden" />
           </div>
           {scannerError && <p className="mt-3 text-sm font-bold text-amber-100">{scannerError}</p>}
         </section>
         <GlassPanel>
-          <h2 className="text-2xl font-black text-white">Manual lookup</h2>
-          <p className="mt-2 text-sm leading-7 text-white/60">Paste a public passport URL, device ID, serial, or IMEI.</p>
+          <h2 className="text-2xl font-black text-device-ink">Manual lookup</h2>
+          <p className="mt-2 text-sm leading-7 text-device-slate">Paste a public passport URL, device ID, serial, or IMEI.</p>
           <div className="mt-5 space-y-3">
             <Field label="Device DNA ID or passport link">
               <Input
@@ -1197,7 +1178,7 @@ function ScanContent() {
             {state === 'invalid' && <p className="text-sm font-bold text-red-300">Enter a valid code or link.</p>}
             {state === 'camera-off' && <p className="text-sm font-bold text-amber-100">Camera is unavailable. Manual lookup still works.</p>}
             <PrimaryButton onClick={() => find()}>Find device</PrimaryButton>
-            <label className="inline-flex min-h-12 w-full cursor-pointer items-center justify-center gap-2 rounded-full border border-white/10 bg-white/[0.07] px-5 text-sm font-black text-white shadow-lg shadow-black/10 backdrop-blur-xl transition hover:bg-white/[0.11]">
+            <label className="inline-flex min-h-12 w-full cursor-pointer items-center justify-center gap-2 rounded-full border border-device-border bg-white px-5 text-sm font-black text-device-ink shadow-sm backdrop-blur-xl transition hover:bg-device-ice">
               <Upload size={16} />
               Upload QR image
               <input
@@ -1245,29 +1226,50 @@ function ActivityContent() {
     'This week': [],
     Earlier: [],
   });
+  const [notice, setNotice] = useState('');
 
   useEffect(() => {
     if (!viewer.id) return;
     loadActivity(viewer.id).then(setGroups).catch(() => undefined);
   }, [viewer.id]);
 
+  async function approve(repairId: string) {
+    const result = await approveRepairEvent(repairId);
+    if (!result.approved) {
+      setNotice('Approval failed. Only the device owner can approve this request.');
+      return;
+    }
+
+    setNotice('Repair approved and added to the public device passport.');
+    if (viewer.id) {
+      setGroups(await loadActivity(viewer.id));
+    }
+  }
+
   return (
     <AppShell>
-      <HeaderBlock eyebrow="Activity" title="Recent history across devices" description="Approval, repair, and score-related timeline events grouped by recency." />
+      <HeaderBlock eyebrow="Activity" title="Device requests" description="Review technician repair entries and approve them from your owner account." />
+      {notice && <AlertGlass title="Activity update">{notice}</AlertGlass>}
       <div className="space-y-5">
         {(['Today', 'This week', 'Earlier'] as ActivityGroup[]).map((group) => (
           <GlassPanel key={group}>
-            <h2 className="text-2xl font-black text-white">{group}</h2>
+            <h2 className="text-2xl font-black text-device-ink">{group}</h2>
             <div className="mt-4 space-y-3">
               {groups[group].length ? groups[group].map((repair) => (
-                <Link key={repair.id} href={`/devices/${repair.device_id}`} className="flex gap-3 rounded-2xl border border-white/10 bg-white/[0.06] p-3">
+                <div key={repair.id} className="flex flex-col gap-3 rounded-2xl border border-device-border bg-white p-3 md:flex-row md:items-center">
                   <IconTile tone={repair.status === 'approved' ? 'green' : 'amber'}>{repair.status === 'approved' ? <BadgeCheck /> : <Clock3 />}</IconTile>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate font-black text-white">{repair.symptom}</p>
-                    <p className="mt-1 text-sm text-white/50">{repair.status === 'approved' ? 'Approved repair' : 'Pending owner approval'} · {formatDateTime(repair.created_at)}</p>
+                    <p className="break-words font-black text-device-ink">{repair.symptom}</p>
+                    <p className="mt-1 text-sm text-device-slate">{repair.status === 'approved' ? 'Approved repair' : 'Pending owner approval'} · {formatDateTime(repair.created_at)}</p>
                   </div>
-                </Link>
-              )) : <p className="text-sm text-white/45">No activity in this group.</p>}
+                  <div className="flex flex-wrap gap-2">
+                    <GlassButton href={`/devices/${repair.device_id}`}>Open</GlassButton>
+                    {repair.status === 'pending' ? (
+                      <PrimaryButton onClick={() => approve(repair.id)}>Approve</PrimaryButton>
+                    ) : null}
+                  </div>
+                </div>
+              )) : <p className="text-sm text-device-slate">No activity in this group.</p>}
             </div>
           </GlassPanel>
         ))}
@@ -1313,12 +1315,12 @@ function AccountContent() {
       <GlassPanel>
         <div className="flex flex-col gap-5 md:flex-row md:items-center">
           {viewer.imageUrl ? (
-            <img src={viewer.imageUrl} alt={viewer.name} className="h-24 w-24 rounded-2xl border border-white/10 object-cover shadow-xl" />
+            <img src={viewer.imageUrl} alt={viewer.name} className="h-24 w-24 rounded-2xl border border-device-border object-cover shadow-xl" />
           ) : (
-            <div className="grid h-24 w-24 place-items-center rounded-2xl border border-white/10 bg-white/[0.07]"><CircleUserRound size={42} /></div>
+            <div className="grid h-24 w-24 place-items-center rounded-2xl border border-device-border bg-white"><CircleUserRound size={42} /></div>
           )}
           <div className="flex-1">
-            <h2 className="text-4xl font-black text-white">{viewer.name}</h2>
+            <h2 className="text-4xl font-black text-device-ink">{viewer.name}</h2>
             <div className="mt-5 grid gap-3 md:grid-cols-3">
               <MiniMetric label="Email" value={viewer.email} normal />
               <MiniMetric label="Phone" value={viewer.phone} normal />
@@ -1327,7 +1329,7 @@ function AccountContent() {
           </div>
           {viewer.configured && (
             <SignOutButton>
-              <button className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-white/10 bg-white/[0.07] px-5 text-sm font-black text-white backdrop-blur-xl">
+              <button className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-device-border bg-white px-5 text-sm font-black text-device-ink backdrop-blur-xl">
                 <LogOut size={17} /> Sign out
               </button>
             </SignOutButton>
@@ -1369,7 +1371,7 @@ export function PassportPage() {
         <ScoreSuite score={score} />
         <section>
           <HeaderBlock eyebrow="Public passport" title="Approved history only" description="No owner contact details or pending repair records are shown here." />
-          <RepairTimeline repairs={timeline.repair_events} isOwner={false} otp={{}} setOtp={() => undefined} onApprove={() => undefined} publicOnly />
+          <RepairTimeline repairs={timeline.repair_events} isOwner={false} onApprove={() => undefined} publicOnly />
         </section>
       </div>
     </AppShell>
@@ -1394,8 +1396,8 @@ function AuthGate({ children }: { children: React.ReactNode }) {
     return (
       <AppShell>
         <GlassPanel>
-          <h1 className="text-4xl font-black text-white">Clerk is not configured.</h1>
-          <p className="mt-3 text-sm leading-7 text-white/62">
+          <h1 className="text-4xl font-black text-device-ink">Clerk is not configured.</h1>
+          <p className="mt-3 text-sm leading-7 text-device-slate">
             Add NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY to your environment and restart
             Next.js.
           </p>
@@ -1411,19 +1413,19 @@ function AuthGate({ children }: { children: React.ReactNode }) {
       <AppShell>
         <GlassPanel>
           <SectionKicker>Authentication required</SectionKicker>
-          <h1 className="mt-3 text-4xl font-black text-white">Sign in to enter Device DNA.</h1>
-          <p className="mt-3 max-w-xl text-sm leading-7 text-white/62">
+          <h1 className="mt-3 text-4xl font-black text-device-ink">Sign in to enter Device DNA.</h1>
+          <p className="mt-3 max-w-xl text-sm leading-7 text-device-slate">
             Devices, scanner, activity, and account tabs use Clerk-backed Supabase
             access. Public passports remain read-only.
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
             <SignInButton mode="modal">
-              <button className="min-h-12 rounded-full bg-device-blue px-5 text-sm font-black text-white shadow-lg shadow-device-blue/20 transition hover:bg-device-cobalt">
+              <button className="min-h-12 rounded-full bg-device-blue px-5 text-sm font-black text-device-ink shadow-lg shadow-device-blue/20 transition hover:bg-device-cobalt">
                 Sign in
               </button>
             </SignInButton>
             <SignUpButton mode="modal">
-              <button className="min-h-12 rounded-full border border-white/10 bg-white/[0.07] px-5 text-sm font-black text-white">
+              <button className="min-h-12 rounded-full border border-device-border bg-white px-5 text-sm font-black text-device-ink">
                 Create account
               </button>
             </SignUpButton>
@@ -1441,8 +1443,8 @@ function HeaderBlock({ eyebrow, title, description, action }: { eyebrow?: string
     <header className="mb-5 flex flex-col justify-between gap-4 md:flex-row md:items-end">
       <div>
         {eyebrow && <SectionKicker>{eyebrow}</SectionKicker>}
-        <h1 className="mt-2 max-w-4xl text-4xl font-black leading-tight text-white md:text-6xl">{title}</h1>
-        {description && <p className="mt-3 max-w-2xl text-sm leading-7 text-white/58 md:text-base">{description}</p>}
+        <h1 className="mt-2 max-w-4xl text-4xl font-black leading-tight text-device-ink md:text-6xl">{title}</h1>
+        {description && <p className="mt-3 max-w-2xl text-sm leading-7 text-device-slate md:text-base">{description}</p>}
       </div>
       {action}
     </header>
@@ -1450,78 +1452,78 @@ function HeaderBlock({ eyebrow, title, description, action }: { eyebrow?: string
 }
 
 function GlassPanel({ children, className = '' }: { children: React.ReactNode; className?: string }) {
-  return <section className={`rounded-2xl border border-white/10 bg-white/[0.07] p-4 shadow-2xl shadow-black/20 backdrop-blur-2xl md:p-5 ${className}`}>{children}</section>;
+  return <section className={`rounded-2xl border border-device-border bg-white p-4 shadow-sm backdrop-blur-2xl md:p-5 ${className}`}>{children}</section>;
 }
 
 function SectionKicker({ children }: { children: React.ReactNode }) {
-  return <p className="text-xs font-black uppercase tracking-[0.18em] text-cyan-100/82">{children}</p>;
+  return <p className="text-xs font-black uppercase tracking-[0.18em] text-device-blue">{children}</p>;
 }
 
 function PrimaryButton({ href, children, disabled = false, onClick }: { href?: string; children: React.ReactNode; disabled?: boolean; onClick?: () => void }) {
-  const className = 'inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-device-blue px-5 text-sm font-black text-white shadow-lg shadow-device-blue/20 transition hover:bg-device-cobalt disabled:cursor-not-allowed disabled:opacity-50';
+  const className = 'inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-device-blue px-5 text-sm font-black text-white shadow-sm transition hover:bg-device-cobalt disabled:cursor-not-allowed disabled:opacity-50';
   if (href) return <Link href={href} className={className}>{children}</Link>;
   return <button type="button" disabled={disabled} onClick={onClick} className={className}>{children}</button>;
 }
 
 function GlassButton({ href, children, disabled = false, onClick }: { href?: string; children: React.ReactNode; disabled?: boolean; onClick?: () => void }) {
-  const className = 'inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-white/10 bg-white/[0.07] px-5 text-sm font-black text-white shadow-lg shadow-black/10 backdrop-blur-xl transition hover:bg-white/[0.11] disabled:cursor-not-allowed disabled:opacity-50';
+  const className = 'inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-device-border bg-white px-5 text-sm font-black text-device-ink shadow-sm backdrop-blur-xl transition hover:bg-device-ice disabled:cursor-not-allowed disabled:opacity-50';
   if (href) return <Link href={href} className={className}>{children}</Link>;
   return <button type="button" disabled={disabled} onClick={onClick} className={className}>{children}</button>;
 }
 
 function IconTile({ children, tone }: { children: React.ReactNode; tone: 'blue' | 'cyan' | 'green' | 'amber' }) {
   const tones = {
-    blue: 'border-device-blue/25 bg-device-blue/18 text-[#7EA2FF]',
-    cyan: 'border-device-cyan/25 bg-device-cyan/14 text-[#8DDBFF]',
-    green: 'border-emerald-300/25 bg-emerald-300/12 text-emerald-200',
-    amber: 'border-amber-300/25 bg-amber-300/12 text-amber-200',
+    blue: 'border-device-blue/25 bg-device-blue/10 text-device-blue',
+    cyan: 'border-device-cyan/25 bg-device-cyan/10 text-device-cyan',
+    green: 'border-emerald-300/40 bg-emerald-50 text-device-healthy',
+    amber: 'border-amber-300/45 bg-amber-50 text-device-attention',
   };
   return <div className={`grid h-14 w-14 shrink-0 place-items-center rounded-xl border ${tones[tone]}`}>{children}</div>;
 }
 
 function MiniMetric({ label, value, normal = false }: { label: string; value: React.ReactNode; normal?: boolean }) {
   return (
-    <div className="rounded-xl border border-white/10 bg-white/[0.06] p-3">
-      <p className="text-xs font-bold text-white/42">{label}</p>
-      <p className={`mt-1 truncate text-sm font-black text-white ${normal ? 'normal-case' : 'capitalize'}`}>{value}</p>
+    <div className="rounded-xl border border-device-border bg-white p-3">
+      <p className="text-xs font-bold text-device-slate">{label}</p>
+      <p className={`mt-1 truncate text-sm font-black text-device-ink ${normal ? 'normal-case' : 'capitalize'}`}>{value}</p>
     </div>
   );
 }
 
 function HeroStat({ label, value }: { label: string; value: React.ReactNode }) {
   return (
-    <div className="min-w-36 rounded-2xl border border-white/10 bg-white/[0.08] p-4 backdrop-blur-xl">
-      <p className="text-xs font-bold text-white/45">{label}</p>
-      <p className="mt-1 text-xl font-black text-white">{value}</p>
+    <div className="min-w-36 rounded-2xl border border-device-border bg-white p-4 backdrop-blur-xl">
+      <p className="text-xs font-bold text-device-slate">{label}</p>
+      <p className="mt-1 text-xl font-black text-device-ink">{value}</p>
     </div>
   );
 }
 
 function Badge({ children, tone }: { children: React.ReactNode; tone: 'approved' | 'pending' | 'locked' | 'neutral' | 'danger' }) {
   const tones = {
-    approved: 'border-emerald-300/20 bg-emerald-300/10 text-emerald-100',
-    pending: 'border-amber-300/20 bg-amber-300/10 text-amber-100',
-    locked: 'border-white/12 bg-white/[0.06] text-white/62',
-    neutral: 'border-cyan-300/20 bg-cyan-300/10 text-cyan-100',
-    danger: 'border-red-300/20 bg-red-300/10 text-red-100',
+    approved: 'border-emerald-300/40 bg-emerald-50 text-device-healthy',
+    pending: 'border-amber-300/45 bg-amber-50 text-device-attention',
+    locked: 'border-device-border bg-white text-device-slate',
+    neutral: 'border-device-blue/25 bg-device-blue/10 text-device-blue',
+    danger: 'border-red-300/40 bg-red-50 text-device-critical',
   };
   return <span className={`inline-flex min-h-8 items-center rounded-full border px-3 text-xs font-black ${tones[tone]}`}>{children}</span>;
 }
 
 function SearchBox({ value, onChange }: { value: string; onChange: (value: string) => void }) {
   return (
-    <label className="flex min-h-12 flex-1 items-center gap-2 rounded-full border border-white/10 bg-white/[0.06] px-4">
-      <Search size={18} className="text-white/42" />
-      <input value={value} onChange={(event) => onChange(event.target.value)} placeholder="Search brand, model, serial..." className="w-full bg-transparent text-sm text-white outline-none placeholder:text-white/32" />
+    <label className="flex min-h-12 flex-1 items-center gap-2 rounded-full border border-device-border bg-white px-4">
+      <Search size={18} className="text-device-slate" />
+      <input value={value} onChange={(event) => onChange(event.target.value)} placeholder="Search brand, model, serial..." className="w-full bg-transparent text-sm text-device-ink outline-none placeholder:text-device-slate" />
     </label>
   );
 }
 
 function SegmentedFilter({ value, onChange }: { value: DeviceFilter; onChange: (value: DeviceFilter) => void }) {
   return (
-    <div className="flex rounded-full border border-white/10 bg-white/[0.06] p-1">
+    <div className="flex rounded-full border border-device-border bg-white p-1">
       {(['all', 'phone', 'laptop'] as DeviceFilter[]).map((item) => (
-        <button key={item} type="button" onClick={() => onChange(item)} className={`min-h-10 rounded-full px-4 text-sm font-black capitalize ${value === item ? 'bg-white text-device-midnight' : 'text-white/58'}`}>
+        <button key={item} type="button" onClick={() => onChange(item)} className={`min-h-10 rounded-full px-4 text-sm font-black capitalize ${value === item ? 'bg-white text-device-midnight' : 'text-device-slate'}`}>
           {item === 'all' ? <span className="inline-flex items-center gap-1"><Filter size={14} /> All</span> : item === 'phone' ? 'Phones' : 'Laptops'}
         </button>
       ))}
@@ -1531,9 +1533,9 @@ function SegmentedFilter({ value, onChange }: { value: DeviceFilter; onChange: (
 
 function StepRail({ labels, active }: { labels: string[]; active: number }) {
   return (
-    <div className="mb-5 grid rounded-full border border-white/10 bg-white/[0.06] p-1" style={{ gridTemplateColumns: `repeat(${labels.length}, minmax(0, 1fr))` }}>
+    <div className="mb-5 grid rounded-full border border-device-border bg-white p-1" style={{ gridTemplateColumns: `repeat(${labels.length}, minmax(0, 1fr))` }}>
       {labels.map((label, index) => (
-        <div key={label} className={`rounded-full px-3 py-3 text-center text-xs font-black ${index <= active ? 'bg-device-blue text-white' : 'text-white/42'}`}>
+        <div key={label} className={`rounded-full px-3 py-3 text-center text-xs font-black ${index <= active ? 'bg-device-blue text-device-ink' : 'text-device-slate'}`}>
           {label}
         </div>
       ))}
@@ -1543,9 +1545,9 @@ function StepRail({ labels, active }: { labels: string[]; active: number }) {
 
 function TypeCard({ active, icon, title, onClick }: { active: boolean; icon: React.ReactNode; title: string; onClick: () => void }) {
   return (
-    <button type="button" onClick={onClick} className={`min-h-40 rounded-2xl border p-5 text-left transition ${active ? 'border-cyan-300/40 bg-cyan-300/10' : 'border-white/10 bg-white/[0.05] hover:bg-white/[0.08]'}`}>
+    <button type="button" onClick={onClick} className={`min-h-40 rounded-2xl border p-5 text-left transition ${active ? 'border-cyan-300/40 bg-cyan-300/10' : 'border-device-border bg-white hover:bg-white'}`}>
       <IconTile tone={title === 'Phone' ? 'blue' : 'cyan'}>{icon}</IconTile>
-      <span className="mt-5 block text-3xl font-black text-white">{title}</span>
+      <span className="mt-5 block text-3xl font-black text-device-ink">{title}</span>
     </button>
   );
 }
@@ -1587,13 +1589,13 @@ function QrGlass({ value }: { value: string }) {
   return (
     <GlassPanel>
       <div className="flex items-center justify-between gap-3">
-        <h2 className="text-xl font-black text-white">Passport QR</h2>
+        <h2 className="text-xl font-black text-device-ink">Passport QR</h2>
         <QrCode className="text-cyan-100" />
       </div>
-      <div className="mt-4 grid place-items-center rounded-2xl border border-white/10 bg-white p-5">
+      <div className="mt-4 grid place-items-center rounded-2xl border border-device-border bg-white p-5">
         <QRCodeSVG id={id} value={value} size={190} bgColor="#ffffff" fgColor="#080B11" />
       </div>
-      <p className="mt-3 break-all font-mono text-xs text-white/42">{value}</p>
+      <p className="mt-3 break-all font-mono text-xs text-device-slate">{value}</p>
       <div className="mt-4 grid grid-cols-2 gap-2">
         <GlassButton onClick={download}><Download size={16} /> Download</GlassButton>
         <GlassButton onClick={() => window.print()}><Printer size={16} /> Print</GlassButton>
@@ -1606,7 +1608,7 @@ function AlertGlass({ title, children }: { title: string; children: React.ReactN
   return (
     <div className="mb-4 rounded-2xl border border-cyan-300/20 bg-cyan-300/10 p-4">
       <p className="font-black text-cyan-100">{title}</p>
-      <p className="mt-1 text-sm leading-7 text-white/68">{children}</p>
+      <p className="mt-1 text-sm leading-7 text-device-slate">{children}</p>
     </div>
   );
 }
@@ -1614,29 +1616,29 @@ function AlertGlass({ title, children }: { title: string; children: React.ReactN
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="block">
-      <span className="text-sm font-black text-white/80">{label}</span>
+      <span className="text-sm font-black text-device-slate">{label}</span>
       <div className="mt-2">{children}</div>
     </label>
   );
 }
 
 function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
-  return <input {...props} className={`min-h-12 w-full rounded-xl border border-white/10 bg-white/[0.07] px-4 text-sm text-white outline-none placeholder:text-white/32 focus:border-cyan-300/50 ${props.className ?? ''}`} />;
+  return <input {...props} className={`min-h-12 w-full rounded-xl border border-device-border bg-white px-4 text-sm text-device-ink outline-none placeholder:text-device-slate focus:border-cyan-300/50 ${props.className ?? ''}`} />;
 }
 
 function Select(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
-  return <select {...props} className={`min-h-12 w-full rounded-xl border border-white/10 bg-[#0B1020] px-4 text-sm text-white outline-none focus:border-cyan-300/50 ${props.className ?? ''}`} />;
+  return <select {...props} className={`min-h-12 w-full rounded-xl border border-device-border bg-white px-4 text-sm text-device-ink outline-none focus:border-device-blue ${props.className ?? ''}`} />;
 }
 
 function Textarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
-  return <textarea {...props} className={`min-h-28 w-full rounded-xl border border-white/10 bg-white/[0.07] px-4 py-3 text-sm text-white outline-none placeholder:text-white/32 focus:border-cyan-300/50 ${props.className ?? ''}`} />;
+  return <textarea {...props} className={`min-h-28 w-full rounded-xl border border-device-border bg-white px-4 py-3 text-sm text-device-ink outline-none placeholder:text-device-slate focus:border-cyan-300/50 ${props.className ?? ''}`} />;
 }
 
 function Info({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div>
-      <dt className="text-xs font-black uppercase tracking-[0.14em] text-white/38">{label}</dt>
-      <dd className="mt-1 leading-6 text-white/78">{value}</dd>
+      <dt className="text-xs font-black uppercase tracking-[0.14em] text-device-slate">{label}</dt>
+      <dd className="mt-1 leading-6 text-device-slate">{value}</dd>
     </div>
   );
 }
@@ -1644,7 +1646,7 @@ function Info({ label, value }: { label: string; value: React.ReactNode }) {
 function LoadingGlass({ title }: { title: string }) {
   return (
     <GlassPanel>
-      <p className="font-black text-white">{title}</p>
+      <p className="font-black text-device-ink">{title}</p>
       <div className="mt-4 h-3 w-2/3 animate-pulse rounded-full bg-white/10" />
       <div className="mt-3 h-3 w-1/2 animate-pulse rounded-full bg-white/10" />
     </GlassPanel>
@@ -1655,8 +1657,8 @@ function EmptyGlass({ title, body }: { title: string; body?: string }) {
   return (
     <GlassPanel>
       <Sparkles className="text-cyan-100" />
-      <h2 className="mt-4 text-2xl font-black text-white">{title}</h2>
-      {body && <p className="mt-2 max-w-md text-sm leading-7 text-white/58">{body}</p>}
+      <h2 className="mt-4 text-2xl font-black text-device-ink">{title}</h2>
+      {body && <p className="mt-2 max-w-md text-sm leading-7 text-device-slate">{body}</p>}
     </GlassPanel>
   );
 }
@@ -1706,3 +1708,4 @@ function getRegistrationErrorMessage(error: unknown) {
 
   return `Could not register this device: ${message}`;
 }
+

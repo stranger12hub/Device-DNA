@@ -305,7 +305,6 @@ export type Database = {
       approve_repair_event: {
         Args: {
           repair_event_id: string;
-          otp_code: string;
         };
         Returns: boolean;
       };
