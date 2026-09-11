@@ -186,26 +186,87 @@ async function sendApprovalEmail({
 }) {
   const webhookUrl = process.env.N8N_APPROVAL_WEBHOOK_URL;
 
-  if (!webhookUrl) {
-    throw new Error('Missing N8N_APPROVAL_WEBHOOK_URL');
+  if (webhookUrl) {
+    const response = await fetch(webhookUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        to,
+        otp,
+        technicianName,
+        deviceName,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`n8n webhook failed with ${response.status}`);
+    }
+
+    return;
   }
 
-  const response = await fetch(webhookUrl, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
+  await sendGmailApprovalEmail({ to, otp, technicianName, deviceName });
+}
+
+async function sendGmailApprovalEmail({
+  to,
+  otp,
+  technicianName,
+  deviceName,
+}: {
+  to: string;
+  otp: string;
+  technicianName: string;
+  deviceName: string;
+}) {
+  const gmailAddress = process.env.GMAIL_ADDRESS;
+  const gmailAppPassword = process.env.GMAIL_APP_PASSWORD;
+
+  if (!gmailAddress || !gmailAppPassword) {
+    throw new Error('Missing N8N_APPROVAL_WEBHOOK_URL or Gmail SMTP env vars');
+  }
+
+  const nodemailer = await import('nodemailer');
+  const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+      user: gmailAddress,
+      pass: gmailAppPassword,
     },
-    body: JSON.stringify({
-      to,
-      otp,
-      technicianName,
-      deviceName,
-    }),
   });
 
-  if (!response.ok) {
-    throw new Error(`n8n webhook failed with ${response.status}`);
-  }
+  await transporter.sendMail({
+    from: `"Device DNA" <${gmailAddress}>`,
+    to,
+    subject: `Approve repair record for ${deviceName}`,
+    text: [
+      `Your Device DNA approval code is ${otp}.`,
+      '',
+      `${technicianName} submitted a repair record for ${deviceName}.`,
+      'This code expires in 15 minutes.',
+      '',
+      'If you did not request this, you can ignore this email.',
+    ].join('\n'),
+    html: `
+      <div style="font-family:Arial,sans-serif;line-height:1.5;color:#111827">
+        <p style="margin:0 0 12px">A repair record was submitted for <strong>${escapeHtml(deviceName)}</strong>.</p>
+        <p style="margin:0 0 12px">Technician: <strong>${escapeHtml(technicianName)}</strong></p>
+        <p style="font-size:28px;font-weight:700;letter-spacing:6px;margin:18px 0">${otp}</p>
+        <p style="margin:0;color:#667085">This code expires in 15 minutes.</p>
+      </div>
+    `,
+  });
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
 }
 
 function json(body: { ok: boolean; error?: string }, status: number) {

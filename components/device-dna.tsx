@@ -45,6 +45,7 @@ import {
   getDeviceTimeline,
   getDevicesForUser,
   getPublicPassportTimeline,
+  getRecentVisibleDevices,
   lookupDevice,
   recalculateDeviceScore,
   registerDevice,
@@ -478,11 +479,7 @@ function FirstLoginGuide() {
 }
 
 export function DevicesPage() {
-  return (
-    <AuthGate>
-      <DevicesContent />
-    </AuthGate>
-  );
+  return <DevicesContent />;
 }
 
 function DevicesContent() {
@@ -492,8 +489,8 @@ function DevicesContent() {
   const [filter, setFilter] = useState<DeviceFilter>('all');
 
   useEffect(() => {
-    if (!viewer.id) return;
-    getDevicesForUser(viewer.id).then(setDevices).catch(() => setDevices([]));
+    const loader = viewer.id ? getDevicesForUser(viewer.id) : getRecentVisibleDevices();
+    loader.then(setDevices).catch(() => setDevices([]));
   }, [viewer.id]);
 
   const filtered = devices.filter((device) => {
@@ -687,11 +684,7 @@ function RegisterContent() {
 }
 
 export function DevicePage() {
-  return (
-    <AuthGate>
-      <DeviceContent />
-    </AuthGate>
-  );
+  return <DeviceContent />;
 }
 
 function DeviceContent() {
@@ -785,7 +778,10 @@ async function loadDevice(
   setScore: (value: DeviceScore | null) => void,
 ) {
   try {
-    const [timeline, score] = await Promise.all([getDeviceTimeline(id), getDeviceScore(id)]);
+    const timeline = await getDeviceTimeline(id);
+    const score = timeline
+      ? (await getDeviceScore(id)) ?? (await recalculateDeviceScore(id).catch(() => null))
+      : null;
     setTimeline(timeline);
     setScore(score);
   } catch {
@@ -1143,12 +1139,14 @@ function ScanContent() {
               () => undefined,
             );
           } catch {
-            await scanner.start(
-              { facingMode: undefined },
-              config,
-              onSuccess,
-              () => undefined,
-            );
+            const cameras = await Html5Qrcode.getCameras();
+            const firstCameraId = cameras[0]?.id;
+
+            if (!firstCameraId) {
+              throw new Error('No camera found');
+            }
+
+            await scanner.start(firstCameraId, config, onSuccess, () => undefined);
           }
         }
 
@@ -1385,6 +1383,17 @@ export function PassportPage() {
 
 function AuthGate({ children }: { children: React.ReactNode }) {
   const viewer = useViewer();
+  const [timedOut, setTimedOut] = useState(false);
+
+  useEffect(() => {
+    if (viewer.ready) {
+      setTimedOut(false);
+      return;
+    }
+
+    const timer = window.setTimeout(() => setTimedOut(true), 3500);
+    return () => window.clearTimeout(timer);
+  }, [viewer.ready]);
 
   if (!viewer.configured) {
     return (
@@ -1400,9 +1409,9 @@ function AuthGate({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (!viewer.ready) return <AppShell><LoadingGlass title="Checking sign-in" /></AppShell>;
+  if (!viewer.ready && !timedOut) return <AppShell><LoadingGlass title="Checking sign-in" /></AppShell>;
 
-  if (!viewer.signedIn) {
+  if (!viewer.signedIn || timedOut) {
     return (
       <AppShell>
         <GlassPanel>
@@ -1553,13 +1562,31 @@ function QrGlass({ value }: { value: string }) {
     const svg = document.getElementById(id);
     if (!svg) return;
     const data = new XMLSerializer().serializeToString(svg);
-    const blob = new Blob([data], { type: 'image/svg+xml' });
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement('a');
-    anchor.href = url;
-    anchor.download = 'device-dna-passport.svg';
-    anchor.click();
-    URL.revokeObjectURL(url);
+    const image = new Image();
+    const svgUrl = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(data)}`;
+
+    image.onload = () => {
+      const canvas = document.createElement('canvas');
+      const padding = 32;
+      canvas.width = image.width + padding * 2;
+      canvas.height = image.height + padding * 2;
+      const context = canvas.getContext('2d');
+
+      if (!context) {
+        return;
+      }
+
+      context.fillStyle = '#ffffff';
+      context.fillRect(0, 0, canvas.width, canvas.height);
+      context.drawImage(image, padding, padding);
+
+      const anchor = document.createElement('a');
+      anchor.href = canvas.toDataURL('image/png');
+      anchor.download = 'device-dna-passport-qr.png';
+      anchor.click();
+    };
+
+    image.src = svgUrl;
   }
 
   return (

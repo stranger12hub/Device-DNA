@@ -84,13 +84,23 @@ export async function POST(request: NextRequest) {
       ? await insertWarranties(supabase, parts)
       : [];
 
-    await fetch(new URL('/api/request-approval', request.nextUrl.origin), {
+    const approvalResponse = await fetch(new URL('/api/request-approval', request.nextUrl.origin), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ repair_event_id: repairEvent.id }),
-    }).catch((error) => {
-      console.error('Approval fallback failed', error instanceof Error ? error.message : 'Unknown error');
     });
+    const approvalBody = (await approvalResponse.json().catch(() => ({}))) as {
+      error?: string;
+    };
+
+    if (!approvalResponse.ok) {
+      const approvalError = approvalBody.error || 'Approval email could not be sent';
+      console.error('Approval email failed', approvalError);
+      return json({
+        ok: false,
+        error: `Repair saved, but OTP email failed: ${approvalError}`,
+      }, 502);
+    }
 
     return json({
       ok: true,
