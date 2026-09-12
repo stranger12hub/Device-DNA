@@ -56,9 +56,9 @@ export const ui = {
   field:
     'min-h-[var(--dna-touch-target)] w-full rounded-[var(--dna-control-radius)] border border-[var(--dna-border)] bg-[var(--dna-background)] px-4 text-[15px] font-normal text-[var(--dna-text-primary)] outline-none placeholder:text-[var(--dna-text-secondary)] focus:border-[var(--dna-accent)]',
   primaryButton:
-    'inline-flex min-h-[52px] items-center justify-center gap-2 rounded-[var(--dna-pill-radius)] bg-[var(--dna-accent)] px-5 text-[15px] font-medium text-white disabled:cursor-not-allowed disabled:bg-[var(--dna-border)] disabled:text-[var(--dna-text-muted)]',
+    'inline-flex min-h-[52px] min-w-0 items-center justify-center gap-2 rounded-[var(--dna-pill-radius)] bg-[var(--dna-accent)] px-5 text-center text-[15px] font-medium text-white disabled:cursor-not-allowed disabled:bg-[var(--dna-border)] disabled:text-[var(--dna-text-muted)]',
   secondaryButton:
-    'inline-flex min-h-[52px] items-center justify-center gap-2 rounded-[var(--dna-pill-radius)] border border-[var(--dna-border)] bg-[var(--dna-background)] px-5 text-[15px] font-medium text-[var(--dna-text-primary)] disabled:cursor-not-allowed disabled:opacity-50',
+    'inline-flex min-h-[52px] min-w-0 items-center justify-center gap-2 rounded-[var(--dna-pill-radius)] border border-[var(--dna-border)] bg-[var(--dna-background)] px-5 text-center text-[15px] font-medium text-[var(--dna-text-primary)] disabled:cursor-not-allowed disabled:opacity-50',
   textSecondary: 'text-[var(--dna-text-secondary)]',
   textPrimary: 'text-[var(--dna-text-primary)]',
   link: 'text-[var(--dna-accent)]',

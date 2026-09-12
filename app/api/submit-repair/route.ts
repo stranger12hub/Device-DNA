@@ -53,11 +53,11 @@ export async function POST(request: NextRequest) {
     > & SubmitRepairBody;
     const supabase = getServiceClient();
 
-    const { data: device, error: deviceError } = await supabase
+    const { data: device, error: deviceError } = await retrySupabase(() => supabase
       .from('devices')
       .select('id, owner_id')
       .eq('id', input.deviceId)
-      .maybeSingle();
+      .maybeSingle());
 
     if (deviceError) {
       return json({ ok: false, error: `Device lookup failed: ${deviceError.message}` }, 500);
@@ -71,13 +71,13 @@ export async function POST(request: NextRequest) {
       return json({ ok: false, error: 'Device owners cannot add repair logs to their own device' }, 403);
     }
 
-    const { data: approvedAccess, error: accessError } = await supabase
+    const { data: approvedAccess, error: accessError } = await retrySupabase(() => supabase
       .from('repair_access_requests')
       .select('id')
       .eq('device_id', input.deviceId)
       .eq('requester_id', userId)
       .eq('status', 'approved')
-      .limit(1);
+      .limit(1));
 
     if (accessError) {
       return json({ ok: false, error: `Access check failed: ${accessError.message}` }, 500);
@@ -92,7 +92,7 @@ export async function POST(request: NextRequest) {
       displayName: body.displayName,
     });
 
-    const { data: repairEvent, error: repairError } = await supabase
+    const { data: repairEvent, error: repairError } = await retrySupabase(() => supabase
       .from('repair_events')
       .insert({
         device_id: input.deviceId,
@@ -105,7 +105,7 @@ export async function POST(request: NextRequest) {
         status: 'approved',
       })
       .select()
-      .single();
+      .single());
 
     if (repairError) {
       console.error('Repair insert failed', repairError.code, repairError.message);
@@ -294,6 +294,39 @@ function attachWarrantyRecords(
 
 function toDateOnly(date: Date): string {
   return date.toISOString().slice(0, 10);
+}
+
+async function retrySupabase<T>(
+  operation: () => PromiseLike<T>,
+  attempts = 2,
+): Promise<T> {
+  let lastError: unknown;
+
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    try {
+      const result = await operation();
+      const maybeError = typeof result === 'object' && result && 'error' in result
+        ? (result as { error?: { message?: string } | null }).error
+        : null;
+
+      if (!maybeError || attempt === attempts - 1 || !isTransientSupabaseError(maybeError.message)) {
+        return result;
+      }
+
+      lastError = maybeError;
+    } catch (error) {
+      lastError = error;
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 350 * (attempt + 1)));
+  }
+
+  throw lastError;
+}
+
+function isTransientSupabaseError(message?: string) {
+  const normalized = message?.toLowerCase() ?? '';
+  return normalized.includes('gateway timeout') || normalized.includes('timeout') || normalized.includes('fetch failed');
 }
 
 function json(

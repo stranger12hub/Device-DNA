@@ -472,6 +472,27 @@ export async function getDeviceTimeline(
     return null;
   }
 
+  const token = await getClerkAccessToken();
+
+  if (token) {
+    const response = await fetch(`/api/device-timeline/${encodeURIComponent(deviceId)}`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    }).catch(() => null);
+    const body = response
+      ? (await response.json().catch(() => ({}))) as { ok?: boolean; timeline?: DeviceTimeline | null; error?: string }
+      : {};
+
+    if (response?.ok && body.ok) {
+      return body.timeline ?? null;
+    }
+
+    if (response && response.status !== 404 && response.status !== 401) {
+      console.warn('Server device timeline failed, using direct Supabase fallback:', body.error ?? response.statusText);
+    }
+  }
+
   const { data: device, error: deviceError } = await withTimeout(
     supabase
       .from('devices')

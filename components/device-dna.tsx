@@ -546,9 +546,19 @@ function DeviceScreen({ publicMode }: { publicMode: boolean }) {
     <Frame>
       <DeviceHeader timeline={timeline} score={score} showSerial={!publicMode && isOwner} publicMode={publicMode} />
       <section className="mt-10">
-        <div className="flex items-end justify-between gap-4">
-          <ScreenHeader title={publicMode ? 'Repair log' : 'Owner timeline'} description={publicMode ? 'Approved records only.' : 'All visible records for this device.'} />
-          {!isOwner && access === 'approved' ? <PrimaryAction href={`/devices/${timeline.id}/repair`}><Plus size={18} /> Add log</PrimaryAction> : null}
+        <div className="grid gap-4 border-b border-[var(--dna-border)] pb-6 sm:grid-cols-[1fr_auto] sm:items-end">
+          <div>
+            <p className="text-[12px] uppercase tracking-[0.12em] text-[var(--dna-text-muted)]">Repairs</p>
+            <h2 className="mt-2 text-[28px] font-medium tracking-[-0.03em]">{publicMode ? 'Public timeline' : 'Device timeline'}</h2>
+            <p className="mt-2 text-[15px] leading-7 text-[var(--dna-text-secondary)]">
+              {publicMode ? 'Approved records only.' : 'All visible records for this device.'}
+            </p>
+          </div>
+          {!isOwner && access === 'approved' ? (
+            <div className="min-w-0 sm:min-w-[160px]">
+              <PrimaryAction href={`/devices/${timeline.id}/repair`}><Plus size={18} /> Add log</PrimaryAction>
+            </div>
+          ) : null}
         </div>
         <RepairList repairs={timeline.repair_events} />
         {publicMode || !isOwner ? (
@@ -858,7 +868,7 @@ function ActivityScreen() {
               </div>
               <StatusPill value={request.status} />
             </div>
-            <div className="mt-3 flex gap-2">
+            <div className="mt-3 flex flex-wrap gap-2">
               <SecondaryAction href={`/devices/${request.device_id}`}>Open</SecondaryAction>
               {request.status === 'pending' ? (
                 <>
@@ -966,7 +976,7 @@ function ScreenHeader({ title, description, action }: { title: string; descripti
   const router = useRouter();
 
   return (
-    <header className="sticky top-0 z-30 -mx-5 flex items-start justify-between gap-4 border-b border-[var(--dna-border)] bg-[var(--dna-surface)] px-5 py-3 md:-mx-8 md:px-8">
+    <header className="flex items-start justify-between gap-4 border-b border-[var(--dna-border)] pb-6">
       <div className="min-w-0">
         <button
           type="button"
@@ -987,15 +997,23 @@ function ScreenHeader({ title, description, action }: { title: string; descripti
 function DeviceHeader({ timeline, score, showSerial, publicMode }: { timeline: DeviceTimeline; score: DeviceScore | null; showSerial: boolean; publicMode: boolean }) {
   const value = score?.health_score ?? (timeline.repair_events.length ? 86 : 100);
   return (
-    <section>
-      <p className="text-[14px] text-[var(--dna-text-secondary)]">{publicMode ? 'Read-only public passport' : 'Owner device timeline'}</p>
-      <h1 className="mt-3 text-[36px] font-medium leading-tight tracking-[-0.035em] md:text-[56px]">{timeline.brand} {timeline.model}</h1>
-      {showSerial && <p className="mt-3 break-all font-mono text-[13px] text-[var(--dna-text-secondary)]">{timeline.device_type === 'phone' ? 'IMEI' : 'Serial'} {timeline.serial_imei}</p>}
-      <div className="mt-8 flex items-end gap-4">
-        <span className="text-[56px] font-medium leading-none tracking-[-0.05em]">{value}</span>
-        <span className="pb-2 text-[16px] text-[var(--dna-text-secondary)]">{healthSentence(value)}</span>
+    <section className="divide-y divide-[var(--dna-border)]">
+      <div className="pb-8">
+        <p className="text-[12px] uppercase tracking-[0.12em] text-[var(--dna-text-muted)]">Identity</p>
+        <p className="mt-3 text-[14px] text-[var(--dna-text-secondary)]">{publicMode ? 'Read-only public passport' : 'Owner device timeline'}</p>
+        <h1 className="mt-3 break-words text-[36px] font-medium leading-tight tracking-[-0.035em] md:text-[56px]">{timeline.brand} {timeline.model}</h1>
+        {showSerial && <p className="mt-3 break-all font-mono text-[13px] text-[var(--dna-text-secondary)]">{timeline.device_type === 'phone' ? 'IMEI' : 'Serial'} {timeline.serial_imei}</p>}
       </div>
-      {score?.ai_summary && <p className="mt-5 text-[16px] leading-8 text-[var(--dna-text-secondary)]">{score.ai_summary}</p>}
+      <div className="py-8">
+        <p className="text-[12px] uppercase tracking-[0.12em] text-[var(--dna-text-muted)]">Health</p>
+        <div className="mt-4 flex flex-wrap items-end gap-4">
+          <span className="text-[56px] font-medium leading-none tracking-[-0.05em]">{value}</span>
+          <span className="pb-2 text-[16px] text-[var(--dna-text-secondary)]">{healthSentence(value)}</span>
+        </div>
+        <p className="mt-4 text-[16px] leading-8 text-[var(--dna-text-secondary)]">
+          {score?.ai_summary ?? (timeline.repair_events.length ? 'This score reflects the repair records currently visible in the passport.' : 'No repair records are attached to this device yet.')}
+        </p>
+      </div>
     </section>
   );
 }
@@ -1003,23 +1021,29 @@ function DeviceHeader({ timeline, score, showSerial, publicMode }: { timeline: D
 function RepairList({ repairs }: { repairs: RepairEventWithParts[] }) {
   if (!repairs.length) return <EmptyState title="No repairs logged yet" text="Clean history." />;
   return (
-    <div className="mt-6 divide-y divide-[var(--dna-border)]">
-      {repairs.map((repair) => (
-        <article key={repair.id} className="py-5">
+    <div className="mt-8">
+      {repairs.map((repair, index) => (
+        <article key={repair.id} className="grid grid-cols-[28px_1fr] gap-4">
+          <div className="relative flex justify-center">
+            <span className="mt-1 h-3 w-3 rounded-full border border-[var(--dna-text-primary)] bg-[var(--dna-background)]" />
+            {index < repairs.length - 1 && <span className="absolute bottom-0 top-6 w-px bg-[var(--dna-border)]" />}
+          </div>
+          <div className="pb-8">
           <div className="flex items-start justify-between gap-4">
-            <div>
-              <h3 className="text-[20px] font-medium tracking-[-0.02em]">{repair.symptom}</h3>
+            <div className="min-w-0">
+              <h3 className="break-words text-[20px] font-medium tracking-[-0.02em]">{repair.symptom}</h3>
               <p className="mt-2 text-[14px] text-[var(--dna-text-secondary)]">{formatDateTime(repair.created_at)} · {repair.profiles?.display_name ?? 'Technician'}</p>
             </div>
-            <span className="text-[14px] text-[var(--dna-text-secondary)]">{formatCurrency(repair.cost)}</span>
+            <span className="shrink-0 text-[14px] text-[var(--dna-text-secondary)]">{formatCurrency(repair.cost)}</span>
           </div>
-          <p className="mt-4 text-[15px] leading-7 text-[var(--dna-text-secondary)]">{repair.diagnosis || 'No diagnosis recorded.'}</p>
-          <p className="mt-2 text-[15px] leading-7">{repair.action_taken}</p>
+          <p className="mt-4 break-words text-[15px] leading-7 text-[var(--dna-text-secondary)]">{repair.diagnosis || 'No diagnosis recorded.'}</p>
+          <p className="mt-2 break-words text-[15px] leading-7">{repair.action_taken}</p>
           {repair.parts.length ? (
-            <p className="mt-3 text-[14px] text-[var(--dna-text-secondary)]">
+            <p className="mt-3 break-words text-[14px] text-[var(--dna-text-secondary)]">
               Parts: {repair.parts.map((part) => `${pretty(part.component_name)} · ${part.warranty_days} warranty days`).join(', ')}
             </p>
           ) : null}
+          </div>
         </article>
       ))}
     </div>
@@ -1194,7 +1218,7 @@ function ChoiceButton({ active, icon, label, onClick }: { active: boolean; icon:
 }
 
 function ReviewLine({ label, value }: { label: string; value: React.ReactNode }) {
-  return <p className="flex justify-between gap-4 border-b border-[var(--dna-border)] py-3 text-[15px]"><span className="text-[var(--dna-text-secondary)]">{label}</span><span className="text-right">{value}</span></p>;
+  return <p className="flex flex-wrap justify-between gap-4 border-b border-[var(--dna-border)] py-3 text-[15px]"><span className="text-[var(--dna-text-secondary)]">{label}</span><span className="break-words text-right">{value}</span></p>;
 }
 
 function Notice({ children, tone }: { children: React.ReactNode; tone: 'success' | 'warning' | 'danger' }) {
