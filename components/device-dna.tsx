@@ -164,16 +164,16 @@ export function LogoMark({ compact = false, light = false }: { compact?: boolean
   return (
     <Link href="/" className="flex items-center gap-3">
       <img
-        src="/device-dna-logo.jpeg"
+        src="/device-dna-logo.png"
         alt="Device DNA"
-        className={`${compact ? 'h-10 w-10' : 'h-12 w-12'} rounded-xl border border-device-border object-cover shadow-lg`}
+        className={`${compact ? 'h-10 w-10' : 'h-12 w-12'} shrink-0 object-cover object-[50%_24%]`}
       />
       {!compact && (
         <span>
-          <span className={`block text-sm font-black uppercase tracking-[0.16em] ${light ? 'text-device-ink' : 'text-device-ink'}`}>
+          <span className={`block text-sm font-black uppercase tracking-[0.16em] ${light ? 'text-white' : 'text-device-ink'}`}>
             Device DNA
           </span>
-          <span className={light ? 'block text-xs text-device-slate' : 'block text-xs text-device-slate'}>
+          <span className={light ? 'block text-xs text-white/60' : 'block text-xs text-device-slate'}>
             Permanent device passport
           </span>
         </span>
@@ -188,11 +188,10 @@ function useViewer(): Viewer {
 
 export function AppShell({ children, publicMode = false }: { children: React.ReactNode; publicMode?: boolean }) {
   return (
-    <div className="min-h-screen overflow-hidden bg-device-ice text-device-ink">
-      <div className="fixed inset-0 -z-10 bg-device-ice" />
-      <div className="fixed inset-x-0 top-0 -z-10 h-72 bg-[radial-gradient(circle_at_center,rgba(39,100,255,0.12),transparent_62%)]" />
+    <div className="min-h-screen overflow-x-hidden bg-[#EAF0F7] text-device-ink">
+      <div className="fixed inset-0 -z-10 bg-[radial-gradient(circle_at_18%_0%,rgba(39,100,255,0.08),transparent_28%),linear-gradient(180deg,#F8FAFD_0%,#EAF0F7_52%,#DDE7F2_100%)]" />
       {!publicMode && <DesktopRail />}
-      <main className={`mx-auto min-h-screen w-full max-w-[1440px] px-4 pb-28 pt-5 ${publicMode ? 'md:px-6' : 'md:pl-28 md:pr-6 md:pt-6'}`}>
+      <main className={`mx-auto min-h-screen w-full max-w-[1440px] px-4 pb-24 pt-5 ${publicMode ? 'md:px-6' : 'md:pl-28 md:pr-6 md:pt-6'}`}>
         {children}
       </main>
       {!publicMode && <BottomNav />}
@@ -204,7 +203,7 @@ function DesktopRail() {
   const pathname = usePathname();
 
   return (
-    <aside className="fixed left-4 top-4 z-40 hidden h-[calc(100vh-32px)] w-20 rounded-2xl border border-device-border bg-white p-3 shadow-sm backdrop-blur-2xl md:block">
+    <aside className="fixed left-4 top-4 z-40 hidden h-[calc(100vh-32px)] w-[76px] rounded-[24px] bg-device-midnight p-3 shadow-[0_18px_44px_rgba(8,11,17,0.24)] md:block">
       <div className="flex h-full flex-col items-center gap-5">
         <LogoMark compact light />
         <nav className="flex flex-1 flex-col items-center justify-center gap-3">
@@ -224,15 +223,16 @@ function RailItem({ item, active }: { item: (typeof navItems)[number]; active: b
     <Link
       href={item.href}
       title={item.label}
-      className={`grid h-14 w-14 place-items-center rounded-xl border transition ${
+      className={`relative grid h-12 w-12 place-items-center rounded-[15px] border transition ${
         item.featured
-          ? 'border-device-blue bg-device-blue text-white shadow-sm'
+          ? 'border-device-blue bg-device-blue text-white shadow-[0_10px_24px_rgba(39,100,255,0.22)]'
           : active
-            ? 'border-device-border bg-device-ice text-device-ink'
-            : 'border-transparent text-device-slate hover:border-device-border hover:bg-white hover:text-device-ink'
+            ? 'border-white/10 bg-white/10 text-white'
+            : 'border-transparent text-white/58 hover:border-white/10 hover:bg-white/8 hover:text-white'
       }`}
     >
-      <Icon size={21} />
+      <Icon size={20} strokeWidth={2.25} />
+      {active && !item.featured && <span className="absolute -bottom-1 h-1 w-1 rounded-full bg-device-cyan" />}
     </Link>
   );
 }
@@ -241,7 +241,7 @@ function BottomNav() {
   const pathname = usePathname();
 
   return (
-    <nav className="fixed bottom-4 left-1/2 z-50 grid h-[78px] w-[calc(100%-24px)] max-w-md -translate-x-1/2 grid-cols-5 items-center rounded-full border border-device-border bg-white px-2 shadow-sm backdrop-blur-2xl md:hidden">
+    <nav className="fixed bottom-4 left-1/2 z-50 grid h-[68px] w-[calc(100%-28px)] max-w-[370px] -translate-x-1/2 grid-cols-5 items-center rounded-[26px] bg-device-midnight px-3 shadow-[0_16px_38px_rgba(8,11,17,0.28)] md:hidden">
       {navItems.map((item) => {
         const Icon = item.icon;
         const active = isActive(pathname, item.href);
@@ -250,18 +250,20 @@ function BottomNav() {
           <Link
             key={item.href}
             href={item.href}
-            className="flex min-h-14 flex-col items-center justify-center gap-1 text-[11px] font-bold text-device-slate"
+            aria-label={item.label}
+            className="relative flex min-h-12 items-center justify-center text-white/58"
           >
             <span
-              className={`grid place-items-center rounded-full ${
+              className={`relative grid place-items-center rounded-[15px] ${
                 item.featured
-                  ? '-mt-10 h-[66px] w-[66px] border-[6px] border-device-ice bg-device-blue text-white shadow-sm'
-                  : `h-9 w-9 ${active ? 'bg-device-ice text-device-ink' : ''}`
+                  ? '-mt-8 h-[58px] w-[58px] border-4 border-[#EAF0F7] bg-device-blue text-white shadow-[0_12px_24px_rgba(39,100,255,0.24)]'
+                  : `h-11 w-11 ${active ? 'bg-white/10 text-white' : 'text-white/58'}`
               }`}
             >
-              <Icon size={item.featured ? 25 : 19} />
+              {item.featured && active && <span className="signal-pulse absolute inset-0 rounded-[18px] border border-device-blue/25" />}
+              <Icon size={item.featured ? 25 : 21} strokeWidth={2.35} />
             </span>
-            <span className={active ? 'text-device-ink' : ''}>{item.label}</span>
+            {active && <span className="absolute bottom-0 h-1 w-1 rounded-full bg-device-cyan" />}
           </Link>
         );
       })}
@@ -279,38 +281,87 @@ export function HomePage() {
 
   return (
     <AppShell>
-      <section className="pb-10 pt-3 md:pt-8">
+      <section className="flex flex-col pb-12 pt-3 md:min-h-[calc(100vh-120px)] md:pt-8">
         <div className="flex items-center justify-between gap-4">
-          <LogoMark light />
+          <LogoMark />
           <AuthCluster viewer={viewer} />
         </div>
         <motion.div
           initial={{ opacity: 0, y: 18 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.34 }}
-          className="mt-12 max-w-5xl"
+          className="relative grid gap-8 py-8 md:flex-1 md:gap-10 md:py-10 lg:grid-cols-[1.05fr_0.95fr] lg:items-center"
         >
-          <SectionKicker>Phones and laptops</SectionKicker>
-          <h1 className="mt-4 text-5xl font-black leading-[0.95] tracking-tight text-device-ink md:text-8xl">
-            A service passport for every device.
-          </h1>
-          <p className="mt-6 max-w-2xl text-base leading-8 text-device-slate md:text-lg">
-            Device DNA links ownership, repair history, replaced parts, and technician access into one clean record that follows the device through its life.
-          </p>
-          <div className="mt-8 flex flex-wrap gap-3">
-            <PrimaryButton href="/register">Register a device <ArrowRight size={18} /></PrimaryButton>
-            <GlassButton href="/scan">Scan a passport <QrCode size={18} /></GlassButton>
+          <div className="max-w-4xl">
+            <div className="mb-6 h-px w-28 rounded-full bg-device-blue md:mb-8 md:w-44" />
+            <p className="font-mono text-xs font-black uppercase tracking-[0.22em] text-device-blue">For phones and laptops</p>
+            <h1 className="mt-4 max-w-5xl text-4xl font-black leading-[0.94] tracking-tight text-device-ink sm:text-5xl md:mt-5 md:text-8xl">
+              What happened to this device?
+            </h1>
+            <p className="mt-5 text-xl font-black leading-tight text-device-ink md:mt-6 md:text-4xl">
+              Don&apos;t lose the answer after a repair.
+            </p>
+            <p className="mt-4 max-w-2xl text-sm leading-7 text-device-slate md:mt-5 md:text-lg md:leading-8">
+              Keep repairs, replaced parts, and repair warranties in one digital passport.
+            </p>
+            <div className="mt-7 flex flex-col gap-3 sm:flex-row md:mt-9">
+              <PrimaryButton href="/register">Register device <ArrowRight size={18} /></PrimaryButton>
+              <GlassButton href="/scan">Scan QR <QrCode size={18} /></GlassButton>
+            </div>
           </div>
+          <WhyQuestionsPanel />
         </motion.div>
-        <div className="mt-12 grid gap-4 md:grid-cols-3">
-          <StepCard index="01" icon={<Smartphone />} title="Create the identity" body="Owner records brand, model, IMEI/serial internally, purchase date, and device type." />
-          <StepCard index="02" icon={<QrCode />} title="Attach the passport" body="A QR label opens the signed-in device passport without exposing private identifiers." />
-          <StepCard index="03" icon={<Wrench />} title="Control repair access" body="Technicians request access first. Owners approve from Activity before logs can be added." />
-        </div>
       </section>
-      <FirstLoginGuide />
-      <TrustLimits />
     </AppShell>
+  );
+}
+
+function WhyQuestionsPanel() {
+  const questions = [
+    {
+      question: 'Why should repair history stay with the device?',
+      answer: 'Because memory fades, paper bills disappear, and the next owner deserves the real story.',
+      icon: <Clock3 />,
+    },
+    {
+      question: 'Why scan a QR before repair?',
+      answer: 'A technician can see previous work first, then request owner-approved access to add a new log.',
+      icon: <QrCode />,
+    },
+    {
+      question: 'Why make logs permanent?',
+      answer: 'Trust comes from visible corrections, not silent edits or deleted repair events.',
+      icon: <ShieldCheck />,
+    },
+    {
+      question: 'Why does this matter when selling?',
+      answer: 'A clean public passport helps buyers judge condition from recorded service history, not guesses.',
+      icon: <BadgeCheck />,
+    },
+  ];
+
+  return (
+    <div className="relative mx-auto w-full max-w-[480px]">
+      <div className="rounded-[28px] border border-device-border bg-white p-4 shadow-[0_20px_60px_rgba(17,24,39,0.10)]">
+        <div className="border-b border-device-border pb-4">
+          <p className="font-mono text-xs font-black uppercase tracking-[0.2em] text-device-blue">Why Device DNA?</p>
+          <h2 className="mt-3 text-3xl font-black leading-tight text-device-ink">The questions every repaired device should answer.</h2>
+        </div>
+        <div className="mt-4 space-y-3">
+          {questions.map((item, index) => (
+            <div key={item.question} className="grid grid-cols-[44px_1fr] gap-3 rounded-2xl border border-device-border bg-[#F7F8FB] p-3">
+              <div className={`grid h-11 w-11 place-items-center rounded-[14px] ${index === 0 ? 'bg-device-blue text-white' : 'bg-white text-device-blue'} border border-device-border`}>
+                {item.icon}
+              </div>
+              <div>
+                <p className="text-base font-black leading-snug text-device-ink">{item.question}</p>
+                <p className="mt-1 text-sm leading-6 text-device-slate">{item.answer}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -333,7 +384,7 @@ function AuthCluster({ viewer }: { viewer: Viewer }) {
 
   if (viewer.signedIn) {
     return (
-      <Link href="/account" className="hidden items-center gap-3 rounded-full border border-device-border bg-white px-4 py-2 text-sm font-bold text-device-ink backdrop-blur-xl md:flex">
+      <Link href="/account" className="hidden items-center gap-3 rounded-[16px] border border-device-border bg-white px-4 py-2 text-sm font-bold text-device-ink md:flex">
         {viewer.imageUrl ? <img src={viewer.imageUrl} alt="" className="h-7 w-7 rounded-full" /> : <CircleUserRound size={18} />}
         {viewer.name}
       </Link>
@@ -343,12 +394,12 @@ function AuthCluster({ viewer }: { viewer: Viewer }) {
   return (
     <div className="hidden gap-2 md:flex">
       <SignInButton mode="modal">
-        <button className="min-h-11 rounded-full border border-device-border bg-white px-5 text-sm font-black text-device-ink backdrop-blur-xl">
+        <button className="min-h-11 rounded-[16px] border border-device-border bg-white px-5 text-sm font-black text-device-ink">
           Sign in
         </button>
       </SignInButton>
       <SignUpButton mode="modal">
-        <button className="min-h-11 rounded-full bg-device-blue px-5 text-sm font-black text-device-ink shadow-lg shadow-device-blue/20 transition hover:bg-device-cobalt">
+        <button className="min-h-11 rounded-[16px] bg-device-blue px-5 text-sm font-black text-white shadow-[0_10px_24px_rgba(39,100,255,0.18)] transition hover:bg-device-cobalt">
           Get started
         </button>
       </SignUpButton>
@@ -358,7 +409,7 @@ function AuthCluster({ viewer }: { viewer: Viewer }) {
 
 function QuickTile({ icon, title, body, tone }: { icon: React.ReactNode; title: string; body: string; tone: 'blue' | 'cyan' | 'green' | 'amber' }) {
   return (
-    <div className="rounded-2xl border border-device-border bg-white p-4 backdrop-blur-xl">
+    <div className="rounded-2xl border border-device-border bg-white p-4">
       <IconTile tone={tone}>{icon}</IconTile>
       <h3 className="mt-4 text-xl font-black text-device-ink">{title}</h3>
       <p className="mt-2 text-sm leading-6 text-device-slate">{body}</p>
@@ -371,7 +422,7 @@ function RoleCard({ title, body, href }: { title: string; body: string; href: st
     <Link href={href} className="group rounded-2xl border border-device-border bg-white p-4 transition hover:border-cyan-300/40 hover:bg-device-ice">
       <h3 className="text-xl font-black text-device-ink">{title}</h3>
       <p className="mt-2 text-sm leading-6 text-device-slate">{body}</p>
-      <span className="mt-4 inline-flex items-center gap-2 text-sm font-black text-cyan-100">
+      <span className="mt-4 inline-flex items-center gap-2 text-sm font-black text-device-blue">
         Enter <ChevronRight className="transition group-hover:translate-x-1" size={16} />
       </span>
     </Link>
@@ -411,7 +462,7 @@ function AudienceTabs() {
           className="relative flex min-h-[360px] flex-col justify-between rounded-2xl border border-device-border bg-[#090E1A]/82 p-5 md:p-7"
         >
           <div>
-            <p className="text-xs font-black tracking-[0.2em] text-cyan-100/82">{current.label}</p>
+            <p className="text-xs font-black tracking-[0.2em] text-device-cyan">{current.label}</p>
             <h2 className="mt-5 max-w-2xl text-4xl font-black leading-tight text-device-ink md:text-6xl">
               {current.title}
             </h2>
@@ -521,7 +572,7 @@ function DeviceGrid({ devices }: { devices: Device[] }) {
         <Link
           key={device.id}
           href={`/devices/${device.id}`}
-          className="group rounded-2xl border border-device-border bg-white p-4 shadow-sm backdrop-blur-2xl transition hover:-translate-y-0.5 hover:border-cyan-300/40 hover:bg-device-ice"
+          className="group rounded-2xl border border-device-border bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-device-blue/30 hover:bg-device-ice"
         >
           <div className="flex items-start justify-between gap-3">
             <IconTile tone={device.device_type === 'phone' ? 'blue' : 'cyan'}>
@@ -638,7 +689,7 @@ function RegisterContent() {
               <MiniMetric label="Device" value={`${form.brand || '-'} ${form.model || ''}`} />
               <MiniMetric label="Identity" value={form.serialImei || '-'} />
             </div>
-            {error && <p className="text-sm font-black text-red-300">{error}</p>}
+            {error && <p className="rounded-xl border border-device-critical/20 bg-device-critical/10 px-3 py-2 text-sm font-black text-device-critical">{error}</p>}
           </div>
         )}
         {step === 3 && created && (
@@ -785,8 +836,8 @@ async function loadDevice(
 
 function DeviceHero({ device, score }: { device: DeviceTimeline; score: DeviceScore | null }) {
   return (
-    <section className="relative overflow-hidden rounded-2xl border border-device-border bg-white p-5 shadow-sm backdrop-blur-2xl md:p-7">
-      <div className="absolute right-10 top-0 h-56 w-56 rounded-full bg-device-blue/20 blur-3xl" />
+    <section className="relative overflow-hidden rounded-[24px] border border-device-border bg-white p-5 shadow-[0_18px_50px_rgba(17,24,39,0.08)] md:p-7">
+      <div className="absolute right-0 top-0 h-full w-1 bg-device-blue" />
       <div className="relative flex flex-col justify-between gap-6 md:flex-row md:items-end">
         <div>
           <SectionKicker>Device log</SectionKicker>
@@ -827,10 +878,10 @@ function ScoreRow({ factor, value }: { factor: (typeof scoreFactors)[number]; va
     <div>
       <div className="flex items-center justify-between gap-3 text-sm">
         <span className="font-black text-device-ink">{factor.label} <span className="font-medium text-device-slate">({factor.weight}%)</span></span>
-        <span className="font-mono text-cyan-100">{value}/100</span>
+        <span className="font-mono text-device-blue">{value}/100</span>
       </div>
-      <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/10">
-        <div className="h-full rounded-full bg-device-blue" style={{ width: `${Math.max(0, Math.min(100, value))}%` }} />
+      <div className="mt-2 h-2 overflow-hidden rounded-full bg-device-border/70">
+        <div className="signal-line h-full rounded-full" style={{ width: `${Math.max(0, Math.min(100, value))}%` }} />
       </div>
       <p className="mt-1 text-xs text-device-slate">{factor.note}</p>
     </div>
@@ -849,11 +900,13 @@ function RepairTimeline({
   if (!repairs.length) return <EmptyGlass title="No repairs logged yet" body={publicOnly ? 'No approved public records yet.' : 'A technician can add the first pending record after scanning this device.'} />;
 
   return (
-    <div className="space-y-4">
+    <div className="relative space-y-4 pl-5">
+      <div className="signal-line absolute bottom-8 left-[7px] top-8 w-px rounded-full" />
       {repairs.map((repair) => {
         const pending = repair.status === 'pending';
         return (
-          <article key={repair.id} className="rounded-2xl border border-device-border bg-white p-4 shadow-sm backdrop-blur-2xl">
+          <article key={repair.id} className="relative rounded-2xl border border-device-border bg-white p-4 shadow-sm">
+            <span className="absolute -left-[23px] top-7 h-3.5 w-3.5 rounded-full border-2 border-white bg-device-blue" />
             <div className="flex flex-col justify-between gap-3 md:flex-row md:items-start">
               <div>
                 <div className="flex flex-wrap gap-2">
@@ -871,8 +924,8 @@ function RepairTimeline({
               <Info label="Parts" value={repair.parts.length ? repair.parts.map((part) => pretty(part.component_name)).join(', ') : 'No replacement'} />
             </dl>
             {pending && !publicOnly && (
-              <div className="mt-5 rounded-2xl border border-amber-300/20 bg-amber-300/10 p-4">
-                <p className="flex items-center gap-2 text-sm font-black text-amber-100">
+              <div className="mt-5 rounded-2xl border border-device-attention/25 bg-device-attention/10 p-4">
+                <p className="flex items-center gap-2 text-sm font-black text-device-attention">
                   <LockKeyhole size={16} />
                   This is an older pending record from before technician access requests were introduced.
                 </p>
@@ -976,7 +1029,7 @@ function RepairAccessPanel({
           <PrimaryButton disabled={busy} onClick={submit}>{busy ? 'Sending...' : 'Request access'}</PrimaryButton>
         ) : (
           <SignInButton mode="modal">
-            <button className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-device-blue px-5 text-sm font-black text-white shadow-sm transition hover:bg-device-cobalt">
+            <button className="inline-flex min-h-12 items-center justify-center gap-2 rounded-[16px] bg-device-blue px-5 text-sm font-black text-white shadow-[0_10px_24px_rgba(39,100,255,0.18)] transition hover:bg-device-cobalt">
               Sign in to request access
             </button>
           </SignInButton>
@@ -1113,7 +1166,7 @@ function RepairSubmissionContent() {
             <Field label="Warranty days"><Input type="number" min="0" value={form.warrantyDays} onChange={(event) => setForm({ ...form, warrantyDays: event.target.value })} placeholder="Example: 90" /></Field>
             <Field label="Service cost"><Input type="number" min="0" value={form.serviceCost} onChange={(event) => setForm({ ...form, serviceCost: event.target.value })} placeholder="Example: 2300" /></Field>
           </div>
-          {error && <p className="text-sm font-black text-red-300">{error}</p>}
+          {error && <p className="rounded-xl border border-device-critical/20 bg-device-critical/10 px-3 py-2 text-sm font-black text-device-critical">{error}</p>}
           <div className="flex flex-wrap gap-3">
             <GlassButton href={`/devices/${params.id}`}>Cancel</GlassButton>
             <PrimaryButton disabled={busy} onClick={submit}>{busy ? 'Submitting...' : 'Submit pending record'}</PrimaryButton>
@@ -1265,7 +1318,7 @@ function ScanContent() {
         description="Use the camera, upload a QR image, or enter a Device DNA ID manually. Results open as public read-only passports."
       />
       <div className="grid gap-5 lg:grid-cols-[1fr_390px]">
-        <section className="rounded-2xl border border-device-border bg-white p-4 shadow-sm backdrop-blur-2xl md:p-5">
+        <section className="rounded-2xl border border-device-border bg-white p-4 shadow-sm md:p-5">
           <div className="mb-4 flex items-center justify-between">
             <LogoMark compact light />
             <Badge tone={state === 'found' ? 'approved' : state === 'missing' ? 'danger' : 'neutral'}>{state}</Badge>
@@ -1274,7 +1327,7 @@ function ScanContent() {
             <div id="device-dna-scanner" />
             <div id="device-dna-upload-scanner" className="hidden" />
           </div>
-          {scannerError && <p className="mt-3 text-sm font-bold text-amber-100">{scannerError}</p>}
+          {scannerError && <p className="mt-3 rounded-xl border border-device-attention/25 bg-device-attention/10 px-3 py-2 text-sm font-bold text-device-attention">{scannerError}</p>}
         </section>
         <GlassPanel>
           <h2 className="text-2xl font-black text-device-ink">Manual lookup</h2>
@@ -1287,11 +1340,11 @@ function ScanContent() {
                 placeholder="Paste a QR link or enter a serial/IMEI"
               />
             </Field>
-            {state === 'missing' && <p className="text-sm font-bold text-red-300">No device found.</p>}
-            {state === 'invalid' && <p className="text-sm font-bold text-red-300">Enter a valid code or link.</p>}
-            {state === 'camera-off' && <p className="text-sm font-bold text-amber-100">Camera is unavailable. Manual lookup still works.</p>}
+            {state === 'missing' && <p className="rounded-xl border border-device-critical/20 bg-device-critical/10 px-3 py-2 text-sm font-bold text-device-critical">No device found.</p>}
+            {state === 'invalid' && <p className="rounded-xl border border-device-critical/20 bg-device-critical/10 px-3 py-2 text-sm font-bold text-device-critical">Enter a valid code or link.</p>}
+            {state === 'camera-off' && <p className="rounded-xl border border-device-attention/25 bg-device-attention/10 px-3 py-2 text-sm font-bold text-device-attention">Camera is unavailable. Manual lookup still works.</p>}
             <PrimaryButton onClick={() => find()}>Find device</PrimaryButton>
-            <label className="inline-flex min-h-12 w-full cursor-pointer items-center justify-center gap-2 rounded-full border border-device-border bg-white px-5 text-sm font-black text-device-ink shadow-sm backdrop-blur-xl transition hover:bg-device-ice">
+            <label className="inline-flex min-h-12 w-full cursor-pointer items-center justify-center gap-2 rounded-[16px] border border-device-border bg-white px-5 text-sm font-black text-device-ink shadow-sm transition hover:bg-device-ice">
               <Upload size={16} />
               Upload QR image
               <input
@@ -1435,7 +1488,7 @@ function AccountContent() {
           </div>
           {viewer.configured && (
             <SignOutButton>
-              <button className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-device-border bg-white px-5 text-sm font-black text-device-ink backdrop-blur-xl">
+              <button className="inline-flex min-h-12 items-center justify-center gap-2 rounded-[16px] border border-device-border bg-white px-5 text-sm font-black text-device-ink">
                 <LogOut size={17} /> Sign out
               </button>
             </SignOutButton>
@@ -1504,6 +1557,7 @@ function PassportContent() {
 
 function AuthGate({ children }: { children: React.ReactNode }) {
   const viewer = useViewer();
+  const pathname = usePathname();
   const [timedOut, setTimedOut] = useState(false);
 
   useEffect(() => {
@@ -1533,30 +1587,7 @@ function AuthGate({ children }: { children: React.ReactNode }) {
   if (!viewer.ready && !timedOut) return <AppShell><LoadingGlass title="Checking sign-in" /></AppShell>;
 
   if (!viewer.signedIn || timedOut) {
-    return (
-      <AppShell>
-        <GlassPanel>
-          <SectionKicker>Authentication required</SectionKicker>
-          <h1 className="mt-3 text-4xl font-black text-device-ink">Sign in to enter Device DNA.</h1>
-          <p className="mt-3 max-w-xl text-sm leading-7 text-device-slate">
-            Devices, scanner, activity, and account tabs use Clerk-backed Supabase
-            access. Public passports remain read-only.
-          </p>
-          <div className="mt-6 flex flex-wrap gap-3">
-            <SignInButton mode="modal">
-              <button className="min-h-12 rounded-full bg-device-blue px-5 text-sm font-black text-device-ink shadow-lg shadow-device-blue/20 transition hover:bg-device-cobalt">
-                Sign in
-              </button>
-            </SignInButton>
-            <SignUpButton mode="modal">
-              <button className="min-h-12 rounded-full border border-device-border bg-white px-5 text-sm font-black text-device-ink">
-                Create account
-              </button>
-            </SignUpButton>
-          </div>
-        </GlassPanel>
-      </AppShell>
-    );
+    return <SignedOutRouteState pathname={pathname} />;
   }
 
   return <>{children}</>;
@@ -1576,7 +1607,7 @@ function HeaderBlock({ eyebrow, title, description, action }: { eyebrow?: string
 }
 
 function GlassPanel({ children, className = '' }: { children: React.ReactNode; className?: string }) {
-  return <section className={`rounded-2xl border border-device-border bg-white p-4 shadow-sm backdrop-blur-2xl md:p-5 ${className}`}>{children}</section>;
+  return <section className={`rounded-2xl border border-device-border bg-white p-4 shadow-sm md:p-5 ${className}`}>{children}</section>;
 }
 
 function SectionKicker({ children }: { children: React.ReactNode }) {
@@ -1584,13 +1615,122 @@ function SectionKicker({ children }: { children: React.ReactNode }) {
 }
 
 function PrimaryButton({ href, children, disabled = false, onClick }: { href?: string; children: React.ReactNode; disabled?: boolean; onClick?: () => void }) {
-  const className = 'inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-device-blue px-5 text-sm font-black text-white shadow-sm transition hover:bg-device-cobalt disabled:cursor-not-allowed disabled:opacity-50';
+  const className = 'inline-flex min-h-12 items-center justify-center gap-2 rounded-[16px] bg-device-blue px-5 text-sm font-black text-white shadow-[0_10px_24px_rgba(39,100,255,0.18)] transition hover:bg-device-cobalt disabled:cursor-not-allowed disabled:opacity-50';
   if (href) return <Link href={href} className={className}>{children}</Link>;
   return <button type="button" disabled={disabled} onClick={onClick} className={className}>{children}</button>;
 }
 
+function SignedOutRouteState({ pathname }: { pathname: string }) {
+  const route = pathname.startsWith('/scan')
+    ? {
+        eyebrow: 'Scan',
+        title: 'Scan a device',
+        body: 'Sign in to open a scanned Device DNA passport and request technician access.',
+        icon: <QrCode />,
+        preview: 'scanner',
+        color: 'bg-device-blue',
+      }
+    : pathname.startsWith('/devices') || pathname.startsWith('/register') || pathname.startsWith('/passport')
+      ? {
+          eyebrow: 'Devices',
+          title: 'Your devices',
+          body: 'Sign in to register, view, and manage the private side of your device records.',
+          icon: <Smartphone />,
+          preview: 'devices',
+          color: 'bg-device-healthy',
+        }
+      : pathname.startsWith('/activity')
+        ? {
+            eyebrow: 'Activity',
+            title: 'Your activity',
+            body: 'Sign in to approve technician access requests and view request history.',
+            icon: <Activity />,
+            preview: 'activity',
+            color: 'bg-device-attention',
+          }
+        : {
+            eyebrow: 'Account',
+            title: 'Enter Device DNA',
+            body: 'Sign in to continue with your device passport.',
+            icon: <CircleUserRound />,
+            preview: 'account',
+            color: 'bg-device-cobalt',
+          };
+
+  return (
+    <AppShell>
+      <section className="mx-auto flex min-h-[calc(100vh-120px)] max-w-5xl items-center">
+        <div className="grid w-full gap-6 lg:grid-cols-[0.92fr_1.08fr] lg:items-center">
+          <div>
+            <div className={`mb-7 h-1 w-16 rounded-full ${route.color}`} />
+            <SectionKicker>{route.eyebrow}</SectionKicker>
+            <h1 className="mt-3 text-5xl font-black leading-none text-device-ink md:text-7xl">{route.title}</h1>
+            <p className="mt-5 max-w-lg text-base leading-8 text-device-slate">{route.body}</p>
+            <div className="mt-7 flex flex-wrap gap-3">
+              <SignInButton mode="modal">
+                <button className="inline-flex min-h-12 items-center justify-center gap-2 rounded-[16px] bg-device-blue px-5 text-sm font-black text-white shadow-[0_10px_24px_rgba(39,100,255,0.18)]">
+                  Sign in
+                </button>
+              </SignInButton>
+              <SignUpButton mode="modal">
+                <button className="inline-flex min-h-12 items-center justify-center rounded-[16px] border border-device-border bg-white px-5 text-sm font-black text-device-ink">
+                  Create account
+                </button>
+              </SignUpButton>
+            </div>
+          </div>
+          <LockedPreview icon={route.icon} preview={route.preview} />
+        </div>
+      </section>
+    </AppShell>
+  );
+}
+
+function LockedPreview({ icon, preview }: { icon: React.ReactNode; preview: string }) {
+  return (
+    <div className="relative overflow-hidden rounded-[24px] border border-device-border bg-white p-4 shadow-[0_18px_50px_rgba(17,24,39,0.10)]">
+      {preview === 'scanner' ? (
+        <div className="relative aspect-[4/5] overflow-hidden rounded-[20px] border border-device-border bg-device-midnight">
+          <div className="absolute inset-8 rounded-[20px] border border-device-blue/40" />
+          <div className="scanner-line absolute left-10 right-10 top-14 h-px bg-device-blue" />
+          <div className="absolute inset-0 grid place-items-center bg-device-midnight/42">
+            <div className="grid h-16 w-16 place-items-center rounded-2xl bg-white text-device-blue">
+              <LockKeyhole size={30} />
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="relative space-y-3">
+          {[0, 1, 2].map((index) => (
+            <div key={index} className="rounded-2xl border border-device-border bg-[#F7F8FB] p-4">
+              <div className="flex items-center gap-3">
+                <div className="grid h-12 w-12 place-items-center rounded-xl border border-device-blue/15 bg-device-blue/8 text-device-blue">{icon}</div>
+                <div className="min-w-0 flex-1">
+                  <div className="h-3 w-2/3 rounded-full bg-device-border" />
+                  <div className="mt-3 h-2 w-1/2 rounded-full bg-device-border/70" />
+                </div>
+              </div>
+            </div>
+          ))}
+          <div className="absolute inset-0 grid place-items-center bg-white/65">
+            <div className="grid h-16 w-16 place-items-center rounded-2xl border border-device-border bg-white text-device-blue shadow-[0_14px_34px_rgba(17,24,39,0.12)]">
+              <LockKeyhole size={28} />
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DarkSecondaryButton({ href, children, onClick }: { href?: string; children: React.ReactNode; onClick?: () => void }) {
+  const className = 'inline-flex min-h-12 items-center justify-center gap-2 rounded-[16px] border border-device-border bg-white px-5 text-sm font-black text-device-ink transition hover:bg-device-ice';
+  if (href) return <Link href={href} className={className}>{children}</Link>;
+  return <button type="button" onClick={onClick} className={className}>{children}</button>;
+}
+
 function GlassButton({ href, children, disabled = false, onClick }: { href?: string; children: React.ReactNode; disabled?: boolean; onClick?: () => void }) {
-  const className = 'inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-device-border bg-white px-5 text-sm font-black text-device-ink shadow-sm backdrop-blur-xl transition hover:bg-device-ice disabled:cursor-not-allowed disabled:opacity-50';
+  const className = 'inline-flex min-h-12 items-center justify-center gap-2 rounded-[16px] border border-device-border bg-white px-5 text-sm font-black text-device-ink shadow-sm transition hover:bg-device-ice disabled:cursor-not-allowed disabled:opacity-50';
   if (href) return <Link href={href} className={className}>{children}</Link>;
   return <button type="button" disabled={disabled} onClick={onClick} className={className}>{children}</button>;
 }
@@ -1616,7 +1756,7 @@ function MiniMetric({ label, value, normal = false }: { label: string; value: Re
 
 function HeroStat({ label, value }: { label: string; value: React.ReactNode }) {
   return (
-    <div className="min-w-36 rounded-2xl border border-device-border bg-white p-4 backdrop-blur-xl">
+    <div className="min-w-36 rounded-2xl border border-device-border bg-white p-4">
       <p className="text-xs font-bold text-device-slate">{label}</p>
       <p className="mt-1 text-xl font-black text-device-ink">{value}</p>
     </div>
@@ -1659,7 +1799,7 @@ function StepRail({ labels, active }: { labels: string[]; active: number }) {
   return (
     <div className="mb-5 grid rounded-full border border-device-border bg-white p-1" style={{ gridTemplateColumns: `repeat(${labels.length}, minmax(0, 1fr))` }}>
       {labels.map((label, index) => (
-        <div key={label} className={`rounded-full px-3 py-3 text-center text-xs font-black ${index <= active ? 'bg-device-blue text-device-ink' : 'text-device-slate'}`}>
+        <div key={label} className={`rounded-full px-3 py-3 text-center text-xs font-black ${index <= active ? 'bg-device-blue text-white' : 'text-device-slate'}`}>
           {label}
         </div>
       ))}
@@ -1669,7 +1809,7 @@ function StepRail({ labels, active }: { labels: string[]; active: number }) {
 
 function TypeCard({ active, icon, title, onClick }: { active: boolean; icon: React.ReactNode; title: string; onClick: () => void }) {
   return (
-    <button type="button" onClick={onClick} className={`min-h-40 rounded-2xl border p-5 text-left transition ${active ? 'border-cyan-300/40 bg-cyan-300/10' : 'border-device-border bg-white hover:bg-white'}`}>
+    <button type="button" onClick={onClick} className={`min-h-40 rounded-2xl border p-5 text-left transition ${active ? 'border-device-blue bg-device-blue/8' : 'border-device-border bg-white hover:bg-device-ice'}`}>
       <IconTile tone={title === 'Phone' ? 'blue' : 'cyan'}>{icon}</IconTile>
       <span className="mt-5 block text-3xl font-black text-device-ink">{title}</span>
     </button>
@@ -1714,7 +1854,7 @@ function QrGlass({ value }: { value: string }) {
     <GlassPanel>
       <div className="flex items-center justify-between gap-3">
         <h2 className="text-xl font-black text-device-ink">Passport QR</h2>
-        <QrCode className="text-cyan-100" />
+        <QrCode className="text-device-blue" />
       </div>
       <div className="mt-4 grid place-items-center rounded-2xl border border-device-border bg-white p-5">
         <QRCodeSVG id={id} value={value} size={190} bgColor="#ffffff" fgColor="#080B11" />
@@ -1730,8 +1870,8 @@ function QrGlass({ value }: { value: string }) {
 
 function AlertGlass({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="mb-4 rounded-2xl border border-cyan-300/20 bg-cyan-300/10 p-4">
-      <p className="font-black text-cyan-100">{title}</p>
+    <div className="mb-4 rounded-2xl border border-device-blue/20 bg-device-blue/8 p-4">
+      <p className="font-black text-device-blue">{title}</p>
       <p className="mt-1 text-sm leading-7 text-device-slate">{children}</p>
     </div>
   );
@@ -1771,8 +1911,8 @@ function LoadingGlass({ title }: { title: string }) {
   return (
     <GlassPanel>
       <p className="font-black text-device-ink">{title}</p>
-      <div className="mt-4 h-3 w-2/3 animate-pulse rounded-full bg-white/10" />
-      <div className="mt-3 h-3 w-1/2 animate-pulse rounded-full bg-white/10" />
+      <div className="mt-4 h-3 w-2/3 animate-pulse rounded-full bg-device-border" />
+      <div className="mt-3 h-3 w-1/2 animate-pulse rounded-full bg-device-border" />
     </GlassPanel>
   );
 }
@@ -1780,7 +1920,7 @@ function LoadingGlass({ title }: { title: string }) {
 function EmptyGlass({ title, body }: { title: string; body?: string }) {
   return (
     <GlassPanel>
-      <Sparkles className="text-cyan-100" />
+      <Sparkles className="text-device-blue" />
       <h2 className="mt-4 text-2xl font-black text-device-ink">{title}</h2>
       {body && <p className="mt-2 max-w-md text-sm leading-7 text-device-slate">{body}</p>}
     </GlassPanel>

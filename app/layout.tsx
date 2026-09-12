@@ -7,6 +7,10 @@ import './globals.css';
 export const metadata: Metadata = {
   title: 'Device DNA',
   description: 'The complete history of your device.',
+  icons: {
+    icon: '/device-dna-logo.png',
+    apple: '/device-dna-logo.png',
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

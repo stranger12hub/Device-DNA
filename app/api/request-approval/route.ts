@@ -201,25 +201,29 @@ async function sendRepairNotification({
   const webhookUrl = process.env.N8N_APPROVAL_WEBHOOK_URL;
 
   if (webhookUrl) {
-    const response = await fetch(webhookUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        to,
-        technicianName,
-        deviceName,
-        reason,
-        type: 'repair_record_pending',
-      }),
-    });
+    try {
+      const response = await fetch(webhookUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          to,
+          technicianName,
+          deviceName,
+          reason,
+          type: 'repair_record_pending',
+        }),
+      });
 
-    if (!response.ok) {
-      throw new Error(`n8n webhook failed with ${response.status}`);
+      if (response.ok) {
+        return;
+      }
+
+      console.error('n8n webhook failed, falling back to Gmail', response.status);
+    } catch (error) {
+      console.error('n8n webhook errored, falling back to Gmail', error);
     }
-
-    return;
   }
 
   await sendGmailRepairNotification({ to, technicianName, deviceName, reason });
@@ -263,9 +267,26 @@ async function sendGmailRepairNotification({
       'If you did not request this, you can ignore this email.',
     ].join('\n'),
     html: `
-      <div style="font-family:Arial,sans-serif;line-height:1.5;color:#111827">
-        <p style="margin:0 0 12px"><strong>${escapeHtml(technicianName)}</strong> ${escapeHtml(reason)} for <strong>${escapeHtml(deviceName)}</strong>.</p>
-        <p style="margin:0;color:#667085">Open Device DNA Activity to review it from your owner account.</p>
+      <div style="margin:0;padding:28px;background:#080B11;font-family:Inter,Arial,sans-serif;color:#F6F8FC">
+        <div style="max-width:560px;margin:0 auto;border:1px solid #263247;border-radius:22px;background:#111722;overflow:hidden">
+          <div style="height:3px;background:linear-gradient(90deg,#2764FF,#38BDF8)"></div>
+          <div style="padding:28px">
+            <p style="margin:0 0 18px;font-size:12px;letter-spacing:0.18em;text-transform:uppercase;font-weight:800;color:#38BDF8">Device DNA</p>
+            <h1 style="margin:0;font-size:28px;line-height:1.1;font-weight:900;color:#ffffff">New device activity</h1>
+            <p style="margin:18px 0 0;font-size:16px;line-height:1.7;color:#DCE3ED">
+              <strong style="color:#ffffff">${escapeHtml(technicianName)}</strong> ${escapeHtml(reason)} for
+              <strong style="color:#ffffff">${escapeHtml(deviceName)}</strong>.
+            </p>
+            <div style="margin:24px 0;padding:16px;border:1px solid #263247;border-radius:16px;background:#080B11">
+              <p style="margin:0;font-size:13px;line-height:1.6;color:#DCE3ED">
+                Open Device DNA Activity from your owner account to review the request or see the latest record.
+              </p>
+            </div>
+            <p style="margin:0;font-size:12px;line-height:1.6;color:#667085">
+              Device DNA keeps repair history transparent and permanent. If this was not expected, you can ignore this email.
+            </p>
+          </div>
+        </div>
       </div>
     `,
   });
