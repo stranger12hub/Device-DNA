@@ -201,6 +201,7 @@ export function AppShell({ children, publicMode = false }: { children: React.Rea
 
 function DesktopRail() {
   const pathname = usePathname();
+  const pendingCount = usePendingActivityCount();
 
   return (
     <aside className="fixed left-4 top-4 z-40 hidden h-[calc(100vh-32px)] w-[76px] rounded-[24px] bg-device-midnight p-3 shadow-[0_18px_44px_rgba(8,11,17,0.24)] md:block">
@@ -208,7 +209,7 @@ function DesktopRail() {
         <LogoMark compact light />
         <nav className="flex flex-1 flex-col items-center justify-center gap-3">
           {navItems.map((item) => (
-            <RailItem key={item.href} item={item} active={isActive(pathname, item.href)} />
+            <RailItem key={item.href} item={item} active={isActive(pathname, item.href)} count={item.href === '/activity' ? pendingCount : 0} />
           ))}
         </nav>
       </div>
@@ -216,7 +217,7 @@ function DesktopRail() {
   );
 }
 
-function RailItem({ item, active }: { item: (typeof navItems)[number]; active: boolean }) {
+function RailItem({ item, active, count = 0 }: { item: (typeof navItems)[number]; active: boolean; count?: number }) {
   const Icon = item.icon;
 
   return (
@@ -228,10 +229,11 @@ function RailItem({ item, active }: { item: (typeof navItems)[number]; active: b
           ? 'border-device-blue bg-device-blue text-white shadow-[0_10px_24px_rgba(39,100,255,0.22)]'
           : active
             ? 'border-white/10 bg-white/10 text-white'
-            : 'border-transparent text-white/58 hover:border-white/10 hover:bg-white/8 hover:text-white'
+            : 'border-transparent text-white/76 hover:border-white/10 hover:bg-white/8 hover:text-white'
       }`}
     >
       <Icon size={20} strokeWidth={2.25} />
+      {count > 0 && <span className="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-device-critical px-1 font-mono text-[10px] font-black text-white">{count}</span>}
       {active && !item.featured && <span className="absolute -bottom-1 h-1 w-1 rounded-full bg-device-cyan" />}
     </Link>
   );
@@ -239,6 +241,7 @@ function RailItem({ item, active }: { item: (typeof navItems)[number]; active: b
 
 function BottomNav() {
   const pathname = usePathname();
+  const pendingCount = usePendingActivityCount();
 
   return (
     <nav className="fixed bottom-4 left-1/2 z-50 grid h-[68px] w-[calc(100%-28px)] max-w-[370px] -translate-x-1/2 grid-cols-5 items-center rounded-[26px] bg-device-midnight px-3 shadow-[0_16px_38px_rgba(8,11,17,0.28)] md:hidden">
@@ -251,17 +254,22 @@ function BottomNav() {
             key={item.href}
             href={item.href}
             aria-label={item.label}
-            className="relative flex min-h-12 items-center justify-center text-white/58"
+            className="relative flex min-h-12 items-center justify-center text-white/76"
           >
             <span
               className={`relative grid place-items-center rounded-[15px] ${
                 item.featured
                   ? '-mt-8 h-[58px] w-[58px] border-4 border-[#EAF0F7] bg-device-blue text-white shadow-[0_12px_24px_rgba(39,100,255,0.24)]'
-                  : `h-11 w-11 ${active ? 'bg-white/10 text-white' : 'text-white/58'}`
+                  : `h-11 w-11 ${active ? 'bg-white/10 text-white' : 'text-white/76'}`
               }`}
             >
               {item.featured && active && <span className="signal-pulse absolute inset-0 rounded-[18px] border border-device-blue/25" />}
               <Icon size={item.featured ? 25 : 21} strokeWidth={2.35} />
+              {item.href === '/activity' && pendingCount > 0 && (
+                <span className="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-device-critical px-1 font-mono text-[10px] font-black text-white">
+                  {pendingCount}
+                </span>
+              )}
             </span>
             {active && <span className="absolute bottom-0 h-1 w-1 rounded-full bg-device-cyan" />}
           </Link>
@@ -296,17 +304,22 @@ export function HomePage() {
             <div className="mb-6 h-px w-28 rounded-full bg-device-blue md:mb-8 md:w-44" />
             <p className="font-mono text-xs font-black uppercase tracking-[0.22em] text-device-blue">For phones and laptops</p>
             <h1 className="mt-4 max-w-5xl text-4xl font-black leading-[0.94] tracking-tight text-device-ink sm:text-5xl md:mt-5 md:text-8xl">
-              What happened to this device?
+              Repair history that travels with the device.
             </h1>
             <p className="mt-5 text-xl font-black leading-tight text-device-ink md:mt-6 md:text-4xl">
-              Don&apos;t lose the answer after a repair.
+              No guessing. No missing bills. No silent edits.
             </p>
             <p className="mt-4 max-w-2xl text-sm leading-7 text-device-slate md:mt-5 md:text-lg md:leading-8">
-              Keep repairs, replaced parts, and repair warranties in one digital passport.
+              Device DNA turns each phone or laptop into a permanent, scan-ready service record controlled by the owner.
             </p>
             <div className="mt-7 flex flex-col gap-3 sm:flex-row md:mt-9">
               <PrimaryButton href="/register">Register device <ArrowRight size={18} /></PrimaryButton>
               <GlassButton href="/scan">Scan QR <QrCode size={18} /></GlassButton>
+            </div>
+            <div className="mt-8 grid gap-3 sm:grid-cols-3">
+              <HomeProofCard label="Owner access" value="Approval first" />
+              <HomeProofCard label="Repair events" value="Locked record" />
+              <HomeProofCard label="Public view" value="Clean passport" />
             </div>
           </div>
           <WhyQuestionsPanel />
@@ -316,26 +329,64 @@ export function HomePage() {
   );
 }
 
+function HomeProofCard({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl border border-device-border bg-white p-3 shadow-sm">
+      <p className="font-mono text-[11px] font-black uppercase tracking-[0.14em] text-device-slate">{label}</p>
+      <p className="mt-2 text-sm font-black text-device-ink">{value}</p>
+    </div>
+  );
+}
+
+function usePendingActivityCount() {
+  const viewer = useViewer();
+  const [count, setCount] = useState(0);
+
+  useEffect(() => {
+    if (!viewer.ready || !viewer.signedIn) {
+      setCount(0);
+      return;
+    }
+
+    let cancelled = false;
+    getRepairAccessRequests()
+      .then((requests) => {
+        if (!cancelled) {
+          setCount(requests.filter((request) => request.status === 'pending').length);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setCount(0);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [viewer.ready, viewer.signedIn]);
+
+  return count;
+}
+
 function WhyQuestionsPanel() {
   const questions = [
     {
-      question: 'Why should repair history stay with the device?',
-      answer: 'Because memory fades, paper bills disappear, and the next owner deserves the real story.',
+      question: 'Why does the record live on the device?',
+      answer: 'Because repairs matter most when the phone changes hands, visits a shop, or fails again months later.',
       icon: <Clock3 />,
     },
     {
-      question: 'Why scan a QR before repair?',
-      answer: 'A technician can see previous work first, then request owner-approved access to add a new log.',
+      question: 'Why scan before service?',
+      answer: 'The technician sees the visible history first, then asks the owner for access before writing a new record.',
       icon: <QrCode />,
     },
     {
-      question: 'Why make logs permanent?',
-      answer: 'Trust comes from visible corrections, not silent edits or deleted repair events.',
+      question: 'Why are repair logs locked?',
+      answer: 'A repair passport only has value when entries cannot be quietly edited after the job is done.',
       icon: <ShieldCheck />,
     },
     {
-      question: 'Why does this matter when selling?',
-      answer: 'A clean public passport helps buyers judge condition from recorded service history, not guesses.',
+      question: 'Why does it help resale?',
+      answer: 'Buyers see the device name, health score, and timeline without private owner details or hidden paperwork.',
       icon: <BadgeCheck />,
     },
   ];
@@ -670,13 +721,13 @@ function RegisterContent() {
         )}
         {step === 1 && (
           <div className="grid gap-4 md:grid-cols-2">
-            <Field label="Brand"><Input value={form.brand} onChange={(event) => setForm({ ...form, brand: event.target.value })} /></Field>
-            <Field label="Model"><Input value={form.model} onChange={(event) => setForm({ ...form, model: event.target.value })} /></Field>
-            <Field label={type === 'phone' ? 'IMEI' : 'Serial number'}><Input value={form.serialImei} onChange={(event) => setForm({ ...form, serialImei: event.target.value })} /></Field>
+            <Field label="Brand"><Input value={form.brand} onChange={(event) => setForm({ ...form, brand: event.target.value })} placeholder={type === 'phone' ? 'Example: Samsung, Apple, OnePlus' : 'Example: Lenovo, HP, Dell'} /></Field>
+            <Field label="Model"><Input value={form.model} onChange={(event) => setForm({ ...form, model: event.target.value })} placeholder={type === 'phone' ? 'Example: Galaxy S24, iPhone 15' : 'Example: ThinkPad X1 Carbon, Pavilion 14'} /></Field>
+            <Field label={type === 'phone' ? 'IMEI' : 'Serial number'}><Input value={form.serialImei} onChange={(event) => setForm({ ...form, serialImei: event.target.value })} placeholder={type === 'phone' ? 'Example: 15-digit IMEI from *#06#' : 'Example: PF4ABCDE or laptop service tag'} /></Field>
             <Field label="Purchase date"><Input type="date" value={form.purchaseDate} onChange={(event) => setForm({ ...form, purchaseDate: event.target.value })} /></Field>
-            {type === 'laptop' && <Field label="Processor"><Input value={form.processor} onChange={(event) => setForm({ ...form, processor: event.target.value })} /></Field>}
-            <Field label="RAM"><Input value={form.ram} onChange={(event) => setForm({ ...form, ram: event.target.value })} /></Field>
-            <Field label="Storage"><Input value={form.storage} onChange={(event) => setForm({ ...form, storage: event.target.value })} /></Field>
+            {type === 'laptop' && <Field label="Processor"><Input value={form.processor} onChange={(event) => setForm({ ...form, processor: event.target.value })} placeholder="Example: Intel i7 13th Gen or Ryzen 5" /></Field>}
+            <Field label="RAM"><Input value={form.ram} onChange={(event) => setForm({ ...form, ram: event.target.value })} placeholder={type === 'phone' ? 'Optional: 8 GB' : 'Optional: 16 GB DDR5'} /></Field>
+            <Field label="Storage"><Input value={form.storage} onChange={(event) => setForm({ ...form, storage: event.target.value })} placeholder={type === 'phone' ? 'Optional: 256 GB' : 'Optional: 512 GB SSD'} /></Field>
           </div>
         )}
         {step === 2 && (
@@ -1401,39 +1452,89 @@ function ActivityContent() {
     setRequests(await getRepairAccessRequests());
   }
 
+  const pendingRequests = requests.filter((request) => request.status === 'pending');
+  const historicalRequests = requests.filter((request) => request.status !== 'pending');
+
   return (
     <AppShell>
-      <HeaderBlock eyebrow="Activity" title="Technician access requests" description="Approve a technician once, then they can add repair logs for that device." />
+      <HeaderBlock eyebrow="Activity" title="Requests and access history" description="Review technician access before a repair log can be added." />
+      {pendingRequests.length > 0 && (
+        <div className="mb-5 rounded-2xl border border-device-critical/20 bg-device-critical/10 p-4">
+          <p className="text-sm font-black text-device-critical">
+            {pendingRequests.length} technician {pendingRequests.length === 1 ? 'request needs' : 'requests need'} your decision.
+          </p>
+          <p className="mt-1 text-sm leading-6 text-device-slate">Approve only if you recognize the shop and device.</p>
+        </div>
+      )}
       {notice && <AlertGlass title="Activity update">{notice}</AlertGlass>}
-      <GlassPanel>
-        <div className="space-y-3">
-          {requests.length ? requests.map((request) => {
-            const device = getRequestDevice(request);
-            return (
-              <div key={request.id} className="flex flex-col gap-3 rounded-2xl border border-device-border bg-device-ice p-3 md:flex-row md:items-center">
-                <IconTile tone={request.status === 'approved' ? 'green' : 'amber'}>{request.status === 'approved' ? <BadgeCheck /> : <Clock3 />}</IconTile>
+      <div className="grid gap-5 lg:grid-cols-[1.05fr_0.95fr]">
+        <ActivitySection
+          title="Requests"
+          empty="No active technician requests."
+          requests={pendingRequests}
+          onDecide={decide}
+        />
+        <ActivitySection
+          title="History"
+          empty="Approved and rejected requests will appear here."
+          requests={historicalRequests}
+          onDecide={decide}
+          history
+        />
+      </div>
+    </AppShell>
+  );
+}
+
+function ActivitySection({
+  title,
+  empty,
+  requests,
+  history = false,
+  onDecide,
+}: {
+  title: string;
+  empty: string;
+  requests: RepairAccessRequestWithDevice[];
+  history?: boolean;
+  onDecide: (requestId: string, decision: 'approved' | 'declined') => void;
+}) {
+  return (
+    <GlassPanel>
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <h2 className="text-2xl font-black text-device-ink">{title}</h2>
+        <span className="font-mono text-sm font-black text-device-slate">{requests.length}</span>
+      </div>
+      <div className="space-y-3">
+        {requests.length ? requests.map((request) => {
+          const device = getRequestDevice(request);
+          return (
+            <div key={request.id} className="flex flex-col gap-3 rounded-2xl border border-device-border bg-[#F7F9FC] p-3">
+              <div className="flex items-start gap-3">
+                <IconTile tone={request.status === 'approved' ? 'green' : request.status === 'declined' ? 'amber' : 'amber'}>
+                  {request.status === 'approved' ? <BadgeCheck /> : <Clock3 />}
+                </IconTile>
                 <div className="min-w-0 flex-1">
-                  <p className="break-words font-black text-device-ink">{request.requester_name} from {request.shop_name}</p>
-                  <p className="mt-1 text-sm text-device-slate">
-                    {device ? `${device.brand} ${device.model}` : 'Device'} - {request.requester_phone} - {formatDateTime(request.created_at)}
-                  </p>
+                  <p className="break-words font-black text-device-ink">{request.requester_name}</p>
+                  <p className="mt-1 break-words text-sm text-device-slate">{request.shop_name} · {request.requester_phone}</p>
+                  <p className="mt-1 break-words text-sm text-device-slate">{device ? `${device.brand} ${device.model}` : 'Device'} · {formatDateTime(request.created_at)}</p>
                   <p className="mt-2"><Badge tone={request.status === 'approved' ? 'approved' : request.status === 'declined' ? 'danger' : 'pending'}>{request.status}</Badge></p>
                 </div>
-                <div className="flex flex-wrap gap-2">
-                  <GlassButton href={`/devices/${request.device_id}`}>Open</GlassButton>
-                  {request.status === 'pending' ? (
-                    <>
-                      <PrimaryButton onClick={() => decide(request.id, 'approved')}>Approve</PrimaryButton>
-                      <GlassButton onClick={() => decide(request.id, 'declined')}>Decline</GlassButton>
-                    </>
-                  ) : null}
-                </div>
               </div>
-            );
-          }) : <p className="text-sm text-device-slate">No technician access requests yet.</p>}
-        </div>
-      </GlassPanel>
-    </AppShell>
+              <div className="flex flex-wrap gap-2 pl-0 md:pl-[68px]">
+                <GlassButton href={`/devices/${request.device_id}`}>Open device</GlassButton>
+                {!history && request.status === 'pending' ? (
+                  <>
+                    <PrimaryButton onClick={() => onDecide(request.id, 'approved')}>Approve</PrimaryButton>
+                    <GlassButton onClick={() => onDecide(request.id, 'declined')}>Decline</GlassButton>
+                  </>
+                ) : null}
+              </div>
+            </div>
+          );
+        }) : <p className="text-sm text-device-slate">{empty}</p>}
+      </div>
+    </GlassPanel>
   );
 }
 
