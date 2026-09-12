@@ -35,6 +35,7 @@ import {
 import { QRCodeSVG } from 'qrcode.react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useViewerContext } from '@/components/providers';
+import { deviceTokens } from '@/lib/design-tokens';
 import {
   formatCurrency,
   formatDate,
@@ -170,10 +171,10 @@ export function LogoMark({ compact = false, light = false }: { compact?: boolean
       />
       {!compact && (
         <span>
-          <span className={`block text-sm font-black uppercase tracking-[0.16em] ${light ? 'text-white' : 'text-device-ink'}`}>
+          <span className="block text-sm font-medium tracking-[0.02em] text-device-ink">
             Device DNA
           </span>
-          <span className={light ? 'block text-xs text-white/60' : 'block text-xs text-device-slate'}>
+          <span className="block text-xs text-device-slate">
             Permanent device passport
           </span>
         </span>
@@ -188,8 +189,7 @@ function useViewer(): Viewer {
 
 export function AppShell({ children, publicMode = false }: { children: React.ReactNode; publicMode?: boolean }) {
   return (
-    <div className="min-h-screen overflow-x-hidden bg-[#EAF0F7] text-device-ink">
-      <div className="fixed inset-0 -z-10 bg-[radial-gradient(circle_at_18%_0%,rgba(39,100,255,0.08),transparent_28%),linear-gradient(180deg,#F8FAFD_0%,#EAF0F7_52%,#DDE7F2_100%)]" />
+    <div className="min-h-screen overflow-x-hidden bg-device-ice text-device-ink" style={{ fontFamily: deviceTokens.type.body }}>
       {!publicMode && <DesktopRail />}
       <main className={`mx-auto min-h-screen w-full max-w-[1440px] px-4 pb-24 pt-5 ${publicMode ? 'md:px-6' : 'md:pl-28 md:pr-6 md:pt-6'}`}>
         {children}
@@ -204,7 +204,7 @@ function DesktopRail() {
   const pendingCount = usePendingActivityCount();
 
   return (
-    <aside className="fixed left-4 top-4 z-40 hidden h-[calc(100vh-32px)] w-[76px] rounded-[24px] border border-device-border bg-white p-3 shadow-[0_18px_44px_rgba(17,24,39,0.12)] md:block">
+    <aside className="fixed left-4 top-4 z-40 hidden h-[calc(100vh-32px)] w-[76px] rounded-[28px] border border-device-border bg-white p-3 md:block">
       <div className="flex h-full flex-col items-center gap-5">
         <LogoMark compact light />
         <nav className="flex flex-1 flex-col items-center justify-center gap-3">
@@ -226,7 +226,7 @@ function RailItem({ item, active, count = 0 }: { item: (typeof navItems)[number]
       title={item.label}
       className={`relative grid h-12 w-12 place-items-center rounded-[15px] border transition ${
         item.featured
-          ? 'border-device-blue bg-device-blue text-white shadow-[0_10px_24px_rgba(39,100,255,0.22)]'
+          ? 'border-device-blue bg-device-blue text-white'
           : active
             ? 'border-device-blue/15 bg-device-blue/8 text-device-blue'
             : 'border-transparent text-device-slate hover:border-device-border hover:bg-device-ice hover:text-device-ink'
@@ -244,7 +244,7 @@ function BottomNav() {
   const pendingCount = usePendingActivityCount();
 
   return (
-    <nav className="fixed bottom-4 left-1/2 z-50 grid h-[68px] w-[calc(100%-28px)] max-w-[370px] -translate-x-1/2 grid-cols-5 items-center rounded-[26px] border border-device-border bg-white px-3 shadow-[0_16px_38px_rgba(17,24,39,0.16)] md:hidden">
+    <nav className="fixed bottom-4 left-1/2 z-50 grid h-[72px] w-[calc(100%-24px)] max-w-[410px] -translate-x-1/2 grid-cols-5 items-center rounded-[30px] border border-device-border bg-white px-4 md:hidden">
       {navItems.map((item) => {
         const Icon = item.icon;
         const active = isActive(pathname, item.href);
@@ -259,11 +259,10 @@ function BottomNav() {
             <span
               className={`relative grid place-items-center rounded-[15px] ${
                 item.featured
-                  ? '-mt-8 h-[58px] w-[58px] border-4 border-[#EAF0F7] bg-device-blue text-white shadow-[0_12px_24px_rgba(39,100,255,0.24)]'
+                  ? '-mt-8 h-[58px] w-[58px] border-4 border-device-ice bg-device-blue text-white'
                   : `h-11 w-11 ${active ? 'bg-device-blue/8 text-device-blue' : 'text-device-slate'}`
               }`}
             >
-              {item.featured && active && <span className="signal-pulse absolute inset-0 rounded-[18px] border border-device-blue/25" />}
               <Icon size={item.featured ? 25 : 21} strokeWidth={2.35} />
               {item.href === '/activity' && pendingCount > 0 && (
                 <span className="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-device-critical px-1 font-mono text-[10px] font-black text-white">
@@ -287,9 +286,13 @@ function isActive(pathname: string, href: string) {
 export function HomePage() {
   const viewer = useViewer();
 
+  if (viewer.signedIn) {
+    return <SignedInHome viewer={viewer} />;
+  }
+
   return (
-    <AppShell>
-      <section className="flex flex-col pb-12 pt-3 md:min-h-[calc(100vh-120px)] md:pt-8">
+    <AppShell publicMode>
+      <section className="flex min-h-screen flex-col pb-36 pt-3 md:pb-12 md:pt-8">
         <div className="flex items-center justify-between gap-4">
           <LogoMark />
           <AuthCluster viewer={viewer} />
@@ -304,28 +307,108 @@ export function HomePage() {
             <div className="mb-6 h-px w-28 rounded-full bg-device-blue md:mb-8 md:w-44" />
             <p className="font-mono text-xs font-black uppercase tracking-[0.22em] text-device-blue">For phones and laptops</p>
             <h1 className="mt-4 max-w-5xl text-4xl font-black leading-[0.94] tracking-tight text-device-ink sm:text-5xl md:mt-5 md:text-8xl">
-              Repair history that travels with the device.
+              A device should remember what happened to it.
             </h1>
             <p className="mt-5 text-xl font-black leading-tight text-device-ink md:mt-6 md:text-4xl">
-              No guessing. No missing bills. No silent edits.
+              Scan the passport. Read the repair record. Decide with context.
             </p>
             <p className="mt-4 max-w-2xl text-sm leading-7 text-device-slate md:mt-5 md:text-lg md:leading-8">
-              Device DNA turns each phone or laptop into a permanent, scan-ready service record controlled by the owner.
+              Device DNA keeps service history attached to the phone or laptop itself, without exposing private owner details.
             </p>
-            <div className="mt-7 flex flex-col gap-3 sm:flex-row md:mt-9">
-              <PrimaryButton href="/register">Register device <ArrowRight size={18} /></PrimaryButton>
-              <GlassButton href="/scan">Scan QR <QrCode size={18} /></GlassButton>
-            </div>
             <div className="mt-8 grid gap-3 sm:grid-cols-3">
-              <HomeProofCard label="Owner access" value="Approval first" />
-              <HomeProofCard label="Repair events" value="Locked record" />
-              <HomeProofCard label="Public view" value="Clean passport" />
+              <HomeProofCard label="Owner controlled" value="Technicians request access before logging work" />
+              <HomeProofCard label="Permanent logs" value="Repair entries are added as records, not overwritten" />
+              <HomeProofCard label="Scanner ready" value="Every QR opens a focused public passport" />
             </div>
           </div>
           <WhyQuestionsPanel />
         </motion.div>
+        <div className="fixed inset-x-4 bottom-4 z-40 grid gap-3 rounded-[24px] border border-device-border bg-white p-3 md:hidden">
+          <PrimaryButton href="/register">Register a device</PrimaryButton>
+          <GlassButton href="/scan">Scan a QR passport</GlassButton>
+        </div>
+        <div className="mt-auto hidden gap-3 md:flex">
+          <PrimaryButton href="/register">Register a device <ArrowRight size={18} /></PrimaryButton>
+          <GlassButton href="/scan">Scan a QR passport <QrCode size={18} /></GlassButton>
+        </div>
       </section>
     </AppShell>
+  );
+}
+
+function SignedInHome({ viewer }: { viewer: Viewer }) {
+  const [devices, setDevices] = useState<Device[]>([]);
+  const front = devices[0] ?? null;
+
+  useEffect(() => {
+    if (!viewer.id) return;
+    getDevicesForUser(viewer.id).then(setDevices).catch(() => setDevices([]));
+  }, [viewer.id]);
+
+  return (
+    <AppShell>
+      <section className="space-y-8">
+        <div className="flex items-center justify-between gap-4">
+          <LogoMark />
+          <PrimaryButton href="/register"><Plus size={17} /> Register</PrimaryButton>
+        </div>
+        <section className="grid gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-end">
+          <div>
+            <p className="text-sm font-medium text-device-slate">Current health</p>
+            <h1 className="mt-2 text-[88px] font-medium leading-none tracking-[-0.05em] text-device-ink md:text-[140px]">
+              {front ? '100' : '--'}
+            </h1>
+            <p className="max-w-xl text-lg leading-8 text-device-slate">
+              {front
+                ? `${front.brand} ${front.model} is registered. ${devices.length} ${devices.length === 1 ? 'device is' : 'devices are'} in your passport deck.`
+                : 'Register your first phone or laptop to create its scan-ready repair passport.'}
+            </p>
+          </div>
+          <PassportDeck devices={devices} />
+        </section>
+        <p className="text-base leading-8 text-device-slate">
+          {front
+            ? `Latest record: ${front.brand} ${front.model} was registered on ${formatDate(front.created_at)}.`
+            : 'Latest record: no device has been registered yet.'}
+        </p>
+      </section>
+    </AppShell>
+  );
+}
+
+function PassportDeck({ devices }: { devices: Device[] }) {
+  if (!devices.length) {
+    return (
+      <Link href="/register" className="block rounded-[24px] border border-device-border bg-white p-6">
+        <Smartphone className="text-device-blue" />
+        <h2 className="mt-6 text-3xl font-medium text-device-ink">Create your first passport</h2>
+        <p className="mt-3 text-sm leading-7 text-device-slate">Your device deck will appear here after registration.</p>
+      </Link>
+    );
+  }
+
+  return (
+    <div className="relative min-h-[280px]">
+      {devices.slice(0, 3).reverse().map((device, index) => (
+        <Link
+          key={device.id}
+          href={`/devices/${device.id}`}
+          className="absolute inset-x-0 rounded-[28px] border border-device-border bg-white p-6"
+          style={{
+            top: `${index * 24}px`,
+            transform: `scale(${1 - index * 0.035})`,
+            zIndex: 10 - index,
+          }}
+        >
+          <div className="flex items-center justify-between gap-4">
+            {device.device_type === 'phone' ? <Smartphone className="text-device-slate" /> : <Laptop className="text-device-slate" />}
+            <span className="font-mono text-xs text-device-slate">{device.id.slice(0, 8)}</span>
+          </div>
+          <h2 className="mt-10 text-3xl font-medium text-device-ink">{device.brand} {device.model}</h2>
+          <p className="mt-3 text-sm text-device-slate">{device.device_type} · Registered {formatDate(device.created_at)}</p>
+        </Link>
+      ))}
+    </div>
   );
 }
 
@@ -1803,7 +1886,7 @@ function HeaderBlock({ eyebrow, title, description, action }: { eyebrow?: string
     <header className="mb-5 flex flex-col justify-between gap-4 md:flex-row md:items-end">
       <div>
         {eyebrow && <SectionKicker>{eyebrow}</SectionKicker>}
-        <h1 className="mt-2 max-w-4xl text-4xl font-black leading-tight text-device-ink md:text-6xl">{title}</h1>
+        <h1 className="mt-2 max-w-4xl text-4xl font-medium leading-tight tracking-[-0.035em] text-device-ink md:text-6xl">{title}</h1>
         {description && <p className="mt-3 max-w-2xl text-sm leading-7 text-device-slate md:text-base">{description}</p>}
       </div>
       {action}
@@ -1812,15 +1895,15 @@ function HeaderBlock({ eyebrow, title, description, action }: { eyebrow?: string
 }
 
 function GlassPanel({ children, className = '' }: { children: React.ReactNode; className?: string }) {
-  return <section className={`rounded-2xl border border-device-border bg-white p-4 shadow-sm md:p-5 ${className}`}>{children}</section>;
+  return <section className={`rounded-[20px] border border-device-border bg-white p-4 md:p-5 ${className}`}>{children}</section>;
 }
 
 function SectionKicker({ children }: { children: React.ReactNode }) {
-  return <p className="text-xs font-black uppercase tracking-[0.18em] text-device-blue">{children}</p>;
+  return <p className="text-xs font-medium uppercase tracking-[0.14em] text-device-slate">{children}</p>;
 }
 
 function PrimaryButton({ href, children, disabled = false, onClick }: { href?: string; children: React.ReactNode; disabled?: boolean; onClick?: () => void }) {
-  const className = 'inline-flex min-h-12 items-center justify-center gap-2 rounded-[16px] bg-device-blue px-5 text-sm font-black text-white shadow-[0_10px_24px_rgba(39,100,255,0.18)] transition hover:bg-device-cobalt disabled:cursor-not-allowed disabled:opacity-50';
+  const className = 'inline-flex min-h-12 items-center justify-center gap-2 rounded-[16px] bg-device-blue px-5 text-sm font-medium text-white transition hover:bg-device-cobalt disabled:cursor-not-allowed disabled:opacity-50';
   if (href) return <Link href={href} className={className}>{children}</Link>;
   return <button type="button" disabled={disabled} onClick={onClick} className={className}>{children}</button>;
 }
@@ -1872,13 +1955,13 @@ function SignedOutRouteState({ pathname }: { pathname: string }) {
             <h1 className="mt-3 text-5xl font-black leading-none text-device-ink md:text-7xl">{route.title}</h1>
             <p className="mt-5 max-w-lg text-base leading-8 text-device-slate">{route.body}</p>
             <div className="mt-7 flex flex-wrap gap-3">
-              <SignInButton mode="modal">
-                <button className="inline-flex min-h-12 items-center justify-center gap-2 rounded-[16px] bg-device-blue px-5 text-sm font-black text-white shadow-[0_10px_24px_rgba(39,100,255,0.18)]">
+              <SignInButton mode="modal" forceRedirectUrl={pathname}>
+                <button className="inline-flex min-h-12 items-center justify-center gap-2 rounded-[16px] bg-device-blue px-5 text-sm font-medium text-white">
                   Sign in
                 </button>
               </SignInButton>
-              <SignUpButton mode="modal">
-                <button className="inline-flex min-h-12 items-center justify-center rounded-[16px] border border-device-border bg-white px-5 text-sm font-black text-device-ink">
+              <SignUpButton mode="modal" forceRedirectUrl={pathname}>
+                <button className="inline-flex min-h-12 items-center justify-center rounded-[16px] border border-device-border bg-white px-5 text-sm font-medium text-device-ink">
                   Create account
                 </button>
               </SignUpButton>
@@ -1935,7 +2018,7 @@ function DarkSecondaryButton({ href, children, onClick }: { href?: string; child
 }
 
 function GlassButton({ href, children, disabled = false, onClick }: { href?: string; children: React.ReactNode; disabled?: boolean; onClick?: () => void }) {
-  const className = 'inline-flex min-h-12 items-center justify-center gap-2 rounded-[16px] border border-device-border bg-white px-5 text-sm font-black text-device-ink shadow-sm transition hover:bg-device-ice disabled:cursor-not-allowed disabled:opacity-50';
+  const className = 'inline-flex min-h-12 items-center justify-center gap-2 rounded-[16px] border border-device-border bg-white px-5 text-sm font-medium text-device-ink transition hover:bg-device-ice disabled:cursor-not-allowed disabled:opacity-50';
   if (href) return <Link href={href} className={className}>{children}</Link>;
   return <button type="button" disabled={disabled} onClick={onClick} className={className}>{children}</button>;
 }
@@ -2085,22 +2168,22 @@ function AlertGlass({ title, children }: { title: string; children: React.ReactN
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="block">
-      <span className="text-sm font-black text-device-slate">{label}</span>
+      <span className="text-sm font-medium text-device-slate">{label}</span>
       <div className="mt-2">{children}</div>
     </label>
   );
 }
 
 function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
-  return <input {...props} className={`min-h-12 w-full rounded-xl border border-device-border bg-white px-4 text-sm text-device-ink outline-none placeholder:text-device-slate focus:border-cyan-300/50 ${props.className ?? ''}`} />;
+  return <input {...props} className={`min-h-12 w-full rounded-[16px] border border-device-border bg-white px-4 text-sm text-device-ink outline-none placeholder:text-device-slate focus:border-device-blue ${props.className ?? ''}`} />;
 }
 
 function Select(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
-  return <select {...props} className={`min-h-12 w-full rounded-xl border border-device-border bg-white px-4 text-sm text-device-ink outline-none focus:border-device-blue ${props.className ?? ''}`} />;
+  return <select {...props} className={`min-h-12 w-full rounded-[16px] border border-device-border bg-white px-4 text-sm text-device-ink outline-none focus:border-device-blue ${props.className ?? ''}`} />;
 }
 
 function Textarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
-  return <textarea {...props} className={`min-h-28 w-full rounded-xl border border-device-border bg-white px-4 py-3 text-sm text-device-ink outline-none placeholder:text-device-slate focus:border-cyan-300/50 ${props.className ?? ''}`} />;
+  return <textarea {...props} className={`min-h-28 w-full rounded-[16px] border border-device-border bg-white px-4 py-3 text-sm text-device-ink outline-none placeholder:text-device-slate focus:border-device-blue ${props.className ?? ''}`} />;
 }
 
 function Info({ label, value }: { label: string; value: React.ReactNode }) {
