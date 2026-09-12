@@ -8,15 +8,10 @@ import {
   RepairEvent,
   Role,
   WarrantyCardData,
-  mockActivities,
-  mockDevices,
-  mockDocuments,
-  mockJobs,
-  mockRepairs,
   ownerProfile,
 } from './mock-data';
 
-const STORAGE_KEY = 'device-dna-prototype-v1';
+const STORAGE_KEY = 'device-dna-prototype-v2';
 
 type Store = {
   devices: Device[];
@@ -54,11 +49,11 @@ export type RepairRecordInput = {
 };
 
 const seedStore = (): Store => ({
-  devices: mockDevices,
-  repairs: mockRepairs,
-  documents: mockDocuments,
-  jobs: mockJobs,
-  activities: mockActivities,
+  devices: [],
+  repairs: [],
+  documents: [],
+  jobs: [],
+  activities: [],
 });
 
 function readStore(): Store {
@@ -174,9 +169,9 @@ export async function submitRepairRecord(data: RepairRecordInput) {
   const repair: RepairEvent = {
     id: `rep_${Date.now()}`,
     deviceId: data.deviceId,
-    technicianId: 'tech_arun',
-    technicianName: 'Arun Kumar',
-    serviceCentre: 'Metro Device Care',
+    technicianId: 'local-technician',
+    technicianName: 'Technician',
+    serviceCentre: '',
     explicitlyVerified: true,
     symptom: data.symptom,
     diagnosis: data.diagnosis,

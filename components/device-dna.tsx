@@ -204,7 +204,7 @@ function DesktopRail() {
   const pendingCount = usePendingActivityCount();
 
   return (
-    <aside className="fixed left-4 top-4 z-40 hidden h-[calc(100vh-32px)] w-[76px] rounded-[24px] bg-device-midnight p-3 shadow-[0_18px_44px_rgba(8,11,17,0.24)] md:block">
+    <aside className="fixed left-4 top-4 z-40 hidden h-[calc(100vh-32px)] w-[76px] rounded-[24px] border border-device-border bg-white p-3 shadow-[0_18px_44px_rgba(17,24,39,0.12)] md:block">
       <div className="flex h-full flex-col items-center gap-5">
         <LogoMark compact light />
         <nav className="flex flex-1 flex-col items-center justify-center gap-3">
@@ -228,13 +228,13 @@ function RailItem({ item, active, count = 0 }: { item: (typeof navItems)[number]
         item.featured
           ? 'border-device-blue bg-device-blue text-white shadow-[0_10px_24px_rgba(39,100,255,0.22)]'
           : active
-            ? 'border-white/10 bg-white/10 text-white'
-            : 'border-transparent text-white/76 hover:border-white/10 hover:bg-white/8 hover:text-white'
+            ? 'border-device-blue/15 bg-device-blue/8 text-device-blue'
+            : 'border-transparent text-device-slate hover:border-device-border hover:bg-device-ice hover:text-device-ink'
       }`}
     >
       <Icon size={20} strokeWidth={2.25} />
       {count > 0 && <span className="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-device-critical px-1 font-mono text-[10px] font-black text-white">{count}</span>}
-      {active && !item.featured && <span className="absolute -bottom-1 h-1 w-1 rounded-full bg-device-cyan" />}
+      {active && !item.featured && <span className="absolute -bottom-1 h-1 w-1 rounded-full bg-device-blue" />}
     </Link>
   );
 }
@@ -244,7 +244,7 @@ function BottomNav() {
   const pendingCount = usePendingActivityCount();
 
   return (
-    <nav className="fixed bottom-4 left-1/2 z-50 grid h-[68px] w-[calc(100%-28px)] max-w-[370px] -translate-x-1/2 grid-cols-5 items-center rounded-[26px] bg-device-midnight px-3 shadow-[0_16px_38px_rgba(8,11,17,0.28)] md:hidden">
+    <nav className="fixed bottom-4 left-1/2 z-50 grid h-[68px] w-[calc(100%-28px)] max-w-[370px] -translate-x-1/2 grid-cols-5 items-center rounded-[26px] border border-device-border bg-white px-3 shadow-[0_16px_38px_rgba(17,24,39,0.16)] md:hidden">
       {navItems.map((item) => {
         const Icon = item.icon;
         const active = isActive(pathname, item.href);
@@ -254,13 +254,13 @@ function BottomNav() {
             key={item.href}
             href={item.href}
             aria-label={item.label}
-            className="relative flex min-h-12 items-center justify-center text-white/76"
+            className="relative flex min-h-12 items-center justify-center text-device-slate"
           >
             <span
               className={`relative grid place-items-center rounded-[15px] ${
                 item.featured
                   ? '-mt-8 h-[58px] w-[58px] border-4 border-[#EAF0F7] bg-device-blue text-white shadow-[0_12px_24px_rgba(39,100,255,0.24)]'
-                  : `h-11 w-11 ${active ? 'bg-white/10 text-white' : 'text-white/76'}`
+                  : `h-11 w-11 ${active ? 'bg-device-blue/8 text-device-blue' : 'text-device-slate'}`
               }`}
             >
               {item.featured && active && <span className="signal-pulse absolute inset-0 rounded-[18px] border border-device-blue/25" />}
@@ -271,7 +271,7 @@ function BottomNav() {
                 </span>
               )}
             </span>
-            {active && <span className="absolute bottom-0 h-1 w-1 rounded-full bg-device-cyan" />}
+            {active && <span className="absolute bottom-0 h-1 w-1 rounded-full bg-device-blue" />}
           </Link>
         );
       })}
@@ -722,7 +722,7 @@ function RegisterContent() {
         {step === 1 && (
           <div className="grid gap-4 md:grid-cols-2">
             <Field label="Brand"><Input value={form.brand} onChange={(event) => setForm({ ...form, brand: event.target.value })} placeholder={type === 'phone' ? 'Example: Samsung, Apple, OnePlus' : 'Example: Lenovo, HP, Dell'} /></Field>
-            <Field label="Model"><Input value={form.model} onChange={(event) => setForm({ ...form, model: event.target.value })} placeholder={type === 'phone' ? 'Example: Galaxy S24, iPhone 15' : 'Example: ThinkPad X1 Carbon, Pavilion 14'} /></Field>
+            <Field label="Model"><Input value={form.model} onChange={(event) => setForm({ ...form, model: event.target.value })} placeholder={type === 'phone' ? 'Example: Phone model name' : 'Example: Laptop model name'} /></Field>
             <Field label={type === 'phone' ? 'IMEI' : 'Serial number'}><Input value={form.serialImei} onChange={(event) => setForm({ ...form, serialImei: event.target.value })} placeholder={type === 'phone' ? 'Example: 15-digit IMEI from *#06#' : 'Example: PF4ABCDE or laptop service tag'} /></Field>
             <Field label="Purchase date"><Input type="date" value={form.purchaseDate} onChange={(event) => setForm({ ...form, purchaseDate: event.target.value })} /></Field>
             {type === 'laptop' && <Field label="Processor"><Input value={form.processor} onChange={(event) => setForm({ ...form, processor: event.target.value })} placeholder="Example: Intel i7 13th Gen or Ryzen 5" /></Field>}
@@ -788,7 +788,7 @@ function DeviceContent() {
   const viewer = useViewer();
   const [timeline, setTimeline] = useState<DeviceTimeline | null | undefined>(undefined);
   const [score, setScore] = useState<DeviceScore | null>(null);
-  const [accessStatus, setAccessStatus] = useState<'pending' | 'approved' | 'declined' | null>(null);
+  const [accessStatus, setAccessStatus] = useState<'pending' | 'approved' | 'declined' | null | undefined>(undefined);
   const [notice, setNotice] = useState('');
   const [scoreBusy, setScoreBusy] = useState(false);
 
@@ -802,6 +802,7 @@ function DeviceContent() {
       return;
     }
 
+    setAccessStatus(undefined);
     getRepairAccessStatus(timeline.id, viewer.id)
       .then(setAccessStatus)
       .catch(() => setAccessStatus(null));
@@ -827,9 +828,26 @@ function DeviceContent() {
   const isOwner = viewer.id === timeline.owner_id;
   const canAddRepair = Boolean(viewer.signedIn && !isOwner && accessStatus === 'approved');
 
+  if (!isOwner && accessStatus === 'approved') {
+    return (
+      <AppShell>
+        <DeviceHero device={timeline} score={null} showPrivateId={false} />
+        <section className="mt-6">
+          <HeaderBlock
+            eyebrow="Technician access approved"
+            title="Repair timeline"
+            description="Review the existing logs, then add the next permanent repair record."
+            action={<PrimaryButton href={`/devices/${timeline.id}/repair`}><Wrench size={17} /> Add new log</PrimaryButton>}
+          />
+          <RepairTimeline repairs={timeline.repair_events} isOwner={false} />
+        </section>
+      </AppShell>
+    );
+  }
+
   return (
     <AppShell>
-      <DeviceHero device={timeline} score={score} />
+      <DeviceHero device={timeline} score={score} showPrivateId={isOwner} />
       <div className="mt-6 grid gap-5 xl:grid-cols-[0.88fr_1.12fr]">
         <div className="space-y-5">
           <ScoreSuite score={score} />
@@ -854,7 +872,7 @@ function DeviceContent() {
             repairs={timeline.repair_events}
             isOwner={isOwner}
           />
-          {!isOwner && (
+          {!isOwner && accessStatus !== undefined && (
             <RepairAccessPanel
               device={timeline}
               status={accessStatus}
@@ -874,18 +892,21 @@ async function loadDevice(
 ) {
   try {
     const timeline = await getDeviceTimeline(id);
-    const score = timeline
-      ? (await getDeviceScore(id)) ?? (await recalculateDeviceScore(id).catch(() => null))
-      : null;
     setTimeline(timeline);
-    setScore(score);
+
+    if (!timeline) {
+      setScore(null);
+      return;
+    }
+
+    setScore(await getDeviceScore(id).catch(() => null));
   } catch {
     setTimeline(null);
     setScore(null);
   }
 }
 
-function DeviceHero({ device, score }: { device: DeviceTimeline; score: DeviceScore | null }) {
+function DeviceHero({ device, score, showPrivateId = false }: { device: DeviceTimeline; score: DeviceScore | null; showPrivateId?: boolean }) {
   return (
     <section className="relative overflow-hidden rounded-[24px] border border-device-border bg-white p-5 shadow-[0_18px_50px_rgba(17,24,39,0.08)] md:p-7">
       <div className="absolute right-0 top-0 h-full w-1 bg-device-blue" />
@@ -894,6 +915,11 @@ function DeviceHero({ device, score }: { device: DeviceTimeline; score: DeviceSc
           <SectionKicker>Device log</SectionKicker>
           <h1 className="mt-3 text-4xl font-black text-device-ink md:text-6xl">{device.brand} {device.model}</h1>
           <p className="mt-3 text-sm text-device-slate">Registered {formatDate(device.created_at)}</p>
+          {showPrivateId && (
+            <p className="mt-2 break-all font-mono text-sm font-black text-device-ink">
+              {device.device_type === 'phone' ? 'IMEI' : 'Serial'}: {device.serial_imei}
+            </p>
+          )}
         </div>
         <div className="grid grid-cols-1 gap-3">
           <HeroStat label="Health" value={score ? `${score.health_score}/100` : 'No score'} />
@@ -1064,13 +1090,13 @@ function RepairAccessPanel({
       </p>
       <div className="mt-5 grid gap-4 md:grid-cols-3">
         <Field label="Your name">
-          <Input value={form.requesterName} onChange={(event) => setForm({ ...form, requesterName: event.target.value })} placeholder="Example: Arun Kumar" />
+          <Input value={form.requesterName} onChange={(event) => setForm({ ...form, requesterName: event.target.value })} placeholder="Example: Technician full name" />
         </Field>
         <Field label="Phone number">
           <Input value={form.requesterPhone} onChange={(event) => setForm({ ...form, requesterPhone: event.target.value })} placeholder="Example: +91 98765 43210" />
         </Field>
         <Field label="Shop name">
-          <Input value={form.shopName} onChange={(event) => setForm({ ...form, shopName: event.target.value })} placeholder="Example: Metro Device Care" />
+          <Input value={form.shopName} onChange={(event) => setForm({ ...form, shopName: event.target.value })} placeholder="Example: Shop or service centre name" />
         </Field>
       </div>
       {error && <p className="mt-4 text-sm font-black text-device-critical">{error}</p>}
@@ -1103,7 +1129,7 @@ function RepairSubmissionContent() {
   const router = useRouter();
   const viewer = useViewer();
   const [timeline, setTimeline] = useState<DeviceTimeline | null>(null);
-  const [accessStatus, setAccessStatus] = useState<'pending' | 'approved' | 'declined' | null>(null);
+  const [accessStatus, setAccessStatus] = useState<'pending' | 'approved' | 'declined' | null | undefined>(undefined);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [form, setForm] = useState({
@@ -1129,6 +1155,7 @@ function RepairSubmissionContent() {
       return;
     }
 
+    setAccessStatus(undefined);
     getRepairAccessStatus(timeline.id, viewer.id)
       .then(setAccessStatus)
       .catch(() => setAccessStatus(null));
@@ -1183,7 +1210,10 @@ function RepairSubmissionContent() {
       {timeline && viewer.id === timeline.owner_id && (
         <EmptyGlass title="Owner accounts cannot add repair logs" body="Scan this QR at a technician account. The technician requests access, then adds the repair record after you approve it in Activity." />
       )}
-      {timeline && viewer.id !== timeline.owner_id && accessStatus !== 'approved' && (
+      {timeline && viewer.id !== timeline.owner_id && accessStatus === undefined && (
+        <LoadingGlass title="Checking technician access" />
+      )}
+      {timeline && viewer.id !== timeline.owner_id && accessStatus !== undefined && accessStatus !== 'approved' && (
         <GlassPanel>
           <AlertGlass title="Owner approval required">
             Request access from the device page first. After the owner approves it in Activity, this repair form unlocks.
@@ -1212,7 +1242,7 @@ function RepairSubmissionContent() {
               </Select>
             </Field>
             <Field label="Part number"><Input value={form.partNumber} onChange={(event) => setForm({ ...form, partNumber: event.target.value })} placeholder="Example: GH96-16522A or supplier SKU" /></Field>
-            <Field label="Supplier"><Input value={form.supplier} onChange={(event) => setForm({ ...form, supplier: event.target.value })} placeholder="Example: Metro Device Care stock" /></Field>
+            <Field label="Supplier"><Input value={form.supplier} onChange={(event) => setForm({ ...form, supplier: event.target.value })} placeholder="Example: Supplier or shop stock" /></Field>
             <Field label="Part cost"><Input type="number" min="0" value={form.partCost} onChange={(event) => setForm({ ...form, partCost: event.target.value })} placeholder="Example: 1450" /></Field>
             <Field label="Warranty days"><Input type="number" min="0" value={form.warrantyDays} onChange={(event) => setForm({ ...form, warrantyDays: event.target.value })} placeholder="Example: 90" /></Field>
             <Field label="Service cost"><Input type="number" min="0" value={form.serviceCost} onChange={(event) => setForm({ ...form, serviceCost: event.target.value })} placeholder="Example: 2300" /></Field>
@@ -1440,6 +1470,7 @@ function ActivityContent() {
   const viewer = useViewer();
   const [requests, setRequests] = useState<RepairAccessRequestWithDevice[]>([]);
   const [notice, setNotice] = useState('');
+  const [activeTab, setActiveTab] = useState<'requests' | 'history'>('requests');
 
   useEffect(() => {
     if (!viewer.id) return;
@@ -1447,13 +1478,25 @@ function ActivityContent() {
   }, [viewer.id]);
 
   async function decide(requestId: string, decision: 'approved' | 'declined') {
-    await decideRepairAccessRequest(requestId, decision);
+    const decidedAt = new Date().toISOString();
+    const previous = requests;
+    setRequests((current) => current.map((request) => (
+      request.id === requestId
+        ? { ...request, status: decision, decided_at: decidedAt }
+        : request
+    )));
     setNotice(decision === 'approved' ? 'Technician access approved.' : 'Technician access declined.');
-    setRequests(await getRepairAccessRequests());
+    try {
+      await decideRepairAccessRequest(requestId, decision);
+    } catch (error) {
+      setRequests(previous);
+      setNotice(getServiceErrorMessage(error));
+    }
   }
 
   const pendingRequests = requests.filter((request) => request.status === 'pending');
   const historicalRequests = requests.filter((request) => request.status !== 'pending');
+  const visibleRequests = activeTab === 'requests' ? pendingRequests : historicalRequests;
 
   return (
     <AppShell>
@@ -1467,53 +1510,96 @@ function ActivityContent() {
         </div>
       )}
       {notice && <AlertGlass title="Activity update">{notice}</AlertGlass>}
-      <div className="grid gap-5 lg:grid-cols-[1.05fr_0.95fr]">
-        <ActivitySection
-          title="Requests"
-          empty="No active technician requests."
-          requests={pendingRequests}
+      <section className="rounded-[24px] border border-device-border bg-white shadow-sm">
+        <div className="grid grid-cols-2 border-b border-device-border p-2">
+          <button
+            type="button"
+            onClick={() => setActiveTab('requests')}
+            className={`min-h-11 rounded-[16px] text-sm font-black transition ${activeTab === 'requests' ? 'bg-device-midnight text-white' : 'text-device-slate hover:bg-device-ice'}`}
+          >
+            Requests <span className="font-mono">{pendingRequests.length}</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('history')}
+            className={`min-h-11 rounded-[16px] text-sm font-black transition ${activeTab === 'history' ? 'bg-device-midnight text-white' : 'text-device-slate hover:bg-device-ice'}`}
+          >
+            History <span className="font-mono">{historicalRequests.length}</span>
+          </button>
+        </div>
+        <CompactActivityList
+          empty={activeTab === 'requests' ? 'No active technician requests.' : 'Approved and rejected requests will appear here.'}
+          requests={visibleRequests}
           onDecide={decide}
+          history={activeTab === 'history'}
         />
-        <ActivitySection
-          title="History"
-          empty="Approved and rejected requests will appear here."
-          requests={historicalRequests}
-          onDecide={decide}
-          history
-        />
-      </div>
+      </section>
     </AppShell>
   );
 }
 
-function ActivitySection({
-  title,
+function CompactActivityList({
   empty,
   requests,
   history = false,
   onDecide,
 }: {
-  title: string;
   empty: string;
   requests: RepairAccessRequestWithDevice[];
   history?: boolean;
   onDecide: (requestId: string, decision: 'approved' | 'declined') => void;
 }) {
   return (
-    <GlassPanel>
-      <div className="mb-4 flex items-center justify-between gap-3">
-        <h2 className="text-2xl font-black text-device-ink">{title}</h2>
-        <span className="font-mono text-sm font-black text-device-slate">{requests.length}</span>
-      </div>
-      <div className="space-y-3">
+    <div className="divide-y divide-device-border">
+      {requests.length ? requests.map((request) => {
+        const device = getRequestDevice(request);
+        return (
+          <div key={request.id} className="grid gap-3 px-4 py-3 md:grid-cols-[1fr_auto] md:items-center">
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className={`h-2.5 w-2.5 rounded-full ${request.status === 'approved' ? 'bg-device-healthy' : request.status === 'declined' ? 'bg-device-critical' : 'bg-device-attention'}`} />
+                <p className="break-words text-sm font-black text-device-ink">{request.requester_name}</p>
+                <Badge tone={request.status === 'approved' ? 'approved' : request.status === 'declined' ? 'danger' : 'pending'}>{request.status}</Badge>
+              </div>
+              <p className="mt-1 break-words text-sm text-device-slate">{request.shop_name} - {request.requester_phone}</p>
+              <p className="mt-1 break-words text-xs font-bold text-device-slate">{device ? `${device.brand} ${device.model}` : 'Device'} - {formatDateTime(request.created_at)}</p>
+            </div>
+            <div className="flex flex-wrap gap-2 md:justify-end">
+              <GlassButton href={`/devices/${request.device_id}`}>Open</GlassButton>
+              {!history && request.status === 'pending' ? (
+                <>
+                  <PrimaryButton onClick={() => onDecide(request.id, 'approved')}>Approve</PrimaryButton>
+                  <GlassButton onClick={() => onDecide(request.id, 'declined')}>Decline</GlassButton>
+                </>
+              ) : null}
+            </div>
+          </div>
+        );
+      }) : <p className="p-4 text-sm text-device-slate">{empty}</p>}
+    </div>
+  );
+}
+
+function ActivityList({
+  empty,
+  requests,
+  history = false,
+  onDecide,
+}: {
+  empty: string;
+  requests: RepairAccessRequestWithDevice[];
+  history?: boolean;
+  onDecide: (requestId: string, decision: 'approved' | 'declined') => void;
+}) {
+  return (
+    <>
+      <div className="divide-y divide-device-border overflow-hidden rounded-[18px] border border-device-border bg-white">
         {requests.length ? requests.map((request) => {
           const device = getRequestDevice(request);
           return (
-            <div key={request.id} className="flex flex-col gap-3 rounded-2xl border border-device-border bg-[#F7F9FC] p-3">
+            <div key={request.id} className="grid gap-3 bg-white p-3 md:grid-cols-[1fr_auto] md:items-center">
               <div className="flex items-start gap-3">
-                <IconTile tone={request.status === 'approved' ? 'green' : request.status === 'declined' ? 'amber' : 'amber'}>
-                  {request.status === 'approved' ? <BadgeCheck /> : <Clock3 />}
-                </IconTile>
+                <span className={`mt-1 h-2.5 w-2.5 shrink-0 rounded-full ${request.status === 'approved' ? 'bg-device-healthy' : request.status === 'declined' ? 'bg-device-critical' : 'bg-device-attention'}`} />
                 <div className="min-w-0 flex-1">
                   <p className="break-words font-black text-device-ink">{request.requester_name}</p>
                   <p className="mt-1 break-words text-sm text-device-slate">{request.shop_name} · {request.requester_phone}</p>
@@ -1521,8 +1607,8 @@ function ActivitySection({
                   <p className="mt-2"><Badge tone={request.status === 'approved' ? 'approved' : request.status === 'declined' ? 'danger' : 'pending'}>{request.status}</Badge></p>
                 </div>
               </div>
-              <div className="flex flex-wrap gap-2 pl-0 md:pl-[68px]">
-                <GlassButton href={`/devices/${request.device_id}`}>Open device</GlassButton>
+              <div className="flex flex-wrap gap-2 md:justify-end">
+                <GlassButton href={`/devices/${request.device_id}`}>Open</GlassButton>
                 {!history && request.status === 'pending' ? (
                   <>
                     <PrimaryButton onClick={() => onDecide(request.id, 'approved')}>Approve</PrimaryButton>
@@ -1534,7 +1620,7 @@ function ActivitySection({
           );
         }) : <p className="text-sm text-device-slate">{empty}</p>}
       </div>
-    </GlassPanel>
+    </>
   );
 }
 
@@ -1613,18 +1699,37 @@ function PassportContent() {
   const viewer = useViewer();
   const [timeline, setTimeline] = useState<DeviceTimeline | null | undefined>(undefined);
   const [score, setScore] = useState<DeviceScore | null>(null);
-  const [accessStatus, setAccessStatus] = useState<'pending' | 'approved' | 'declined' | null>(null);
+  const [accessStatus, setAccessStatus] = useState<'pending' | 'approved' | 'declined' | null | undefined>(undefined);
 
   useEffect(() => {
-    Promise.all([getPublicPassportTimeline(params.id), getDeviceScore(params.id)])
-      .then(([timeline, score]) => {
-        setTimeline(timeline);
-        setScore(score);
+    let alive = true;
+
+    getPublicPassportTimeline(params.id)
+      .then((nextTimeline) => {
+        if (!alive) return;
+        setTimeline(nextTimeline);
+        if (!nextTimeline) {
+          setScore(null);
+          return;
+        }
+
+        getDeviceScore(params.id)
+          .then((nextScore) => {
+            if (alive) setScore(nextScore);
+          })
+          .catch(() => {
+            if (alive) setScore(null);
+          });
       })
       .catch(() => {
+        if (!alive) return;
         setTimeline(null);
         setScore(null);
       });
+
+    return () => {
+      alive = false;
+    };
   }, [params.id]);
 
   useEffect(() => {
@@ -1633,6 +1738,7 @@ function PassportContent() {
       return;
     }
 
+    setAccessStatus(undefined);
     getRepairAccessStatus(timeline.id, viewer.id)
       .then(setAccessStatus)
       .catch(() => setAccessStatus(null));
@@ -1643,13 +1749,15 @@ function PassportContent() {
 
   return (
     <AppShell>
-      <DeviceHero device={timeline} score={score} />
+      <DeviceHero device={timeline} score={score} showPrivateId={false} />
       <div className="mt-6 grid gap-5 xl:grid-cols-[0.88fr_1.12fr]">
         <ScoreSuite score={score} />
         <section>
           <HeaderBlock eyebrow="Timeline" title="Repair log" description="Only recorded repair history is shown here." />
           <RepairTimeline repairs={timeline.repair_events} isOwner={false} publicOnly />
-          <RepairAccessPanel device={timeline} status={accessStatus} onSubmitted={() => setAccessStatus('pending')} />
+          {accessStatus !== undefined && (
+            <RepairAccessPanel device={timeline} status={accessStatus} onSubmitted={() => setAccessStatus('pending')} />
+          )}
         </section>
       </div>
     </AppShell>

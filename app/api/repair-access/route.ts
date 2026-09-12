@@ -21,22 +21,64 @@ export async function GET(request: NextRequest) {
       return json({ ok: false, error: 'Sign in again' }, 401);
     }
 
+    const deviceId = request.nextUrl.searchParams.get('deviceId');
     const supabase = getServiceClient();
-    const { data, error } = await supabase
+
+    if (deviceId) {
+      const { data, error } = await supabase
+        .from('repair_access_requests')
+        .select('*, devices:device_id(*)')
+        .eq('device_id', deviceId)
+        .eq('requester_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      if (error) {
+        return json({ ok: false, error: error.message }, 500);
+      }
+
+      return json({ ok: true, requests: data ?? [] }, 200);
+    }
+
+    const { data: ownedDevices, error: deviceError } = await supabase
+      .from('devices')
+      .select('id')
+      .eq('owner_id', userId);
+
+    if (deviceError) {
+      return json({ ok: false, error: deviceError.message }, 500);
+    }
+
+    const ownedDeviceIds = (ownedDevices ?? []).map((device) => device.id);
+    const ownerQuery = ownedDeviceIds.length
+      ? supabase
+          .from('repair_access_requests')
+          .select('*, devices:device_id(*)')
+          .in('device_id', ownedDeviceIds)
+          .order('created_at', { ascending: false })
+      : Promise.resolve({ data: [], error: null });
+
+    const requesterQuery = supabase
       .from('repair_access_requests')
       .select('*, devices:device_id(*)')
+      .eq('requester_id', userId)
       .order('created_at', { ascending: false });
+
+    const [ownerResult, requesterResult] = await Promise.all([ownerQuery, requesterQuery]);
+    const error = ownerResult.error ?? requesterResult.error;
 
     if (error) {
       return json({ ok: false, error: error.message }, 500);
     }
 
-    const ownerRequests = (data ?? []).filter((requestRow) => {
-      const device = Array.isArray(requestRow.devices)
-        ? requestRow.devices[0]
-        : requestRow.devices;
-
-      return device?.owner_id === userId || requestRow.requester_id === userId;
+    const byId = new Map<string, unknown>();
+    for (const item of [...(ownerResult.data ?? []), ...(requesterResult.data ?? [])]) {
+      byId.set(item.id, item);
+    }
+    const ownerRequests = [...byId.values()].sort((a, b) => {
+      const left = typeof a === 'object' && a && 'created_at' in a ? String(a.created_at) : '';
+      const right = typeof b === 'object' && b && 'created_at' in b ? String(b.created_at) : '';
+      return new Date(right).getTime() - new Date(left).getTime();
     });
 
     return json({ ok: true, requests: ownerRequests }, 200);

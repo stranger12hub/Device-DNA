@@ -84,8 +84,8 @@ type RepairAccessResponse = {
   requests?: RepairAccessRequestWithDevice[];
   error?: string;
 };
-const LOCAL_DEVICE_CACHE_KEY = 'device-dna-local-devices-v1';
-const LOCAL_REPAIR_CACHE_KEY = 'device-dna-local-repairs-v1';
+const LOCAL_DEVICE_CACHE_KEY = 'device-dna-local-devices-v2';
+const LOCAL_REPAIR_CACHE_KEY = 'device-dna-local-repairs-v2';
 
 export async function getProfile(userId: string): Promise<Profile | null> {
   ensureSupabaseConfigured();
@@ -193,7 +193,7 @@ export async function getDevicesForUser(userId: string): Promise<Device[]> {
   }
 
   if (!isSupabaseConfigured) {
-    return ensureDemoDevices(cached);
+    return cached;
   }
 
   const { data, error } = await withTimeout(
@@ -210,15 +210,15 @@ export async function getDevicesForUser(userId: string): Promise<Device[]> {
 
   if (error) {
     console.warn('Device list failed, using local cache:', error);
-    return ensureDemoDevices(getCachedDevices(userId));
+    return getCachedDevices(userId);
   }
 
   if (!(data ?? []).length) {
     const visibleDevices = await getRecentVisibleDevices().catch(() => []);
-    return ensureDemoDevices(mergeDevices(visibleDevices, getCachedDevices(userId)));
+    return mergeDevices(visibleDevices, getCachedDevices(userId));
   }
 
-  return ensureDemoDevices(mergeDevices(data ?? [], getCachedDevices(userId)));
+  return mergeDevices(data ?? [], getCachedDevices(userId));
 }
 
 export async function getRecentVisibleDevices(limit = 24): Promise<Device[]> {
@@ -229,7 +229,7 @@ export async function getRecentVisibleDevices(limit = 24): Promise<Device[]> {
   }
 
   if (!isSupabaseConfigured) {
-    return ensureDemoDevices(cached);
+    return cached;
   }
 
   const { data, error } = await withTimeout(
@@ -246,10 +246,10 @@ export async function getRecentVisibleDevices(limit = 24): Promise<Device[]> {
 
   if (error) {
     console.warn('Recent device list failed, using local cache:', error);
-    return ensureDemoDevices(getCachedDevices());
+    return getCachedDevices();
   }
 
-  return ensureDemoDevices(data ?? []);
+  return data ?? [];
 }
 
 export async function registerDevice(
@@ -389,6 +389,30 @@ export async function getRepairAccessRequests(): Promise<RepairAccessRequestWith
   return body.requests ?? [];
 }
 
+export async function getRepairAccessRequestsForDevice(
+  deviceId: string,
+): Promise<RepairAccessRequestWithDevice[]> {
+  ensureSupabaseConfigured();
+  const token = await getClerkAccessToken();
+
+  if (!token) {
+    return [];
+  }
+
+  const response = await fetch(`/api/repair-access?deviceId=${encodeURIComponent(deviceId)}`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  const body = (await response.json().catch(() => ({}))) as RepairAccessResponse;
+
+  if (!response.ok || !body.ok) {
+    return [];
+  }
+
+  return body.requests ?? [];
+}
+
 export async function decideRepairAccessRequest(
   requestId: string,
   decision: Extract<RepairAccessStatus, 'approved' | 'declined'>,
@@ -425,7 +449,7 @@ export async function getRepairAccessStatus(
     return null;
   }
 
-  const requests = await getRepairAccessRequests().catch(() => []);
+  const requests = await getRepairAccessRequestsForDevice(deviceId).catch(() => []);
   const match = requests.find((request) =>
     request.requester_id === userId &&
     request.device_id === deviceId &&
@@ -688,7 +712,7 @@ export async function lookupDevice(query: string): Promise<Device | null> {
     return null;
   }
 
-  const local = lookupCachedDevice(clean) ?? lookupDemoDevice(clean);
+  const local = lookupCachedDevice(clean);
 
   if (local) {
     return local;
@@ -712,10 +736,10 @@ export async function lookupDevice(query: string): Promise<Device | null> {
 
   if (error) {
     console.warn('Device lookup failed, using local cache:', error);
-    return lookupCachedDevice(clean) ?? lookupDemoDevice(clean);
+    return lookupCachedDevice(clean);
   }
 
-  return data ?? lookupCachedDevice(clean) ?? lookupDemoDevice(clean);
+  return data ?? lookupCachedDevice(clean);
 }
 
 export function formatCurrency(value: number | null | undefined): string {
@@ -999,7 +1023,7 @@ function getCachedRepairs(deviceId?: string): RepairEventWithParts[] {
 }
 
 function getCachedTimeline(deviceId: string): DeviceTimeline | null {
-  const device = lookupCachedDevice(deviceId) ?? lookupDemoDevice(deviceId);
+  const device = lookupCachedDevice(deviceId);
 
   if (!device) {
     return null;
@@ -1007,7 +1031,7 @@ function getCachedTimeline(deviceId: string): DeviceTimeline | null {
 
   return {
     ...device,
-    repair_events: mergeRepairs(getDemoRepairs(device.id), getCachedRepairs(device.id)),
+    repair_events: getCachedRepairs(device.id),
     device_scores: [],
     documents: [],
     device_access: [],
@@ -1168,52 +1192,6 @@ function lookupCachedDevice(query: string): Device | null {
   )) ?? null;
 }
 
-function ensureDemoDevices(devices: Device[]): Device[] {
-  if (devices.length > 0) {
-    return devices;
-  }
-
-  return getDemoDevices();
-}
-
-function getDemoDevices(): Device[] {
-  const now = new Date().toISOString();
-
-  return [
-    {
-      id: 'demo-galaxy-s24',
-      owner_id: 'demo-owner',
-      device_type: 'phone',
-      brand: 'Samsung',
-      model: 'Galaxy S24',
-      serial_imei: '356938119028447',
-      specs: { storage: '256 GB', color: 'Onyx Black' },
-      purchase_date: '2025-04-18',
-      created_at: now,
-    },
-    {
-      id: 'demo-thinkpad-x1',
-      owner_id: 'demo-owner',
-      device_type: 'laptop',
-      brand: 'Lenovo',
-      model: 'ThinkPad X1 Carbon',
-      serial_imei: 'PF4Z9K21',
-      specs: { processor: 'Intel Core i7', ram: '16 GB', storage: '1 TB SSD' },
-      purchase_date: '2023-11-09',
-      created_at: now,
-    },
-  ];
-}
-
-function lookupDemoDevice(query: string): Device | null {
-  const clean = query.trim().toLowerCase();
-
-  return getDemoDevices().find((device) => (
-    device.id.toLowerCase() === clean ||
-    device.serial_imei.toLowerCase() === clean
-  )) ?? null;
-}
-
 function isUuid(value: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 }
@@ -1297,100 +1275,4 @@ function getFallbackDeviceScore(timeline: DeviceTimeline): DeviceScore {
 
 function getApprovedRepairCount(timeline: DeviceTimeline): number {
   return timeline.repair_events.filter((repair) => repair.status === 'approved').length;
-}
-
-function getDemoRepairs(deviceId: string): RepairEventWithParts[] {
-  if (deviceId === 'demo-galaxy-s24') {
-    return [
-      {
-        id: 'demo-repair-s24-charging',
-        device_id: deviceId,
-        technician_id: 'demo-tech-arun',
-        symptom: 'Intermittent charging and cable movement required.',
-        diagnosis: 'Charging connector pins worn; debris found inside port.',
-        action_taken: 'Replaced charging assembly, cleaned internal connector path, tested fast charging.',
-        cost: 2300,
-        parent_repair_id: null,
-        status: 'approved',
-        created_at: '2026-08-28T11:20:00+05:30',
-        profiles: {
-          id: 'demo-tech-arun',
-          role: 'technician',
-          display_name: 'Arun Kumar',
-          service_centre: 'Metro Device Care',
-          created_at: '2026-01-01T00:00:00+05:30',
-        },
-        parts: [
-          {
-            id: 'demo-part-s24-charging',
-            repair_event_id: 'demo-repair-s24-charging',
-            component_name: 'charging_assembly',
-            part_number: 'GH96-16522A',
-            part_type: 'oem',
-            supplier: 'Metro Device Care stock',
-            cost: 1450,
-            warranty_days: 90,
-            evidence_url: null,
-            warranty_records: [
-              {
-                id: 'demo-warranty-s24-charging',
-                part_id: 'demo-part-s24-charging',
-                start_date: '2026-08-28',
-                end_date: '2026-11-26',
-                status: 'active',
-              },
-            ],
-          },
-        ],
-      },
-    ];
-  }
-
-  if (deviceId === 'demo-thinkpad-x1') {
-    return [
-      {
-        id: 'demo-repair-x1-battery',
-        device_id: deviceId,
-        technician_id: 'demo-tech-arun',
-        symptom: 'Battery backup dropped below two hours.',
-        diagnosis: 'Battery cycle count high; cell wear above service threshold.',
-        action_taken: 'Replaced internal battery and calibrated power management.',
-        cost: 6800,
-        parent_repair_id: null,
-        status: 'approved',
-        created_at: '2026-04-16T14:15:00+05:30',
-        profiles: {
-          id: 'demo-tech-arun',
-          role: 'technician',
-          display_name: 'Arun Kumar',
-          service_centre: 'Metro Device Care',
-          created_at: '2026-01-01T00:00:00+05:30',
-        },
-        parts: [
-          {
-            id: 'demo-part-x1-battery',
-            repair_event_id: 'demo-repair-x1-battery',
-            component_name: 'battery',
-            part_number: 'L19M4P71',
-            part_type: 'compatible',
-            supplier: 'Lenovo authorised distributor',
-            cost: 5200,
-            warranty_days: 180,
-            evidence_url: null,
-            warranty_records: [
-              {
-                id: 'demo-warranty-x1-battery',
-                part_id: 'demo-part-x1-battery',
-                start_date: '2026-04-16',
-                end_date: '2026-10-13',
-                status: 'expired',
-              },
-            ],
-          },
-        ],
-      },
-    ];
-  }
-
-  return [];
 }
