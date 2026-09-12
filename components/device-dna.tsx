@@ -394,7 +394,7 @@ export function RegisterPage() {
 function RegisterScreen() {
   const viewer = useViewer();
   const [step, setStep] = useState(0);
-  const [type, setType] = useState<DeviceType>('phone');
+  const [type, setType] = useState<DeviceType | null>(null);
   const [created, setCreated] = useState<Device | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -418,8 +418,8 @@ function RegisterScreen() {
 
   async function submit() {
     if (!viewer.id) return;
-    if (!form.brand.trim() || !form.model.trim() || !form.serialImei.trim()) {
-      setError('Brand, model, and IMEI or serial are required.');
+    if (!type || !form.brand.trim() || !form.model.trim() || !form.serialImei.trim()) {
+      setError('Device type, brand, model, and IMEI or serial are required.');
       return;
     }
     setBusy(true);
@@ -468,7 +468,7 @@ function RegisterScreen() {
         {step === 2 && (
           <div className="space-y-5">
             <p className="text-[17px] leading-8">Device identity details cannot be silently changed after registration. Corrections must be recorded transparently.</p>
-            <ReviewLine label="Type" value={type} />
+            <ReviewLine label="Type" value={type ?? '-'} />
             <ReviewLine label="Device" value={`${form.brand || '-'} ${form.model || ''}`} />
             <ReviewLine label={type === 'phone' ? 'IMEI' : 'Serial'} value={form.serialImei || '-'} />
             {error && <Notice tone="danger">{error}</Notice>}
@@ -494,7 +494,7 @@ function RegisterScreen() {
           {step === 2 ? (
             <PrimaryAction disabled={busy} onClick={submit}>{busy ? 'Registering' : 'Create passport'}</PrimaryAction>
           ) : (
-            <PrimaryAction onClick={() => setStep(step + 1)}>Continue</PrimaryAction>
+            <PrimaryAction disabled={step === 0 && !type} onClick={() => setStep(step + 1)}>Continue</PrimaryAction>
           )}
         </div>
       )}
@@ -548,7 +548,7 @@ function DeviceScreen({ publicMode }: { publicMode: boolean }) {
       <section className="mt-10">
         <div className="flex items-end justify-between gap-4">
           <ScreenHeader title={publicMode ? 'Repair log' : 'Owner timeline'} description={publicMode ? 'Approved records only.' : 'All visible records for this device.'} />
-          {!publicMode && !isOwner && access === 'approved' ? <PrimaryAction href={`/devices/${timeline.id}/repair`}><Plus size={18} /> Add log</PrimaryAction> : null}
+          {!isOwner && access === 'approved' ? <PrimaryAction href={`/devices/${timeline.id}/repair`}><Plus size={18} /> Add log</PrimaryAction> : null}
         </div>
         <RepairList repairs={timeline.repair_events} />
         {publicMode || !isOwner ? (
@@ -808,7 +808,7 @@ export function ActivityPage() {
 
 function ActivityScreen() {
   const [requests, setRequests] = useState<RepairAccessRequestWithDevice[]>([]);
-  const [tab, setTab] = useState<'requests' | 'history'>('requests');
+  const [filter, setFilter] = useState<'all' | 'pending' | 'approved'>('all');
   const [notice, setNotice] = useState('');
 
   useEffect(() => {
@@ -827,14 +827,24 @@ function ActivityScreen() {
     }
   }
 
-  const visible = requests.filter((request) => tab === 'requests' ? request.status === 'pending' : request.status !== 'pending');
+  const visible = requests.filter((request) => (
+    filter === 'all' ||
+    request.status === filter ||
+    (filter === 'approved' && request.status === 'declined')
+  ));
 
   return (
     <AppFrame>
       <ScreenHeader title="Activity" description="Technician access requests and past decisions." />
-      <div className="mt-8 grid grid-cols-2 rounded-full border border-[var(--dna-border)] bg-[var(--dna-background)] p-1">
-        <button className={tabClass(tab === 'requests')} onClick={() => setTab('requests')}>Requests</button>
-        <button className={tabClass(tab === 'history')} onClick={() => setTab('history')}>History</button>
+      <div className="mt-8 grid grid-cols-3 rounded-full border border-[var(--dna-border)] bg-[var(--dna-background)] p-1">
+        {(['all', 'pending', 'approved'] as const).map((item) => (
+          <button key={item} className={tabClass(filter === item)} onClick={() => setFilter(item)}>
+            <span className="inline-flex items-center justify-center gap-1.5">
+              {filter === item && <Check size={14} strokeWidth={1.8} />}
+              {item === 'approved' ? 'Decided' : item[0].toUpperCase() + item.slice(1)}
+            </span>
+          </button>
+        ))}
       </div>
       {notice && <Notice tone="success">{notice}</Notice>}
       <div className="mt-6 divide-y divide-[var(--dna-border)]">
@@ -844,13 +854,13 @@ function ActivityScreen() {
               <div>
                 <p className="text-[17px] font-medium">{request.requester_name}</p>
                 <p className="mt-1 text-[14px] leading-6 text-[var(--dna-text-secondary)]">{request.shop_name} · {request.requester_phone}</p>
-                <p className="mt-1 text-[14px] text-[var(--dna-text-secondary)]">{formatDateTime(request.created_at)}</p>
+                <p className="mt-1 text-[14px] text-[var(--dna-text-secondary)]">{getRequestDeviceName(request)} · {formatDateTime(request.created_at)}</p>
               </div>
               <StatusPill value={request.status} />
             </div>
             <div className="mt-3 flex gap-2">
               <SecondaryAction href={`/devices/${request.device_id}`}>Open</SecondaryAction>
-              {request.status === 'pending' && tab === 'requests' ? (
+              {request.status === 'pending' ? (
                 <>
                   <PrimaryAction onClick={() => void decide(request.id, 'approved')}>Approve</PrimaryAction>
                   <SecondaryAction onClick={() => void decide(request.id, 'declined')}>Decline</SecondaryAction>
@@ -858,7 +868,7 @@ function ActivityScreen() {
               ) : null}
             </div>
           </div>
-        )) : <EmptyState title={tab === 'requests' ? 'No active requests' : 'No history yet'} />}
+        )) : <EmptyState title="No activity matches this filter" />}
       </div>
     </AppFrame>
   );
@@ -888,9 +898,13 @@ function AccountScreen() {
       <ScreenHeader title="Profile" description="Account details used for repair access and owner activity." />
       <section className={`${ui.panel} mt-8 p-5`}>
         <div className="flex items-center gap-4">
-          <div className="grid h-14 w-14 place-items-center rounded-full border border-[var(--dna-border)]">
-            <CircleUserRound size={24} strokeWidth={1.8} />
-          </div>
+          {viewer.imageUrl ? (
+            <img src={viewer.imageUrl} alt={viewer.name} className="h-14 w-14 rounded-full object-cover" />
+          ) : (
+            <div className="grid h-14 w-14 place-items-center rounded-full border border-[var(--dna-border)] text-[20px] font-medium">
+              {viewer.name.slice(0, 1)}
+            </div>
+          )}
           <div>
             <h1 className="text-[22px] font-medium">{viewer.name}</h1>
             <p className="mt-1 text-[14px] text-[var(--dna-text-secondary)]">{viewer.email}</p>
@@ -949,11 +963,21 @@ function RequireSignIn({ children }: { children: React.ReactNode }) {
 }
 
 function ScreenHeader({ title, description, action }: { title: string; description?: string; action?: React.ReactNode }) {
+  const router = useRouter();
+
   return (
-    <header className="flex items-start justify-between gap-4">
-      <div>
-        <h1 className="text-[32px] font-medium leading-tight tracking-[-0.03em] md:text-[44px]">{title}</h1>
-        {description && <p className="mt-3 max-w-xl text-[15px] leading-7 text-[var(--dna-text-secondary)]">{description}</p>}
+    <header className="sticky top-0 z-30 -mx-5 flex items-start justify-between gap-4 border-b border-[var(--dna-border)] bg-[var(--dna-surface)] px-5 py-3 md:-mx-8 md:px-8">
+      <div className="min-w-0">
+        <button
+          type="button"
+          onClick={() => router.back()}
+          aria-label="Go back"
+          className="mb-4 grid min-h-11 min-w-11 place-items-center rounded-full border border-[var(--dna-border)] bg-[var(--dna-background)]"
+        >
+          <ChevronRight size={22} strokeWidth={1.8} className="rotate-180" />
+        </button>
+        <h1 className="text-[28px] font-medium leading-tight tracking-[-0.03em] md:text-[40px]">{title}</h1>
+        {description && <p className="mt-2 max-w-xl text-[15px] leading-7 text-[var(--dna-text-secondary)]">{description}</p>}
       </div>
       {action}
     </header>
@@ -1010,7 +1034,14 @@ function AccessPanel({ device, status, onSubmitted }: { device: DeviceTimeline; 
 
   if (device.owner_id === viewer.id) return null;
   if (status === undefined) return <LoadingState text="Checking access" />;
-  if (status === 'approved') return <Notice tone="success">Technician access is approved for this account.</Notice>;
+  if (status === 'approved') {
+    return (
+      <section className="mt-8 grid gap-3">
+        <Notice tone="success">Technician access is approved for this account.</Notice>
+        <PrimaryAction href={`/devices/${device.id}/repair`}><Plus size={18} /> Add repair log</PrimaryAction>
+      </section>
+    );
+  }
   if (status === 'pending') return <Notice tone="warning">Access request sent. The owner can approve it in Activity.</Notice>;
 
   async function submit() {
@@ -1123,7 +1154,12 @@ function PillSwitch({ value, onChange }: { value: DeviceFilter; onChange: (value
   return (
     <div className="grid grid-cols-3 rounded-[var(--dna-pill-radius)] border border-[var(--dna-border)] bg-[var(--dna-background)] p-1">
       {(['all', 'phone', 'laptop'] as DeviceFilter[]).map((item) => (
-        <button key={item} onClick={() => onChange(item)} className={tabClass(value === item)}>{item === 'all' ? 'All' : item === 'phone' ? 'Phones' : 'Laptops'}</button>
+        <button key={item} onClick={() => onChange(item)} className={tabClass(value === item)}>
+          <span className="inline-flex items-center justify-center gap-1.5">
+            {value === item && <Check size={14} strokeWidth={1.8} />}
+            {item === 'all' ? 'All' : item === 'phone' ? 'Phones' : 'Laptops'}
+          </span>
+        </button>
       ))}
     </div>
   );
@@ -1139,7 +1175,18 @@ function StepLabels({ labels, active }: { labels: string[]; active: number }) {
 
 function ChoiceButton({ active, icon, label, onClick }: { active: boolean; icon: React.ReactNode; label: string; onClick: () => void }) {
   return (
-    <button type="button" onClick={onClick} className={`${ui.panel} min-h-32 p-5 text-left ${active ? 'border-[var(--dna-accent)]' : ''}`}>
+    <button
+      type="button"
+      onClick={onClick}
+      className={`${ui.panel} relative min-h-32 p-5 text-left ${
+        active ? 'border-[1.5px] border-[var(--dna-text-primary)] bg-[var(--dna-surface)]' : ''
+      }`}
+    >
+      {active && (
+        <span className="absolute right-4 top-4 grid h-6 w-6 place-items-center rounded-full bg-[var(--dna-text-primary)] text-[var(--dna-background)]">
+          <Check size={14} strokeWidth={1.8} />
+        </span>
+      )}
       <span className="[&_svg]:h-6 [&_svg]:w-6 [&_svg]:stroke-[1.8]">{icon}</span>
       <span className="mt-8 block text-[24px] font-medium">{label}</span>
     </button>
@@ -1151,12 +1198,12 @@ function ReviewLine({ label, value }: { label: string; value: React.ReactNode })
 }
 
 function Notice({ children, tone }: { children: React.ReactNode; tone: 'success' | 'warning' | 'danger' }) {
-  const color = tone === 'success' ? 'var(--dna-success)' : tone === 'warning' ? 'var(--dna-warning)' : 'var(--dna-danger)';
+  const color = tone === 'success' ? 'var(--dna-success-text)' : tone === 'warning' ? 'var(--dna-warning)' : 'var(--dna-danger)';
   return <p className="rounded-[var(--dna-control-radius)] border border-[var(--dna-border)] bg-[var(--dna-background)] px-4 py-3 text-[14px]" style={{ color }}>{children}</p>;
 }
 
 function StatusPill({ value }: { value: string }) {
-  const color = value === 'approved' ? 'var(--dna-success)' : value === 'declined' ? 'var(--dna-danger)' : 'var(--dna-warning)';
+  const color = value === 'approved' ? 'var(--dna-success-text)' : value === 'declined' ? 'var(--dna-text-secondary)' : 'var(--dna-warning)';
   return <span className="rounded-full border border-[var(--dna-border)] px-3 py-1 text-[13px]" style={{ color }}>{value}</span>;
 }
 
@@ -1175,13 +1222,22 @@ function EmptyState({ title, text }: { title: string; text?: string }) {
 }
 
 function tabClass(active: boolean) {
-  return `min-h-11 rounded-full px-4 text-[15px] font-normal ${active ? 'bg-[var(--dna-surface)] text-[var(--dna-text-primary)]' : 'text-[var(--dna-text-secondary)]'}`;
+  return `min-h-11 rounded-full px-4 text-[15px] font-normal ${
+    active
+      ? 'border-[1.5px] border-[var(--dna-text-primary)] bg-[var(--dna-surface)] text-[var(--dna-text-primary)]'
+      : 'text-[var(--dna-text-secondary)]'
+  }`;
 }
 
 function healthSentence(score: number) {
   if (score >= 85) return 'Strong device health';
   if (score >= 65) return 'Some attention needed';
   return 'Review before resale or repair';
+}
+
+function getRequestDeviceName(request: RepairAccessRequestWithDevice) {
+  const device = Array.isArray(request.devices) ? request.devices[0] : request.devices;
+  return device ? `${device.brand} ${device.model}` : 'Device';
 }
 
 function parseDeviceCode(value: string) {
