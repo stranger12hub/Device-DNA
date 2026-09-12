@@ -528,6 +528,21 @@ export async function getDeviceTimeline(
 export async function getPublicPassportTimeline(
   deviceId: string,
 ): Promise<DeviceTimeline | null> {
+  const response = await fetch(`/api/public-passport/${encodeURIComponent(deviceId)}`);
+  const body = (await response.json().catch(() => ({}))) as {
+    ok?: boolean;
+    timeline?: DeviceTimeline | null;
+    error?: string;
+  };
+
+  if (response.ok && body.ok) {
+    return body.timeline ?? null;
+  }
+
+  if (response.status !== 404) {
+    console.warn('Public passport API failed, using direct timeline fallback:', body.error ?? response.statusText);
+  }
+
   const timeline = await getDeviceTimeline(deviceId);
 
   if (!timeline) {

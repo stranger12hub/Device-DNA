@@ -1277,6 +1277,13 @@ function ScanContent() {
       setState('invalid');
       return;
     }
+
+    if (shouldOpenPassportDirectly(value, parsed)) {
+      setState('found');
+      router.push(`/passport/${parsed}`);
+      return;
+    }
+
     const device = await lookupDevice(parsed).catch(() => null);
     if (!device) {
       setState('missing');
@@ -1708,18 +1715,7 @@ function PassportContent() {
       .then((nextTimeline) => {
         if (!alive) return;
         setTimeline(nextTimeline);
-        if (!nextTimeline) {
-          setScore(null);
-          return;
-        }
-
-        getDeviceScore(params.id)
-          .then((nextScore) => {
-            if (alive) setScore(nextScore);
-          })
-          .catch(() => {
-            if (alive) setScore(null);
-          });
+        setScore(nextTimeline?.device_scores[0] ?? null);
       })
       .catch(() => {
         if (!alive) return;
@@ -2146,6 +2142,26 @@ function parseDeviceCode(value: string) {
   } catch {
     return clean;
   }
+}
+
+function shouldOpenPassportDirectly(rawValue: string, parsed: string) {
+  const clean = rawValue.trim();
+
+  if (isUuidLike(parsed)) {
+    return true;
+  }
+
+  try {
+    const url = new URL(clean);
+    const parts = url.pathname.split('/').filter(Boolean);
+    return parts.some((part) => ['passport', 'devices', 'timeline'].includes(part));
+  } catch {
+    return false;
+  }
+}
+
+function isUuidLike(value: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value.trim());
 }
 
 function passportUrl(deviceId: string) {
