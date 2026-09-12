@@ -2,56 +2,50 @@
 
 import Link from 'next/link';
 import { useParams, usePathname, useRouter } from 'next/navigation';
-import {
-  SignInButton,
-  SignOutButton,
-  SignUpButton,
-} from '@clerk/clerk-react';
-import { motion } from 'framer-motion';
+import { SignInButton, SignOutButton, SignUpButton } from '@clerk/clerk-react';
 import {
   Activity,
-  ArrowRight,
-  BadgeCheck,
   Camera,
+  Check,
   ChevronRight,
   CircleUserRound,
-  Clock3,
+  Clock,
   Download,
-  Filter,
+  FileText,
   Home,
   Laptop,
-  LockKeyhole,
-  LogOut,
+  ListChecks,
+  Lock,
   Plus,
-  Printer,
   QrCode,
   Search,
-  ShieldCheck,
+  Send,
+  Shield,
   Smartphone,
-  Sparkles,
   Upload,
+  User,
   Wrench,
+  X,
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useViewerContext } from '@/components/providers';
-import { deviceTokens } from '@/lib/design-tokens';
+import { dnaCssVariables, ui } from '@/lib/design-tokens';
 import {
+  decideRepairAccessRequest,
   formatCurrency,
   formatDate,
   formatDateTime,
-  getServiceErrorMessage,
   getDeviceScore,
   getDeviceTimeline,
   getDevicesForUser,
   getPublicPassportTimeline,
   getRepairAccessRequests,
   getRepairAccessStatus,
+  getServiceErrorMessage,
   lookupDevice,
-  recalculateDeviceScore,
   registerDevice,
   requestRepairAccess,
-  decideRepairAccessRequest,
   submitRepairRecord,
 } from '@/src/lib/services';
 import type { RepairAccessRequestWithDevice } from '@/src/lib/services';
@@ -63,120 +57,37 @@ import type {
   DeviceType,
   PartType,
   RepairEventWithParts,
-  ScoreBreakdown,
 } from '@/src/types/database';
 
 type Viewer = ReturnType<typeof useViewerContext>;
 type DeviceFilter = 'all' | 'phone' | 'laptop';
+type AccessState = 'pending' | 'approved' | 'declined' | null | undefined;
 
-const navItems = [
-  { label: 'Home', href: '/', icon: Home },
-  { label: 'Devices', href: '/devices', icon: Smartphone },
-  { label: 'Scan', href: '/scan', icon: QrCode, featured: true },
-  { label: 'Activity', href: '/activity', icon: Activity },
-  { label: 'Account', href: '/account', icon: CircleUserRound },
-];
+const navLinks = [
+  { href: '/', label: 'Home', icon: Home },
+  { href: '/devices', label: 'Devices', icon: Smartphone },
+  { href: '/scan', label: 'Scan', icon: QrCode },
+  { href: '/activity', label: 'Activity', icon: Activity },
+  { href: '/account', label: 'Profile', icon: User },
+] as const;
 
 const componentOptions: Record<DeviceType, ComponentName[]> = {
-  phone: [
-    'battery',
-    'display',
-    'charging_assembly',
-    'motherboard',
-    'camera',
-    'speaker',
-    'back_panel',
-  ],
-  laptop: [
-    'battery',
-    'display',
-    'keyboard',
-    'storage',
-    'memory',
-    'cooling_system',
-    'charging_port',
-  ],
+  phone: ['battery', 'display', 'charging_assembly', 'motherboard', 'camera', 'speaker', 'back_panel'],
+  laptop: ['battery', 'display', 'keyboard', 'storage', 'memory', 'motherboard', 'cooling_system', 'charging_port'],
 };
 
-const partTypes: PartType[] = [
-  'oem',
-  'compatible',
-  'refurbished',
-  'customer_provided',
-];
+const partTypes: PartType[] = ['oem', 'compatible', 'refurbished', 'customer_provided'];
 
-const scoreFactors: {
-  key: keyof ScoreBreakdown;
-  label: string;
-  weight: number;
-  note: string;
-}[] = [
-  {
-    key: 'deviceAge',
-    label: 'Device age',
-    weight: 15,
-    note: 'Newer devices carry less age risk.',
-  },
-  {
-    key: 'repairFrequency',
-    label: 'Repair frequency',
-    weight: 35,
-    note: 'Fewer approved service events improve confidence.',
-  },
-  {
-    key: 'recurringFaults',
-    label: 'Recurring faults',
-    weight: 30,
-    note: 'Repeated symptoms reduce buyer confidence.',
-  },
-  {
-    key: 'criticalComponentHistory',
-    label: 'Replaced components',
-    weight: 20,
-    note: 'Board, display, battery, and storage history matter most.',
-  },
-];
-
-const audienceTabs = [
-  {
-    label: 'YOUR DEVICE',
-    title: "Don't explain the last repair from memory.",
-    body: 'Open previous repairs. Review replaced parts and share the history when selling.',
-    cta: 'Register device',
-    href: '/register',
-  },
-  {
-    label: 'FOR TECHNICIANS',
-    title: 'Know what came before. Show what you fixed.',
-    body: 'Review previous repair records. Document replaced parts. Give customers a clear record of your work.',
-    cta: 'Scan device QR',
-    href: '/scan',
-  },
-  {
-    label: 'BUYING USED',
-    title: "A clean screen doesn't tell you what's been repaired.",
-    body: 'See recorded part replacements. Look for repeated faults. Ask better questions before buying.',
-    cta: 'Check device history',
-    href: '/scan',
-  },
-];
-
-export function LogoMark({ compact = false, light = false }: { compact?: boolean; light?: boolean }) {
+export function LogoMark({ compact = false }: { compact?: boolean; light?: boolean }) {
   return (
-    <Link href="/" className="flex items-center gap-3">
-      <img
-        src="/device-dna-logo.png"
-        alt="Device DNA"
-        className={`${compact ? 'h-10 w-10' : 'h-12 w-12'} shrink-0 object-cover object-[50%_24%]`}
-      />
+    <Link href="/" className="inline-flex min-h-11 items-center gap-3">
+      <span className="grid h-9 w-9 place-items-center rounded-full border border-[var(--dna-border)] text-[15px] font-medium text-[var(--dna-text-primary)]">
+        D
+      </span>
       {!compact && (
-        <span>
-          <span className="block text-sm font-medium tracking-[0.02em] text-device-ink">
-            Device DNA
-          </span>
-          <span className="block text-xs text-device-slate">
-            Permanent device passport
-          </span>
+        <span className="leading-tight">
+          <span className="block text-[15px] font-medium text-[var(--dna-text-primary)]">Device DNA</span>
+          <span className="block text-[12px] font-normal text-[var(--dna-text-secondary)]">Permanent device passport</span>
         </span>
       )}
     </Link>
@@ -187,90 +98,65 @@ function useViewer(): Viewer {
   return useViewerContext();
 }
 
-export function AppShell({ children, publicMode = false }: { children: React.ReactNode; publicMode?: boolean }) {
+function PublicFrame({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen overflow-x-hidden bg-device-ice text-device-ink" style={{ fontFamily: deviceTokens.type.body }}>
-      {!publicMode && <DesktopRail />}
-      <main className={`mx-auto min-h-screen w-full max-w-[1440px] px-4 pb-24 pt-5 ${publicMode ? 'md:px-6' : 'md:pl-28 md:pr-6 md:pt-6'}`}>
+    <div className={ui.page} style={dnaCssVariables}>
+      <main className="mx-auto min-h-screen w-full max-w-2xl px-5 pb-36 pt-5 md:max-w-5xl md:px-8 md:pb-12">
         {children}
       </main>
-      {!publicMode && <BottomNav />}
     </div>
   );
 }
 
-function DesktopRail() {
-  const pathname = usePathname();
-  const pendingCount = usePendingActivityCount();
-
+function AppFrame({ children }: { children: React.ReactNode }) {
   return (
-    <aside className="fixed left-4 top-4 z-40 hidden h-[calc(100vh-32px)] w-[76px] rounded-[28px] border border-device-border bg-white p-3 md:block">
-      <div className="flex h-full flex-col items-center gap-5">
-        <LogoMark compact light />
-        <nav className="flex flex-1 flex-col items-center justify-center gap-3">
-          {navItems.map((item) => (
-            <RailItem key={item.href} item={item} active={isActive(pathname, item.href)} count={item.href === '/activity' ? pendingCount : 0} />
-          ))}
-        </nav>
-      </div>
-    </aside>
+    <div className={ui.appPage} style={dnaCssVariables}>
+      <main className="mx-auto min-h-screen w-full max-w-5xl px-5 pb-28 pt-5 md:px-8 md:pb-32">
+        {children}
+      </main>
+      <FloatingNav />
+    </div>
   );
 }
 
-function RailItem({ item, active, count = 0 }: { item: (typeof navItems)[number]; active: boolean; count?: number }) {
-  const Icon = item.icon;
+function FloatingNav() {
+  const pathname = usePathname();
+  const [hidden, setHidden] = useState(false);
+  const lastY = useRef(0);
+
+  useEffect(() => {
+    function onScroll() {
+      const nextY = window.scrollY;
+      setHidden(nextY > 40 && nextY > lastY.current);
+      lastY.current = nextY;
+    }
+
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
 
   return (
-    <Link
-      href={item.href}
-      title={item.label}
-      className={`relative grid h-12 w-12 place-items-center rounded-[15px] border transition ${
-        item.featured
-          ? 'border-device-blue bg-device-blue text-white'
-          : active
-            ? 'border-device-blue/15 bg-device-blue/8 text-device-blue'
-            : 'border-transparent text-device-slate hover:border-device-border hover:bg-device-ice hover:text-device-ink'
+    <nav
+      className={`fixed bottom-4 left-1/2 z-40 grid h-[var(--dna-nav-height)] w-[calc(100%-32px)] max-w-[440px] -translate-x-1/2 grid-cols-5 items-center rounded-[var(--dna-pill-radius)] border border-[var(--dna-border)] bg-[var(--dna-background)] px-4 transition-transform duration-200 ${
+        hidden ? 'translate-y-28' : 'translate-y-0'
       }`}
+      aria-label="Main navigation"
     >
-      <Icon size={20} strokeWidth={2.25} />
-      {count > 0 && <span className="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-device-critical px-1 font-mono text-[10px] font-black text-white">{count}</span>}
-      {active && !item.featured && <span className="absolute -bottom-1 h-1 w-1 rounded-full bg-device-blue" />}
-    </Link>
-  );
-}
-
-function BottomNav() {
-  const pathname = usePathname();
-  const pendingCount = usePendingActivityCount();
-
-  return (
-    <nav className="fixed bottom-4 left-1/2 z-50 grid h-[72px] w-[calc(100%-24px)] max-w-[410px] -translate-x-1/2 grid-cols-5 items-center rounded-[30px] border border-device-border bg-white px-4 md:hidden">
-      {navItems.map((item) => {
+      {navLinks.map((item) => {
         const Icon = item.icon;
-        const active = isActive(pathname, item.href);
-
+        const active = item.href === '/' ? pathname === '/' : pathname.startsWith(item.href);
         return (
           <Link
             key={item.href}
             href={item.href}
             aria-label={item.label}
-            className="relative flex min-h-12 items-center justify-center text-device-slate"
+            className={`relative grid min-h-11 place-items-center rounded-full ${
+              active ? 'text-[var(--dna-accent)]' : 'text-[var(--dna-text-secondary)]'
+            }`}
           >
-            <span
-              className={`relative grid place-items-center rounded-[15px] ${
-                item.featured
-                  ? '-mt-8 h-[58px] w-[58px] border-4 border-device-ice bg-device-blue text-white'
-                  : `h-11 w-11 ${active ? 'bg-device-blue/8 text-device-blue' : 'text-device-slate'}`
-              }`}
-            >
-              <Icon size={item.featured ? 25 : 21} strokeWidth={2.35} />
-              {item.href === '/activity' && pendingCount > 0 && (
-                <span className="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-device-critical px-1 font-mono text-[10px] font-black text-white">
-                  {pendingCount}
-                </span>
-              )}
-            </span>
-            {active && <span className="absolute bottom-0 h-1 w-1 rounded-full bg-device-blue" />}
+            <Icon size={24} strokeWidth={1.8} />
+            {active && <span className="absolute bottom-1 h-1 w-1 rounded-full bg-[var(--dna-accent)]" />}
+            {item.href === '/activity' && <ActivityDot />}
           </Link>
         );
       })}
@@ -278,386 +164,182 @@ function BottomNav() {
   );
 }
 
-function isActive(pathname: string, href: string) {
-  if (href === '/') return pathname === '/';
-  return pathname.startsWith(href);
-}
-
-export function HomePage() {
-  const viewer = useViewer();
-
-  if (viewer.signedIn) {
-    return <SignedInHome viewer={viewer} />;
-  }
-
-  return (
-    <AppShell publicMode>
-      <section className="flex min-h-screen flex-col pb-36 pt-3 md:pb-12 md:pt-8">
-        <div className="flex items-center justify-between gap-4">
-          <LogoMark />
-          <AuthCluster viewer={viewer} />
-        </div>
-        <motion.div
-          initial={{ opacity: 0, y: 18 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.34 }}
-          className="relative grid gap-8 py-8 md:flex-1 md:gap-10 md:py-10 lg:grid-cols-[1.05fr_0.95fr] lg:items-center"
-        >
-          <div className="max-w-4xl">
-            <div className="mb-6 h-px w-28 rounded-full bg-device-blue md:mb-8 md:w-44" />
-            <p className="font-mono text-xs font-black uppercase tracking-[0.22em] text-device-blue">For phones and laptops</p>
-            <h1 className="mt-4 max-w-5xl text-4xl font-black leading-[0.94] tracking-tight text-device-ink sm:text-5xl md:mt-5 md:text-8xl">
-              A device should remember what happened to it.
-            </h1>
-            <p className="mt-5 text-xl font-black leading-tight text-device-ink md:mt-6 md:text-4xl">
-              Scan the passport. Read the repair record. Decide with context.
-            </p>
-            <p className="mt-4 max-w-2xl text-sm leading-7 text-device-slate md:mt-5 md:text-lg md:leading-8">
-              Device DNA keeps service history attached to the phone or laptop itself, without exposing private owner details.
-            </p>
-            <div className="mt-8 grid gap-3 sm:grid-cols-3">
-              <HomeProofCard label="Owner controlled" value="Technicians request access before logging work" />
-              <HomeProofCard label="Permanent logs" value="Repair entries are added as records, not overwritten" />
-              <HomeProofCard label="Scanner ready" value="Every QR opens a focused public passport" />
-            </div>
-          </div>
-          <WhyQuestionsPanel />
-        </motion.div>
-        <div className="fixed inset-x-4 bottom-4 z-40 grid gap-3 rounded-[24px] border border-device-border bg-white p-3 md:hidden">
-          <PrimaryButton href="/register">Register a device</PrimaryButton>
-          <GlassButton href="/scan">Scan a QR passport</GlassButton>
-        </div>
-        <div className="mt-auto hidden gap-3 md:flex">
-          <PrimaryButton href="/register">Register a device <ArrowRight size={18} /></PrimaryButton>
-          <GlassButton href="/scan">Scan a QR passport <QrCode size={18} /></GlassButton>
-        </div>
-      </section>
-    </AppShell>
-  );
-}
-
-function SignedInHome({ viewer }: { viewer: Viewer }) {
-  const [devices, setDevices] = useState<Device[]>([]);
-  const front = devices[0] ?? null;
-
-  useEffect(() => {
-    if (!viewer.id) return;
-    getDevicesForUser(viewer.id).then(setDevices).catch(() => setDevices([]));
-  }, [viewer.id]);
-
-  return (
-    <AppShell>
-      <section className="space-y-8">
-        <div className="flex items-center justify-between gap-4">
-          <LogoMark />
-          <PrimaryButton href="/register"><Plus size={17} /> Register</PrimaryButton>
-        </div>
-        <section className="grid gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-end">
-          <div>
-            <p className="text-sm font-medium text-device-slate">Current health</p>
-            <h1 className="mt-2 text-[88px] font-medium leading-none tracking-[-0.05em] text-device-ink md:text-[140px]">
-              {front ? '100' : '--'}
-            </h1>
-            <p className="max-w-xl text-lg leading-8 text-device-slate">
-              {front
-                ? `${front.brand} ${front.model} is registered. ${devices.length} ${devices.length === 1 ? 'device is' : 'devices are'} in your passport deck.`
-                : 'Register your first phone or laptop to create its scan-ready repair passport.'}
-            </p>
-          </div>
-          <PassportDeck devices={devices} />
-        </section>
-        <p className="text-base leading-8 text-device-slate">
-          {front
-            ? `Latest record: ${front.brand} ${front.model} was registered on ${formatDate(front.created_at)}.`
-            : 'Latest record: no device has been registered yet.'}
-        </p>
-      </section>
-    </AppShell>
-  );
-}
-
-function PassportDeck({ devices }: { devices: Device[] }) {
-  if (!devices.length) {
-    return (
-      <Link href="/register" className="block rounded-[24px] border border-device-border bg-white p-6">
-        <Smartphone className="text-device-blue" />
-        <h2 className="mt-6 text-3xl font-medium text-device-ink">Create your first passport</h2>
-        <p className="mt-3 text-sm leading-7 text-device-slate">Your device deck will appear here after registration.</p>
-      </Link>
-    );
-  }
-
-  return (
-    <div className="relative min-h-[280px]">
-      {devices.slice(0, 3).reverse().map((device, index) => (
-        <Link
-          key={device.id}
-          href={`/devices/${device.id}`}
-          className="absolute inset-x-0 rounded-[28px] border border-device-border bg-white p-6"
-          style={{
-            top: `${index * 24}px`,
-            transform: `scale(${1 - index * 0.035})`,
-            zIndex: 10 - index,
-          }}
-        >
-          <div className="flex items-center justify-between gap-4">
-            {device.device_type === 'phone' ? <Smartphone className="text-device-slate" /> : <Laptop className="text-device-slate" />}
-            <span className="font-mono text-xs text-device-slate">{device.id.slice(0, 8)}</span>
-          </div>
-          <h2 className="mt-10 text-3xl font-medium text-device-ink">{device.brand} {device.model}</h2>
-          <p className="mt-3 text-sm text-device-slate">{device.device_type} · Registered {formatDate(device.created_at)}</p>
-        </Link>
-      ))}
-    </div>
-  );
-}
-
-function HomeProofCard({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-2xl border border-device-border bg-white p-3 shadow-sm">
-      <p className="font-mono text-[11px] font-black uppercase tracking-[0.14em] text-device-slate">{label}</p>
-      <p className="mt-2 text-sm font-black text-device-ink">{value}</p>
-    </div>
-  );
-}
-
-function usePendingActivityCount() {
+function ActivityDot() {
   const viewer = useViewer();
   const [count, setCount] = useState(0);
 
   useEffect(() => {
-    if (!viewer.ready || !viewer.signedIn) {
+    if (!viewer.signedIn) {
       setCount(0);
       return;
     }
 
-    let cancelled = false;
     getRepairAccessRequests()
-      .then((requests) => {
-        if (!cancelled) {
-          setCount(requests.filter((request) => request.status === 'pending').length);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) setCount(0);
-      });
+      .then((requests) => setCount(requests.filter((request) => request.status === 'pending').length))
+      .catch(() => setCount(0));
+  }, [viewer.signedIn]);
 
-    return () => {
-      cancelled = true;
-    };
-  }, [viewer.ready, viewer.signedIn]);
-
-  return count;
-}
-
-function WhyQuestionsPanel() {
-  const questions = [
-    {
-      question: 'Why does the record live on the device?',
-      answer: 'Because repairs matter most when the phone changes hands, visits a shop, or fails again months later.',
-      icon: <Clock3 />,
-    },
-    {
-      question: 'Why scan before service?',
-      answer: 'The technician sees the visible history first, then asks the owner for access before writing a new record.',
-      icon: <QrCode />,
-    },
-    {
-      question: 'Why are repair logs locked?',
-      answer: 'A repair passport only has value when entries cannot be quietly edited after the job is done.',
-      icon: <ShieldCheck />,
-    },
-    {
-      question: 'Why does it help resale?',
-      answer: 'Buyers see the device name, health score, and timeline without private owner details or hidden paperwork.',
-      icon: <BadgeCheck />,
-    },
-  ];
-
+  if (!count) return null;
   return (
-    <div className="relative mx-auto w-full max-w-[480px]">
-      <div className="rounded-[28px] border border-device-border bg-white p-4 shadow-[0_20px_60px_rgba(17,24,39,0.10)]">
-        <div className="border-b border-device-border pb-4">
-          <p className="font-mono text-xs font-black uppercase tracking-[0.2em] text-device-blue">Why Device DNA?</p>
-          <h2 className="mt-3 text-3xl font-black leading-tight text-device-ink">The questions every repaired device should answer.</h2>
-        </div>
-        <div className="mt-4 space-y-3">
-          {questions.map((item, index) => (
-            <div key={item.question} className="grid grid-cols-[44px_1fr] gap-3 rounded-2xl border border-device-border bg-[#F7F8FB] p-3">
-              <div className={`grid h-11 w-11 place-items-center rounded-[14px] ${index === 0 ? 'bg-device-blue text-white' : 'bg-white text-device-blue'} border border-device-border`}>
-                {item.icon}
-              </div>
-              <div>
-                <p className="text-base font-black leading-snug text-device-ink">{item.question}</p>
-                <p className="mt-1 text-sm leading-6 text-device-slate">{item.answer}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
+    <span className="absolute right-1 top-1 grid min-h-5 min-w-5 place-items-center rounded-full bg-[var(--dna-danger)] px-1 font-mono text-[11px] font-medium text-white">
+      {count}
+    </span>
   );
 }
 
-function StepCard({ index, icon, title, body }: { index: string; icon: React.ReactNode; title: string; body: string }) {
+export function HomePage() {
+  const viewer = useViewer();
+  if (viewer.signedIn) return <AuthenticatedHome />;
+
   return (
-    <div className="rounded-2xl border border-device-border bg-white p-4">
-      <div className="flex items-center justify-between">
-        <IconTile tone="blue">{icon}</IconTile>
-        <span className="font-mono text-xs font-black text-device-slate">{index}</span>
+    <PublicFrame>
+      <header className="flex items-center justify-between gap-4">
+        <LogoMark />
+        {viewer.configured ? (
+          <SignInButton mode="modal" forceRedirectUrl="/">
+            <button className="min-h-11 px-2 text-[15px] font-normal text-[var(--dna-accent)]">Sign in</button>
+          </SignInButton>
+        ) : null}
+      </header>
+
+      <section className="pt-16 md:pt-24">
+        <h1 className="max-w-xl text-[32px] font-medium leading-tight tracking-[-0.03em] text-[var(--dna-text-primary)] md:text-[56px]">
+          The repair history should stay with the device.
+        </h1>
+        <div className="mt-14 space-y-8">
+          <TrustLine icon={<Shield />} text="Owner-controlled access before a technician can add a record." />
+          <TrustLine icon={<Lock />} text="Permanent repair entries that are visible, dated, and traceable." />
+          <TrustLine icon={<QrCode />} text="A QR passport that opens the same record on any phone." />
+        </div>
+      </section>
+
+      <div className="fixed inset-x-0 bottom-0 border-t border-[var(--dna-border)] bg-[var(--dna-background)] p-4">
+        <div className="mx-auto grid max-w-2xl gap-3">
+          <PrimaryAction href="/register">Register a device</PrimaryAction>
+          <SecondaryAction href="/scan">Scan a QR passport</SecondaryAction>
+        </div>
       </div>
-      <h2 className="mt-4 text-xl font-black text-device-ink">{title}</h2>
-      <p className="mt-2 text-sm leading-6 text-device-slate">{body}</p>
-    </div>
+    </PublicFrame>
   );
 }
 
-function AuthCluster({ viewer }: { viewer: Viewer }) {
-  if (!viewer.configured) return null;
-  if (!viewer.ready) return null;
+function AuthenticatedHome() {
+  const viewer = useViewer();
+  const [devices, setDevices] = useState<Device[]>([]);
+  const [frontId, setFrontId] = useState<string | null>(null);
+  const [score, setScore] = useState<DeviceScore | null>(null);
+  const front = devices.find((device) => device.id === frontId) ?? devices[0] ?? null;
 
-  if (viewer.signedIn) {
+  useEffect(() => {
+    if (!viewer.id) return;
+    getDevicesForUser(viewer.id).then((items) => {
+      setDevices(items);
+      setFrontId((current) => current ?? items[0]?.id ?? null);
+    }).catch(() => setDevices([]));
+  }, [viewer.id]);
+
+  useEffect(() => {
+    if (!front) {
+      setScore(null);
+      return;
+    }
+    getDeviceScore(front.id).then(setScore).catch(() => setScore(null));
+  }, [front]);
+
+  return (
+    <AppFrame>
+      <header className="flex items-center justify-between gap-4">
+        <LogoMark />
+        <PrimaryAction href="/register"><Plus size={18} /> Register</PrimaryAction>
+      </header>
+
+      <section className="mt-12">
+        <div className="flex items-end gap-4">
+          <h1 className="text-[56px] font-medium leading-none tracking-[-0.05em] md:text-[96px]">
+            {front ? score?.health_score ?? 100 : '--'}
+          </h1>
+          <p className="pb-2 text-[17px] font-normal text-[var(--dna-text-secondary)]">
+            {front ? healthSentence(score?.health_score ?? 100) : 'No registered devices yet'}
+          </p>
+        </div>
+        <p className="mt-6 text-[16px] leading-8 text-[var(--dna-text-secondary)]">
+          {front
+            ? `${front.brand} ${front.model} · ${devices.length} ${devices.length === 1 ? 'device' : 'devices'} in your passport deck · Registered ${formatDate(front.created_at)}.`
+            : 'Register a phone or laptop to create a scan-ready repair passport.'}
+        </p>
+        <div className="mt-8">
+          <DeviceDeck devices={devices} activeId={front?.id ?? null} onChoose={setFrontId} />
+        </div>
+        <p className="mt-8 text-[15px] leading-7 text-[var(--dna-text-secondary)]">
+          Latest activity: {front ? `${front.brand} ${front.model} was added to Device DNA on ${formatDate(front.created_at)}.` : 'No activity recorded yet.'}
+        </p>
+      </section>
+    </AppFrame>
+  );
+}
+
+function DeviceDeck({ devices, activeId, onChoose }: { devices: Device[]; activeId: string | null; onChoose: (id: string) => void }) {
+  if (!devices.length) {
     return (
-      <Link href="/account" className="hidden items-center gap-3 rounded-[16px] border border-device-border bg-white px-4 py-2 text-sm font-bold text-device-ink md:flex">
-        {viewer.imageUrl ? <img src={viewer.imageUrl} alt="" className="h-7 w-7 rounded-full" /> : <CircleUserRound size={18} />}
-        {viewer.name}
+      <Link href="/register" className={`${ui.panel} block p-6`}>
+        <Smartphone size={24} strokeWidth={1.8} />
+        <h2 className="mt-12 text-[26px] font-medium tracking-[-0.02em]">Create the first passport</h2>
+        <p className="mt-3 text-[15px] leading-7 text-[var(--dna-text-secondary)]">The deck appears here after registration.</p>
       </Link>
     );
   }
 
+  const ordered = [
+    ...devices.filter((device) => device.id === activeId),
+    ...devices.filter((device) => device.id !== activeId),
+  ];
+
   return (
-    <div className="hidden gap-2 md:flex">
-      <SignInButton mode="modal">
-        <button className="min-h-11 rounded-[16px] border border-device-border bg-white px-5 text-sm font-black text-device-ink">
-          Sign in
-        </button>
-      </SignInButton>
-      <SignUpButton mode="modal">
-        <button className="min-h-11 rounded-[16px] bg-device-blue px-5 text-sm font-black text-white shadow-[0_10px_24px_rgba(39,100,255,0.18)] transition hover:bg-device-cobalt">
-          Get started
-        </button>
-      </SignUpButton>
+    <div className="relative h-[290px]">
+      {ordered.slice(0, 3).reverse().map((device, index) => {
+        const depth = 2 - index;
+        return (
+          <button
+            key={device.id}
+            type="button"
+            onClick={() => onChoose(device.id)}
+            className={`${ui.panel} absolute inset-x-0 top-0 h-[240px] p-6 text-left transition-transform`}
+            style={{
+              transform: `translateY(${depth * 24}px) scale(${1 - depth * 0.035})`,
+              zIndex: 10 + index,
+            }}
+          >
+            <div className="flex items-center justify-between">
+              {device.device_type === 'phone' ? <Smartphone size={24} strokeWidth={1.8} /> : <Laptop size={24} strokeWidth={1.8} />}
+              <span className="font-mono text-[12px] font-normal text-[var(--dna-text-secondary)]">{device.id.slice(0, 8)}</span>
+            </div>
+            <h3 className="mt-14 text-[28px] font-medium tracking-[-0.025em]">{device.brand} {device.model}</h3>
+            <p className="mt-3 text-[15px] text-[var(--dna-text-secondary)]">{device.device_type} passport</p>
+          </button>
+        );
+      })}
     </div>
   );
 }
 
-function QuickTile({ icon, title, body, tone }: { icon: React.ReactNode; title: string; body: string; tone: 'blue' | 'cyan' | 'green' | 'amber' }) {
+function TrustLine({ icon, text }: { icon: React.ReactNode; text: string }) {
   return (
-    <div className="rounded-2xl border border-device-border bg-white p-4">
-      <IconTile tone={tone}>{icon}</IconTile>
-      <h3 className="mt-4 text-xl font-black text-device-ink">{title}</h3>
-      <p className="mt-2 text-sm leading-6 text-device-slate">{body}</p>
-    </div>
-  );
-}
-
-function RoleCard({ title, body, href }: { title: string; body: string; href: string }) {
-  return (
-    <Link href={href} className="group rounded-2xl border border-device-border bg-white p-4 transition hover:border-cyan-300/40 hover:bg-device-ice">
-      <h3 className="text-xl font-black text-device-ink">{title}</h3>
-      <p className="mt-2 text-sm leading-6 text-device-slate">{body}</p>
-      <span className="mt-4 inline-flex items-center gap-2 text-sm font-black text-device-blue">
-        Enter <ChevronRight className="transition group-hover:translate-x-1" size={16} />
-      </span>
-    </Link>
-  );
-}
-
-function AudienceTabs() {
-  const [active, setActive] = useState(0);
-  const current = audienceTabs[active];
-
-  return (
-    <section className="relative mt-10 overflow-hidden rounded-2xl border border-device-border bg-white p-4 shadow-sm backdrop-blur-2xl md:p-6">
-      <div className="absolute left-1/2 top-0 h-80 w-80 -translate-x-1/2 rounded-full bg-device-blue/15 blur-3xl" />
-      <div className="relative grid gap-5 lg:grid-cols-[0.42fr_0.58fr] lg:items-stretch">
-        <div className="grid gap-2 lg:auto-rows-fr">
-          {audienceTabs.map((tab, index) => (
-            <button
-              key={tab.label}
-              type="button"
-              onClick={() => setActive(index)}
-              className={`rounded-2xl border p-4 text-left transition ${
-                active === index
-                  ? 'border-cyan-300/40 bg-cyan-300/10 text-device-ink'
-                  : 'border-device-border bg-black/10 text-device-slate hover:bg-white hover:text-device-ink'
-              }`}
-            >
-              <span className="text-xs font-black tracking-[0.18em]">{tab.label}</span>
-              <span className="mt-3 block text-lg font-black leading-tight">{tab.title}</span>
-            </button>
-          ))}
-        </div>
-        <motion.div
-          key={current.label}
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.22 }}
-          className="relative flex min-h-[360px] flex-col justify-between rounded-2xl border border-device-border bg-[#090E1A]/82 p-5 md:p-7"
-        >
-          <div>
-            <p className="text-xs font-black tracking-[0.2em] text-device-cyan">{current.label}</p>
-            <h2 className="mt-5 max-w-2xl text-4xl font-black leading-tight text-device-ink md:text-6xl">
-              {current.title}
-            </h2>
-            <p className="mt-5 max-w-xl text-base leading-8 text-device-slate md:text-lg">
-              {current.body}
-            </p>
-          </div>
-          <div className="mt-8">
-            <PrimaryButton href={current.href}>
-              {current.cta} <ArrowRight size={18} />
-            </PrimaryButton>
-          </div>
-        </motion.div>
-      </div>
-    </section>
-  );
-}
-
-function TrustLimits() {
-  return (
-    <section className="mx-auto mt-14 max-w-4xl border-t border-device-border py-10 md:mt-20">
-      <h2 className="text-2xl font-black leading-tight text-device-slate md:text-4xl">
-        See the record. Know its limits.
-      </h2>
-      <p className="mt-5 text-base leading-8 text-device-slate">
-        Each repair shows who submitted it.
-      </p>
-      <p className="mt-3 text-sm leading-7 text-device-slate md:text-base">
-        Records may be incomplete or inaccurate. A device passport helps you understand the recorded history—it does not replace a physical inspection.
-      </p>
-    </section>
-  );
-}
-
-function FirstLoginGuide() {
-  return (
-    <GlassPanel className="mt-5">
-      <div className="grid gap-4 md:grid-cols-[1fr_auto] md:items-center">
-        <div>
-          <SectionKicker>First login guide</SectionKicker>
-          <h2 className="mt-2 text-3xl font-black text-device-ink">Start by registering your first device.</h2>
-          <p className="mt-2 text-sm leading-7 text-device-slate">
-            Pick phone or laptop, add identity fields, review the permanent
-            record notice, then download or print the QR passport.
-          </p>
-        </div>
-        <PrimaryButton href="/register">Register now <ArrowRight size={18} /></PrimaryButton>
-      </div>
-    </GlassPanel>
+    <p className="flex items-start gap-4 text-[17px] leading-7 text-[var(--dna-text-primary)]">
+      <span className="mt-1 text-[var(--dna-text-secondary)] [&_svg]:h-5 [&_svg]:w-5 [&_svg]:stroke-[1.8]">{icon}</span>
+      {text}
+    </p>
   );
 }
 
 export function DevicesPage() {
   return (
-    <AuthGate>
-      <DevicesContent />
-    </AuthGate>
+    <RequireSignIn>
+      <DevicesScreen />
+    </RequireSignIn>
   );
 }
 
-function DevicesContent() {
+function DevicesScreen() {
   const viewer = useViewer();
   const [devices, setDevices] = useState<Device[]>([]);
   const [query, setQuery] = useState('');
@@ -669,74 +351,48 @@ function DevicesContent() {
   }, [viewer.id]);
 
   const filtered = devices.filter((device) => {
-    const matchesFilter = filter === 'all' || device.device_type === filter;
-    const haystack = `${device.brand} ${device.model} ${device.serial_imei}`.toLowerCase();
-    return matchesFilter && haystack.includes(query.toLowerCase());
+    const term = `${device.brand} ${device.model} ${device.serial_imei}`.toLowerCase();
+    return (filter === 'all' || filter === device.device_type) && term.includes(query.toLowerCase());
   });
 
   return (
-    <AppShell>
-      <HeaderBlock
-        eyebrow="Devices"
-        title="Registered devices"
-        description="Search every visible Device DNA record and open its timeline."
-        action={<PrimaryButton href="/register"><Plus size={17} /> Register</PrimaryButton>}
-      />
-      <GlassPanel>
-        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <SearchBox value={query} onChange={setQuery} />
-          <SegmentedFilter value={filter} onChange={setFilter} />
-        </div>
-      </GlassPanel>
-      <div className="mt-5">
-        <DeviceGrid devices={filtered} />
+    <AppFrame>
+      <ScreenHeader title="Devices" action={<PrimaryAction href="/register"><Plus size={18} /> Register</PrimaryAction>} />
+      <div className="mt-8 space-y-4">
+        <SearchInput value={query} onChange={setQuery} />
+        <PillSwitch value={filter} onChange={setFilter} />
       </div>
-    </AppShell>
-  );
-}
-
-function DeviceGrid({ devices }: { devices: Device[] }) {
-  if (!devices.length) {
-    return <EmptyGlass title="No devices found" body="Register a device or adjust the search and filter." />;
-  }
-
-  return (
-    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-      {devices.map((device) => (
-        <Link
-          key={device.id}
-          href={`/devices/${device.id}`}
-          className="group rounded-2xl border border-device-border bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-device-blue/30 hover:bg-device-ice"
-        >
-          <div className="flex items-start justify-between gap-3">
-            <IconTile tone={device.device_type === 'phone' ? 'blue' : 'cyan'}>
-              {device.device_type === 'phone' ? <Smartphone /> : <Laptop />}
-            </IconTile>
-            <ChevronRight className="text-device-slate transition group-hover:translate-x-1 group-hover:text-device-ink" />
-          </div>
-          <h3 className="mt-5 truncate text-2xl font-black text-device-ink">{device.brand} {device.model}</h3>
-          <p className="mt-2 text-xs text-device-slate">Registered {formatDate(device.created_at)}</p>
-          <div className="mt-5 grid grid-cols-2 gap-2">
-            <MiniMetric label="Type" value={device.device_type} />
-            <MiniMetric label="Registered" value={formatDate(device.created_at)} />
-          </div>
-        </Link>
-      ))}
-    </div>
+      <div className="mt-8 grid gap-4">
+        {filtered.length ? filtered.map((device) => (
+          <Link key={device.id} href={`/devices/${device.id}`} className={`${ui.panel} block p-5`}>
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <h2 className="text-[22px] font-medium tracking-[-0.02em]">{device.brand} {device.model}</h2>
+                <p className="mt-2 text-[14px] text-[var(--dna-text-secondary)]">
+                  {device.device_type} · {device.serial_imei} · {formatDate(device.created_at)}
+                </p>
+              </div>
+              <ChevronRight size={22} strokeWidth={1.8} />
+            </div>
+          </Link>
+        )) : (
+          <EmptyState title="No devices found" text="Register a device or adjust the search." />
+        )}
+      </div>
+    </AppFrame>
   );
 }
 
 export function RegisterPage() {
   return (
-    <AuthGate>
-      <RegisterContent />
-    </AuthGate>
+    <RequireSignIn>
+      <RegisterScreen />
+    </RequireSignIn>
   );
 }
 
-function RegisterContent() {
+function RegisterScreen() {
   const viewer = useViewer();
-  const router = useRouter();
   const [step, setStep] = useState(0);
   const [type, setType] = useState<DeviceType>('phone');
   const [created, setCreated] = useState<Device | null>(null);
@@ -753,17 +409,17 @@ function RegisterContent() {
   });
 
   const specs = useMemo(() => {
-    const result: Record<string, string> = {};
-    if (form.processor && type === 'laptop') result.processor = form.processor;
-    if (form.ram) result.ram = form.ram;
-    if (form.storage) result.storage = form.storage;
-    return result;
+    const values: Record<string, string> = {};
+    if (type === 'laptop' && form.processor.trim()) values.processor = form.processor.trim();
+    if (form.ram.trim()) values.ram = form.ram.trim();
+    if (form.storage.trim()) values.storage = form.storage.trim();
+    return values;
   }, [form, type]);
 
   async function submit() {
     if (!viewer.id) return;
     if (!form.brand.trim() || !form.model.trim() || !form.serialImei.trim()) {
-      setError('Brand, model, and serial/IMEI are required.');
+      setError('Brand, model, and IMEI or serial are required.');
       return;
     }
     setBusy(true);
@@ -780,439 +436,155 @@ function RegisterContent() {
       });
       setCreated(device);
       setStep(3);
-    } catch (error) {
-      setError(getRegistrationErrorMessage(error));
+    } catch (err) {
+      setError(getServiceErrorMessage(err));
     } finally {
       setBusy(false);
     }
   }
 
   return (
-    <AppShell>
-      <HeaderBlock
-        eyebrow="Registration"
-        title="Create a permanent Device DNA."
-        description="Four focused steps: Type, Identity, Review, and QR Success."
-      />
-      <StepRail labels={['Type', 'Identity', 'Review', 'Success']} active={step} />
-      <GlassPanel>
+    <AppFrame>
+      <ScreenHeader title="Register device" description="Create the permanent identity record first. Repair history comes later." />
+      <StepLabels labels={['Type', 'Identify', 'Review', 'QR']} active={step} />
+      <section className={`${ui.panel} mt-6 p-5`}>
         {step === 0 && (
-          <div className="grid gap-4 md:grid-cols-2">
-            <TypeCard active={type === 'phone'} icon={<Smartphone />} title="Phone" onClick={() => setType('phone')} />
-            <TypeCard active={type === 'laptop'} icon={<Laptop />} title="Laptop" onClick={() => setType('laptop')} />
+          <div className="grid gap-3">
+            <ChoiceButton active={type === 'phone'} icon={<Smartphone />} label="Phone" onClick={() => setType('phone')} />
+            <ChoiceButton active={type === 'laptop'} icon={<Laptop />} label="Laptop" onClick={() => setType('laptop')} />
           </div>
         )}
         {step === 1 && (
-          <div className="grid gap-4 md:grid-cols-2">
-            <Field label="Brand"><Input value={form.brand} onChange={(event) => setForm({ ...form, brand: event.target.value })} placeholder={type === 'phone' ? 'Example: Samsung, Apple, OnePlus' : 'Example: Lenovo, HP, Dell'} /></Field>
-            <Field label="Model"><Input value={form.model} onChange={(event) => setForm({ ...form, model: event.target.value })} placeholder={type === 'phone' ? 'Example: Phone model name' : 'Example: Laptop model name'} /></Field>
-            <Field label={type === 'phone' ? 'IMEI' : 'Serial number'}><Input value={form.serialImei} onChange={(event) => setForm({ ...form, serialImei: event.target.value })} placeholder={type === 'phone' ? 'Example: 15-digit IMEI from *#06#' : 'Example: PF4ABCDE or laptop service tag'} /></Field>
-            <Field label="Purchase date"><Input type="date" value={form.purchaseDate} onChange={(event) => setForm({ ...form, purchaseDate: event.target.value })} /></Field>
-            {type === 'laptop' && <Field label="Processor"><Input value={form.processor} onChange={(event) => setForm({ ...form, processor: event.target.value })} placeholder="Example: Intel i7 13th Gen or Ryzen 5" /></Field>}
-            <Field label="RAM"><Input value={form.ram} onChange={(event) => setForm({ ...form, ram: event.target.value })} placeholder={type === 'phone' ? 'Optional: 8 GB' : 'Optional: 16 GB DDR5'} /></Field>
-            <Field label="Storage"><Input value={form.storage} onChange={(event) => setForm({ ...form, storage: event.target.value })} placeholder={type === 'phone' ? 'Optional: 256 GB' : 'Optional: 512 GB SSD'} /></Field>
+          <div className="grid gap-4">
+            <FormField label="Brand"><TextInput value={form.brand} onChange={(event) => setForm({ ...form, brand: event.target.value })} placeholder={type === 'phone' ? 'Apple, Samsung, OnePlus' : 'Apple, Lenovo, HP'} /></FormField>
+            <FormField label="Model"><TextInput value={form.model} onChange={(event) => setForm({ ...form, model: event.target.value })} placeholder={type === 'phone' ? 'iPhone 15, Galaxy S24' : 'MacBook Air M2, ThinkPad X1'} /></FormField>
+            <FormField label={type === 'phone' ? 'IMEI' : 'Serial number'}><TextInput value={form.serialImei} onChange={(event) => setForm({ ...form, serialImei: event.target.value })} placeholder={type === 'phone' ? '15 digit IMEI' : 'Manufacturer serial or service tag'} /></FormField>
+            <FormField label="Purchase date"><TextInput type="date" value={form.purchaseDate} onChange={(event) => setForm({ ...form, purchaseDate: event.target.value })} /></FormField>
+            {type === 'laptop' && <FormField label="Processor"><TextInput value={form.processor} onChange={(event) => setForm({ ...form, processor: event.target.value })} placeholder="Apple M2, Intel i7, Ryzen 5" /></FormField>}
+            <FormField label="RAM"><TextInput value={form.ram} onChange={(event) => setForm({ ...form, ram: event.target.value })} placeholder="Optional, for example 8 GB" /></FormField>
+            <FormField label="Storage"><TextInput value={form.storage} onChange={(event) => setForm({ ...form, storage: event.target.value })} placeholder="Optional, for example 256 GB" /></FormField>
           </div>
         )}
         {step === 2 && (
-          <div className="space-y-4">
-            <AlertGlass title="Cannot be silently changed">
-              Device type, brand, model, and serial/IMEI become the permanent identity base. Future corrections must be added visibly rather than hidden edits.
-            </AlertGlass>
-            <div className="grid gap-3 md:grid-cols-3">
-              <MiniMetric label="Type" value={type} />
-              <MiniMetric label="Device" value={`${form.brand || '-'} ${form.model || ''}`} />
-              <MiniMetric label="Identity" value={form.serialImei || '-'} />
-            </div>
-            {error && <p className="rounded-xl border border-device-critical/20 bg-device-critical/10 px-3 py-2 text-sm font-black text-device-critical">{error}</p>}
+          <div className="space-y-5">
+            <p className="text-[17px] leading-8">Device identity details cannot be silently changed after registration. Corrections must be recorded transparently.</p>
+            <ReviewLine label="Type" value={type} />
+            <ReviewLine label="Device" value={`${form.brand || '-'} ${form.model || ''}`} />
+            <ReviewLine label={type === 'phone' ? 'IMEI' : 'Serial'} value={form.serialImei || '-'} />
+            {error && <Notice tone="danger">{error}</Notice>}
           </div>
         )}
         {step === 3 && created && (
-          <div className="grid gap-6 lg:grid-cols-[1fr_340px]">
+          <div className="space-y-6">
             <div>
-              <IconTile tone="green"><BadgeCheck /></IconTile>
-              <h2 className="mt-5 text-4xl font-black text-device-ink">QR passport ready.</h2>
-              <p className="mt-3 max-w-xl text-sm leading-7 text-device-slate">
-                {created.brand} {created.model} has a Device DNA public passport.
-                Download or print the QR for service counters and resale.
-              </p>
-              <div className="mt-6 flex flex-wrap gap-3">
-                <PrimaryButton onClick={() => router.push(`/devices/${created.id}`)}>Open timeline</PrimaryButton>
-                <GlassButton href="/register">Register another</GlassButton>
-              </div>
+              <h2 className="text-[28px] font-medium tracking-[-0.025em]">QR passport ready</h2>
+              <p className="mt-2 text-[15px] text-[var(--dna-text-secondary)]">Print it, save it, or open the owner timeline.</p>
             </div>
-            <QrGlass value={passportUrl(created.id)} />
+            <QrBlock value={passportUrl(created.id)} fileName={`${created.brand}-${created.model}-device-dna`.replace(/\s+/g, '-').toLowerCase()} />
+            <div className="grid gap-3">
+              <PrimaryAction href={`/devices/${created.id}`}>Open timeline</PrimaryAction>
+              <SecondaryAction href="/devices">Back to devices</SecondaryAction>
+            </div>
           </div>
         )}
-        {step < 3 && (
-          <div className="mt-6 flex flex-col gap-3 md:flex-row md:justify-between">
-            <GlassButton disabled={step === 0} onClick={() => setStep(Math.max(0, step - 1))}>Back</GlassButton>
-            {step === 2 ? (
-              <PrimaryButton disabled={busy} onClick={submit}>{busy ? 'Creating...' : 'Create Device DNA'}</PrimaryButton>
-            ) : (
-              <PrimaryButton onClick={() => setStep(step + 1)}>Continue</PrimaryButton>
-            )}
-          </div>
-        )}
-      </GlassPanel>
-    </AppShell>
+      </section>
+      {step < 3 && (
+        <div className="mt-5 flex gap-3">
+          <SecondaryAction disabled={step === 0} onClick={() => setStep(Math.max(0, step - 1))}>Back</SecondaryAction>
+          {step === 2 ? (
+            <PrimaryAction disabled={busy} onClick={submit}>{busy ? 'Registering' : 'Create passport'}</PrimaryAction>
+          ) : (
+            <PrimaryAction onClick={() => setStep(step + 1)}>Continue</PrimaryAction>
+          )}
+        </div>
+      )}
+    </AppFrame>
   );
 }
 
 export function DevicePage() {
   return (
-    <AuthGate>
-      <DeviceContent />
-    </AuthGate>
+    <RequireSignIn>
+      <DeviceScreen publicMode={false} />
+    </RequireSignIn>
   );
 }
 
-function DeviceContent() {
+function DeviceScreen({ publicMode }: { publicMode: boolean }) {
   const params = useParams<{ id: string }>();
   const viewer = useViewer();
   const [timeline, setTimeline] = useState<DeviceTimeline | null | undefined>(undefined);
   const [score, setScore] = useState<DeviceScore | null>(null);
-  const [accessStatus, setAccessStatus] = useState<'pending' | 'approved' | 'declined' | null | undefined>(undefined);
-  const [notice, setNotice] = useState('');
-  const [scoreBusy, setScoreBusy] = useState(false);
+  const [access, setAccess] = useState<AccessState>(undefined);
+  const isOwner = timeline ? viewer.id === timeline.owner_id : false;
 
   useEffect(() => {
-    loadDevice(params.id, setTimeline, setScore);
-  }, [params.id]);
+    const load = publicMode ? getPublicPassportTimeline(params.id) : getDeviceTimeline(params.id);
+    load.then((next) => {
+      setTimeline(next);
+      setScore(next?.device_scores?.[0] ?? null);
+      if (next && !publicMode) getDeviceScore(next.id).then(setScore).catch(() => undefined);
+    }).catch(() => setTimeline(null));
+  }, [params.id, publicMode]);
 
   useEffect(() => {
-    if (!viewer.id || !timeline || viewer.id === timeline.owner_id) {
-      setAccessStatus(null);
+    if (!timeline || !viewer.id || viewer.id === timeline.owner_id) {
+      setAccess(null);
       return;
     }
+    setAccess(undefined);
+    getRepairAccessStatus(timeline.id, viewer.id).then(setAccess).catch(() => setAccess(null));
+  }, [timeline, viewer.id]);
 
-    setAccessStatus(undefined);
-    getRepairAccessStatus(timeline.id, viewer.id)
-      .then(setAccessStatus)
-      .catch(() => setAccessStatus(null));
-  }, [viewer.id, timeline]);
+  const frame = publicMode ? PublicFrame : AppFrame;
+  const Frame = frame;
 
-  async function refreshScore() {
-    setScoreBusy(true);
-    setNotice('');
-    try {
-      const nextScore = await recalculateDeviceScore(params.id);
-      setScore(nextScore);
-      setNotice(nextScore ? 'AI score and summary refreshed.' : 'Score could not be generated yet. Add approved repair history or check edge function secrets.');
-    } catch (error) {
-      setNotice(`Score refresh failed: ${getServiceErrorMessage(error)}`);
-    } finally {
-      setScoreBusy(false);
-    }
-  }
-
-  if (timeline === undefined) return <AppShell><LoadingGlass title="Loading device timeline" /></AppShell>;
-  if (!timeline) return <AppShell><EmptyGlass title="Device not found" body="Scan again or check the Device DNA ID." /></AppShell>;
-
-  const isOwner = viewer.id === timeline.owner_id;
-  const canAddRepair = Boolean(viewer.signedIn && !isOwner && accessStatus === 'approved');
-
-  if (!isOwner && accessStatus === 'approved') {
-    return (
-      <AppShell>
-        <DeviceHero device={timeline} score={null} showPrivateId={false} />
-        <section className="mt-6">
-          <HeaderBlock
-            eyebrow="Technician access approved"
-            title="Repair timeline"
-            description="Review the existing logs, then add the next permanent repair record."
-            action={<PrimaryButton href={`/devices/${timeline.id}/repair`}><Wrench size={17} /> Add new log</PrimaryButton>}
-          />
-          <RepairTimeline repairs={timeline.repair_events} isOwner={false} />
-        </section>
-      </AppShell>
-    );
-  }
+  if (timeline === undefined) return <Frame><LoadingState text="Loading passport" /></Frame>;
+  if (!timeline) return <Frame><EmptyState title="Passport not found" text="Check the QR code or scan again." /></Frame>;
 
   return (
-    <AppShell>
-      <DeviceHero device={timeline} score={score} showPrivateId={isOwner} />
-      <div className="mt-6 grid gap-5 xl:grid-cols-[0.88fr_1.12fr]">
-        <div className="space-y-5">
-          <ScoreSuite score={score} />
-          <QrGlass value={passportUrl(timeline.id)} />
+    <Frame>
+      <DeviceHeader timeline={timeline} score={score} showSerial={!publicMode && isOwner} publicMode={publicMode} />
+      <section className="mt-10">
+        <div className="flex items-end justify-between gap-4">
+          <ScreenHeader title={publicMode ? 'Repair log' : 'Owner timeline'} description={publicMode ? 'Approved records only.' : 'All visible records for this device.'} />
+          {!publicMode && !isOwner && access === 'approved' ? <PrimaryAction href={`/devices/${timeline.id}/repair`}><Plus size={18} /> Add log</PrimaryAction> : null}
         </div>
-        <section>
-          <HeaderBlock
-            eyebrow="Timeline"
-            title="Locked repair history"
-            description="Pending repairs wait for owner approval and do not appear on the public passport."
-            action={
-              <div className="flex flex-wrap gap-2">
-                <GlassButton disabled={scoreBusy} onClick={refreshScore}>
-                  <Sparkles size={17} /> {scoreBusy ? 'Scoring...' : 'Refresh AI score'}
-                </GlassButton>
-                {canAddRepair ? <PrimaryButton href={`/devices/${timeline.id}/repair`}><Wrench size={17} /> Add repair</PrimaryButton> : null}
-              </div>
-            }
-          />
-          {notice && <AlertGlass title="Approval update">{notice}</AlertGlass>}
-          <RepairTimeline
-            repairs={timeline.repair_events}
-            isOwner={isOwner}
-          />
-          {!isOwner && accessStatus !== undefined && (
-            <RepairAccessPanel
-              device={timeline}
-              status={accessStatus}
-              onSubmitted={() => setAccessStatus('pending')}
-            />
-          )}
-        </section>
-      </div>
-    </AppShell>
-  );
-}
-
-async function loadDevice(
-  id: string,
-  setTimeline: (value: DeviceTimeline | null) => void,
-  setScore: (value: DeviceScore | null) => void,
-) {
-  try {
-    const timeline = await getDeviceTimeline(id);
-    setTimeline(timeline);
-
-    if (!timeline) {
-      setScore(null);
-      return;
-    }
-
-    setScore(await getDeviceScore(id).catch(() => null));
-  } catch {
-    setTimeline(null);
-    setScore(null);
-  }
-}
-
-function DeviceHero({ device, score, showPrivateId = false }: { device: DeviceTimeline; score: DeviceScore | null; showPrivateId?: boolean }) {
-  return (
-    <section className="relative overflow-hidden rounded-[24px] border border-device-border bg-white p-5 shadow-[0_18px_50px_rgba(17,24,39,0.08)] md:p-7">
-      <div className="absolute right-0 top-0 h-full w-1 bg-device-blue" />
-      <div className="relative flex flex-col justify-between gap-6 md:flex-row md:items-end">
-        <div>
-          <SectionKicker>Device log</SectionKicker>
-          <h1 className="mt-3 text-4xl font-black text-device-ink md:text-6xl">{device.brand} {device.model}</h1>
-          <p className="mt-3 text-sm text-device-slate">Registered {formatDate(device.created_at)}</p>
-          {showPrivateId && (
-            <p className="mt-2 break-all font-mono text-sm font-black text-device-ink">
-              {device.device_type === 'phone' ? 'IMEI' : 'Serial'}: {device.serial_imei}
-            </p>
-          )}
-        </div>
-        <div className="grid grid-cols-1 gap-3">
-          <HeroStat label="Health" value={score ? `${score.health_score}/100` : 'No score'} />
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function ScoreSuite({ score }: { score: DeviceScore | null }) {
-  return (
-    <div className="space-y-5">
-      <GlassPanel>
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <SectionKicker>Health Score</SectionKicker>
-            <p className="mt-3 text-6xl font-black text-device-ink">{score?.health_score ?? '--'}<span className="text-xl text-device-slate">/100</span></p>
-          </div>
-          <IconTile tone="blue"><ShieldCheck /></IconTile>
-        </div>
-        <div className="mt-6 space-y-4">
-          {scoreFactors.map((factor) => (
-            <ScoreRow key={factor.key} factor={factor} value={score?.score_breakdown?.[factor.key] ?? 0} />
-          ))}
-        </div>
-      </GlassPanel>
-    </div>
-  );
-}
-
-function ScoreRow({ factor, value }: { factor: (typeof scoreFactors)[number]; value: number }) {
-  return (
-    <div>
-      <div className="flex items-center justify-between gap-3 text-sm">
-        <span className="font-black text-device-ink">{factor.label} <span className="font-medium text-device-slate">({factor.weight}%)</span></span>
-        <span className="font-mono text-device-blue">{value}/100</span>
-      </div>
-      <div className="mt-2 h-2 overflow-hidden rounded-full bg-device-border/70">
-        <div className="signal-line h-full rounded-full" style={{ width: `${Math.max(0, Math.min(100, value))}%` }} />
-      </div>
-      <p className="mt-1 text-xs text-device-slate">{factor.note}</p>
-    </div>
-  );
-}
-
-function RepairTimeline({
-  repairs,
-  isOwner,
-  publicOnly = false,
-}: {
-  repairs: RepairEventWithParts[];
-  isOwner: boolean;
-  publicOnly?: boolean;
-}) {
-  if (!repairs.length) return <EmptyGlass title="No repairs logged yet" body={publicOnly ? 'No approved public records yet.' : 'A technician can add the first pending record after scanning this device.'} />;
-
-  return (
-    <div className="relative space-y-4 pl-5">
-      <div className="signal-line absolute bottom-8 left-[7px] top-8 w-px rounded-full" />
-      {repairs.map((repair) => {
-        const pending = repair.status === 'pending';
-        return (
-          <article key={repair.id} className="relative rounded-2xl border border-device-border bg-white p-4 shadow-sm">
-            <span className="absolute -left-[23px] top-7 h-3.5 w-3.5 rounded-full border-2 border-white bg-device-blue" />
-            <div className="flex flex-col justify-between gap-3 md:flex-row md:items-start">
-              <div>
-                <div className="flex flex-wrap gap-2">
-                  <Badge tone={pending ? 'pending' : 'approved'}>{pending ? 'Legacy pending record' : 'Recorded'}</Badge>
-                  <Badge tone="locked">{pending ? 'Locked, waiting' : 'Permanent public history'}</Badge>
-                </div>
-                <h3 className="mt-4 text-2xl font-black text-device-ink">{repair.symptom}</h3>
-                <p className="mt-1 text-sm text-device-slate">{formatDateTime(repair.created_at)} · {repair.profiles?.display_name ?? 'Verified technician'}</p>
-              </div>
-              <p className="text-lg font-black text-device-ink">{formatCurrency(repair.cost)}</p>
-            </div>
-            <dl className="mt-5 grid gap-3 text-sm md:grid-cols-3">
-              <Info label="Diagnosis" value={repair.diagnosis ?? 'Not provided'} />
-              <Info label="Action" value={repair.action_taken} />
-              <Info label="Parts" value={repair.parts.length ? repair.parts.map((part) => pretty(part.component_name)).join(', ') : 'No replacement'} />
-            </dl>
-            {pending && !publicOnly && (
-              <div className="mt-5 rounded-2xl border border-device-attention/25 bg-device-attention/10 p-4">
-                <p className="flex items-center gap-2 text-sm font-black text-device-attention">
-                  <LockKeyhole size={16} />
-                  This is an older pending record from before technician access requests were introduced.
-                </p>
-                {isOwner && <p className="mt-2 text-sm text-device-slate">Open Activity to review technician access requests.</p>}
-              </div>
-            )}
-          </article>
-        );
-      })}
-    </div>
-  );
-}
-
-function RepairAccessPanel({
-  device,
-  status,
-  onSubmitted,
-}: {
-  device: DeviceTimeline;
-  status: 'pending' | 'approved' | 'declined' | null;
-  onSubmitted: () => void;
-}) {
-  const viewer = useViewer();
-  const [form, setForm] = useState({
-    requesterName: viewer.name === 'Visitor' ? '' : viewer.name,
-    requesterPhone: '',
-    shopName: '',
-  });
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
-
-  if (status === 'approved') {
-    return (
-      <AlertGlass title="Access approved">
-        You can add repair logs for this device. New logs become part of the permanent public history.
-      </AlertGlass>
-    );
-  }
-
-  if (status === 'pending') {
-    return (
-      <AlertGlass title="Request sent">
-        The owner will see this technician access request in Activity.
-      </AlertGlass>
-    );
-  }
-
-  async function submit() {
-    if (!viewer.signedIn) {
-      setError('Sign in before requesting repair access.');
-      return;
-    }
-
-    if (!form.requesterName.trim() || !form.requesterPhone.trim() || !form.shopName.trim()) {
-      setError('Name, phone number, and shop name are required.');
-      return;
-    }
-
-    setBusy(true);
-    setError('');
-    setSuccess('');
-    try {
-      await requestRepairAccess({
-        deviceId: device.id,
-        requesterName: form.requesterName,
-        requesterPhone: form.requesterPhone,
-        shopName: form.shopName,
-      });
-      setSuccess('Request sent to the owner activity page.');
-      onSubmitted();
-    } catch (error) {
-      setError(getServiceErrorMessage(error));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  return (
-    <GlassPanel className="mt-5">
-      <SectionKicker>Technician access</SectionKicker>
-      <h2 className="mt-2 text-2xl font-black text-device-ink">Request permission to add a repair log</h2>
-      <p className="mt-2 text-sm leading-7 text-device-slate">
-        The owner must approve technician access before any repair log can be added to {device.brand} {device.model}.
-      </p>
-      <div className="mt-5 grid gap-4 md:grid-cols-3">
-        <Field label="Your name">
-          <Input value={form.requesterName} onChange={(event) => setForm({ ...form, requesterName: event.target.value })} placeholder="Example: Technician full name" />
-        </Field>
-        <Field label="Phone number">
-          <Input value={form.requesterPhone} onChange={(event) => setForm({ ...form, requesterPhone: event.target.value })} placeholder="Example: +91 98765 43210" />
-        </Field>
-        <Field label="Shop name">
-          <Input value={form.shopName} onChange={(event) => setForm({ ...form, shopName: event.target.value })} placeholder="Example: Shop or service centre name" />
-        </Field>
-      </div>
-      {error && <p className="mt-4 text-sm font-black text-device-critical">{error}</p>}
-      {success && <p className="mt-4 text-sm font-black text-device-healthy">{success}</p>}
-      <div className="mt-5">
-        {viewer.signedIn ? (
-          <PrimaryButton disabled={busy} onClick={submit}>{busy ? 'Sending...' : 'Request access'}</PrimaryButton>
+        <RepairList repairs={timeline.repair_events} />
+        {publicMode || !isOwner ? (
+          <AccessPanel device={timeline} status={access} onSubmitted={() => setAccess('pending')} />
         ) : (
-          <SignInButton mode="modal">
-            <button className="inline-flex min-h-12 items-center justify-center gap-2 rounded-[16px] bg-device-blue px-5 text-sm font-black text-white shadow-[0_10px_24px_rgba(39,100,255,0.18)] transition hover:bg-device-cobalt">
-              Sign in to request access
-            </button>
-          </SignInButton>
+          <div className="mt-8">
+            <QrBlock value={passportUrl(timeline.id)} fileName={`${timeline.brand}-${timeline.model}-device-dna`.replace(/\s+/g, '-').toLowerCase()} />
+          </div>
         )}
-      </div>
-    </GlassPanel>
+      </section>
+    </Frame>
+  );
+}
+
+export function PassportPage() {
+  return (
+    <RequireSignIn>
+      <DeviceScreen publicMode />
+    </RequireSignIn>
   );
 }
 
 export function RepairSubmissionPage() {
   return (
-    <AuthGate>
-      <RepairSubmissionContent />
-    </AuthGate>
+    <RequireSignIn>
+      <RepairSubmissionScreen />
+    </RequireSignIn>
   );
 }
 
-function RepairSubmissionContent() {
+function RepairSubmissionScreen() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const viewer = useViewer();
-  const [timeline, setTimeline] = useState<DeviceTimeline | null>(null);
-  const [accessStatus, setAccessStatus] = useState<'pending' | 'approved' | 'declined' | null | undefined>(undefined);
+  const [timeline, setTimeline] = useState<DeviceTimeline | null | undefined>(undefined);
+  const [access, setAccess] = useState<AccessState>(undefined);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [form, setForm] = useState({
@@ -1233,22 +605,15 @@ function RepairSubmissionContent() {
   }, [params.id]);
 
   useEffect(() => {
-    if (!viewer.id || !timeline || viewer.id === timeline.owner_id) {
-      setAccessStatus(null);
+    if (!timeline || !viewer.id || viewer.id === timeline.owner_id) {
+      setAccess(null);
       return;
     }
-
-    setAccessStatus(undefined);
-    getRepairAccessStatus(timeline.id, viewer.id)
-      .then(setAccessStatus)
-      .catch(() => setAccessStatus(null));
-  }, [viewer.id, timeline]);
+    getRepairAccessStatus(timeline.id, viewer.id).then(setAccess).catch(() => setAccess(null));
+  }, [timeline, viewer.id]);
 
   async function submit() {
-    if (!viewer.id) {
-      setError('Sign in to add repair records.');
-      return;
-    }
+    if (!viewer.id || !timeline) return;
     if (!form.symptom.trim() || !form.actionTaken.trim()) {
       setError('Symptoms and action taken are required.');
       return;
@@ -1256,963 +621,567 @@ function RepairSubmissionContent() {
     setBusy(true);
     setError('');
     try {
-      const deviceId = timeline?.id ?? params.id;
       await submitRepairRecord({
-        deviceId,
+        deviceId: timeline.id,
         technicianId: viewer.id,
         symptom: form.symptom.trim(),
         diagnosis: form.diagnosis.trim() || null,
         actionTaken: form.actionTaken.trim(),
         cost: numberOrNull(form.serviceCost),
-        parts: form.partNumber || form.supplier || Number(form.partCost) > 0
-          ? [{
-              componentName: form.componentName,
-              partType: form.partType,
-              partNumber: form.partNumber || null,
-              supplier: form.supplier || null,
-              cost: numberOrNull(form.partCost),
-              warrantyDays: Number(form.warrantyDays) || 0,
-            }]
-          : [],
+        parts: form.partNumber || form.supplier || Number(form.partCost) > 0 ? [{
+          componentName: form.componentName,
+          partType: form.partType,
+          partNumber: form.partNumber || null,
+          supplier: form.supplier || null,
+          cost: numberOrNull(form.partCost),
+          warrantyDays: Number(form.warrantyDays) || 0,
+        }] : [],
       });
-      router.push(`/devices/${deviceId}`);
-    } catch (error) {
-      setError(getServiceErrorMessage(error));
+      router.push(`/devices/${timeline.id}`);
+    } catch (err) {
+      setError(getServiceErrorMessage(err));
     } finally {
       setBusy(false);
     }
   }
 
+  if (timeline === undefined) return <AppFrame><LoadingState text="Loading device" /></AppFrame>;
+  if (!timeline) return <AppFrame><EmptyState title="Device not found" text="Scan again or check the ID." /></AppFrame>;
+
+  const blocked = viewer.id === timeline.owner_id || access !== 'approved';
+
   return (
-    <AppShell>
-      <HeaderBlock
-        eyebrow="Technician record"
-        title="Add repair log"
-        description={timeline ? `${timeline.brand} ${timeline.model} · logs are available after owner-approved technician access.` : 'Loading device...'}
-      />
-      {timeline && viewer.id === timeline.owner_id && (
-        <EmptyGlass title="Owner accounts cannot add repair logs" body="Scan this QR at a technician account. The technician requests access, then adds the repair record after you approve it in Activity." />
+    <AppFrame>
+      <ScreenHeader title="Add repair log" description={`${timeline.brand} ${timeline.model}. The record becomes permanent after submission.`} />
+      {blocked ? (
+        <section className={`${ui.panel} mt-8 p-5`}>
+          <p className="text-[17px] leading-8">
+            {viewer.id === timeline.owner_id ? 'Owner accounts cannot add repair logs to their own device.' : 'Owner approval is required before adding a repair log.'}
+          </p>
+          {viewer.id !== timeline.owner_id && <AccessPanel device={timeline} status={access} onSubmitted={() => setAccess('pending')} />}
+        </section>
+      ) : (
+        <section className={`${ui.panel} mt-8 grid gap-4 p-5`}>
+          <FormField label="Symptoms"><TextArea value={form.symptom} onChange={(event) => setForm({ ...form, symptom: event.target.value })} placeholder="Charging only works at an angle; battery drains quickly." /></FormField>
+          <FormField label="Diagnosis"><TextArea value={form.diagnosis} onChange={(event) => setForm({ ...form, diagnosis: event.target.value })} placeholder="Charging connector worn; no board damage seen." /></FormField>
+          <FormField label="Action taken"><TextArea value={form.actionTaken} onChange={(event) => setForm({ ...form, actionTaken: event.target.value })} placeholder="Replaced charging assembly and tested fast charging." /></FormField>
+          <FormField label="Component"><SelectInput value={form.componentName} onChange={(event) => setForm({ ...form, componentName: event.target.value as ComponentName })}>{componentOptions[timeline.device_type].map((item) => <option key={item} value={item}>{pretty(item)}</option>)}</SelectInput></FormField>
+          <FormField label="Part type"><SelectInput value={form.partType} onChange={(event) => setForm({ ...form, partType: event.target.value as PartType })}>{partTypes.map((item) => <option key={item} value={item}>{pretty(item)}</option>)}</SelectInput></FormField>
+          <FormField label="Part number"><TextInput value={form.partNumber} onChange={(event) => setForm({ ...form, partNumber: event.target.value })} placeholder="Supplier SKU or part number" /></FormField>
+          <FormField label="Supplier"><TextInput value={form.supplier} onChange={(event) => setForm({ ...form, supplier: event.target.value })} placeholder="Shop stock or supplier name" /></FormField>
+          <FormField label="Part cost"><TextInput type="number" min="0" value={form.partCost} onChange={(event) => setForm({ ...form, partCost: event.target.value })} placeholder="1450" /></FormField>
+          <FormField label="Part warranty days"><TextInput type="number" min="0" value={form.warrantyDays} onChange={(event) => setForm({ ...form, warrantyDays: event.target.value })} placeholder="90" /></FormField>
+          <FormField label="Service cost"><TextInput type="number" min="0" value={form.serviceCost} onChange={(event) => setForm({ ...form, serviceCost: event.target.value })} placeholder="2300" /></FormField>
+          {error && <Notice tone="danger">{error}</Notice>}
+          <PrimaryAction disabled={busy} onClick={submit}>{busy ? 'Submitting' : 'Create permanent repair record'}</PrimaryAction>
+        </section>
       )}
-      {timeline && viewer.id !== timeline.owner_id && accessStatus === undefined && (
-        <LoadingGlass title="Checking technician access" />
-      )}
-      {timeline && viewer.id !== timeline.owner_id && accessStatus !== undefined && accessStatus !== 'approved' && (
-        <GlassPanel>
-          <AlertGlass title="Owner approval required">
-            Request access from the device page first. After the owner approves it in Activity, this repair form unlocks.
-          </AlertGlass>
-          <RepairAccessPanel device={timeline} status={accessStatus} onSubmitted={() => setAccessStatus('pending')} />
-        </GlassPanel>
-      )}
-      {timeline && viewer.id !== timeline.owner_id && accessStatus === 'approved' && (
-      <GlassPanel>
-        <AlertGlass title="Permanent record">
-          This repair log becomes visible on the device timeline after submission. It cannot be edited or deleted.
-        </AlertGlass>
-        <div className="grid gap-4">
-          <Field label="Symptoms"><Textarea value={form.symptom} onChange={(event) => setForm({ ...form, symptom: event.target.value })} placeholder="Example: Phone charges only at an angle; customer reports intermittent fast charging." /></Field>
-          <Field label="Diagnosis"><Textarea value={form.diagnosis} onChange={(event) => setForm({ ...form, diagnosis: event.target.value })} placeholder="Example: Charging connector pins worn; no motherboard damage found during inspection." /></Field>
-          <Field label="Action taken"><Textarea value={form.actionTaken} onChange={(event) => setForm({ ...form, actionTaken: event.target.value })} placeholder="Example: Replaced charging assembly, cleaned connector path, tested fast charging and data transfer." /></Field>
-          <div className="grid gap-4 md:grid-cols-2">
-            <Field label="Component">
-              <Select value={form.componentName} onChange={(event) => setForm({ ...form, componentName: event.target.value as ComponentName })}>
-                {componentOptions[timeline?.device_type ?? 'phone'].map((option) => <option key={option} value={option}>{pretty(option)}</option>)}
-              </Select>
-            </Field>
-            <Field label="Part type">
-              <Select value={form.partType} onChange={(event) => setForm({ ...form, partType: event.target.value as PartType })}>
-                {partTypes.map((option) => <option key={option} value={option}>{pretty(option)}</option>)}
-              </Select>
-            </Field>
-            <Field label="Part number"><Input value={form.partNumber} onChange={(event) => setForm({ ...form, partNumber: event.target.value })} placeholder="Example: GH96-16522A or supplier SKU" /></Field>
-            <Field label="Supplier"><Input value={form.supplier} onChange={(event) => setForm({ ...form, supplier: event.target.value })} placeholder="Example: Supplier or shop stock" /></Field>
-            <Field label="Part cost"><Input type="number" min="0" value={form.partCost} onChange={(event) => setForm({ ...form, partCost: event.target.value })} placeholder="Example: 1450" /></Field>
-            <Field label="Warranty days"><Input type="number" min="0" value={form.warrantyDays} onChange={(event) => setForm({ ...form, warrantyDays: event.target.value })} placeholder="Example: 90" /></Field>
-            <Field label="Service cost"><Input type="number" min="0" value={form.serviceCost} onChange={(event) => setForm({ ...form, serviceCost: event.target.value })} placeholder="Example: 2300" /></Field>
-          </div>
-          {error && <p className="rounded-xl border border-device-critical/20 bg-device-critical/10 px-3 py-2 text-sm font-black text-device-critical">{error}</p>}
-          <div className="flex flex-wrap gap-3">
-            <GlassButton href={`/devices/${params.id}`}>Cancel</GlassButton>
-            <PrimaryButton disabled={busy} onClick={submit}>{busy ? 'Submitting...' : 'Submit pending record'}</PrimaryButton>
-          </div>
-        </div>
-      </GlassPanel>
-      )}
-    </AppShell>
+    </AppFrame>
   );
 }
 
 export function ScanPage() {
-  return <ScanContent />;
+  return <ScanScreen />;
 }
 
-function ScanContent() {
+function ScanScreen() {
   const router = useRouter();
-  const scannerRef = useRef<Html5ScannerInstance | null>(null);
-  const scannerRunningRef = useRef(false);
+  const scannerRef = useRef<Html5Scanner | null>(null);
+  const running = useRef(false);
   const [query, setQuery] = useState('');
-  const [state, setState] = useState<'scanner' | 'found' | 'missing' | 'invalid' | 'camera-off'>('scanner');
-  const [scannerError, setScannerError] = useState('');
+  const [message, setMessage] = useState('');
 
-  async function find(value = query) {
+  async function openValue(value: string) {
     const parsed = parseDeviceCode(value);
     if (!parsed) {
-      setState('invalid');
+      setMessage('Enter a valid passport link, device ID, serial, or IMEI.');
       return;
     }
-
     if (shouldOpenPassportDirectly(value, parsed)) {
-      setState('found');
       router.push(`/passport/${parsed}`);
       return;
     }
-
     const device = await lookupDevice(parsed).catch(() => null);
     if (!device) {
-      setState('missing');
+      setMessage('No device found.');
       return;
     }
-    setState('found');
     router.push(`/passport/${device.id}`);
   }
 
-  async function clearScanner() {
+  async function stopScanner() {
     const scanner = scannerRef.current;
     scannerRef.current = null;
-
-    if (scanner) {
-      try {
-        if (scannerRunningRef.current) {
-          await scanner.stop();
-        }
-      } catch {
-        // Camera was already stopped.
-      } finally {
-        scannerRunningRef.current = false;
-        scanner.clear();
-      }
-    }
-  }
-
-  async function scanUploadedQr(file: File | undefined) {
-    if (!file) return;
-
+    if (!scanner) return;
     try {
-      await clearScanner();
-      const { Html5Qrcode } = await import('html5-qrcode');
-      const scanner = new Html5Qrcode('device-dna-upload-scanner') as Html5ScannerInstance;
-      const decodedText = await scanner.scanFile(file, true);
-      scanner.clear();
-      await find(decodedText);
-    } catch (error) {
-      setState('invalid');
-      setScannerError(`Could not read that QR image. ${getServiceErrorMessage(error)}`);
+      if (running.current) await scanner.stop();
+    } catch {
+      // already stopped
     }
+    running.current = false;
+    scanner.clear();
   }
 
   useEffect(() => {
     let cancelled = false;
-
-    async function loadScanner() {
-      setScannerError('');
-
+    async function start() {
       try {
-        await clearScanner();
         const { Html5Qrcode } = await import('html5-qrcode');
-
-        if (cancelled) {
-          return;
-        }
-
-        const scanner = new Html5Qrcode('device-dna-scanner') as Html5ScannerInstance;
+        if (cancelled) return;
+        const scanner = new Html5Qrcode('device-dna-camera') as Html5Scanner;
         scannerRef.current = scanner;
-        const config = {
-          fps: 10,
-          qrbox: { width: 240, height: 240 },
-          aspectRatio: 1,
+        const config = { fps: 10, qrbox: { width: 240, height: 240 }, aspectRatio: 1 };
+        const success = async (text: string) => {
+          await stopScanner();
+          await openValue(text);
         };
-        const onSuccess = async (decodedText: string) => {
-          await clearScanner();
-          await find(decodedText);
-        };
-
         try {
-          await scanner.start(
-            { facingMode: { exact: 'environment' } },
-            config,
-            onSuccess,
-            () => undefined,
-          );
+          await scanner.start({ facingMode: { exact: 'environment' } }, config, success, () => undefined);
         } catch {
           try {
-            await scanner.start(
-              { facingMode: 'environment' },
-              config,
-              onSuccess,
-              () => undefined,
-            );
+            await scanner.start({ facingMode: 'environment' }, config, success, () => undefined);
           } catch {
             const cameras = await Html5Qrcode.getCameras();
-            const firstCameraId = cameras[0]?.id;
-
-            if (!firstCameraId) {
-              throw new Error('No camera found');
-            }
-
-            await scanner.start(firstCameraId, config, onSuccess, () => undefined);
+            if (!cameras[0]?.id) throw new Error('No camera found');
+            await scanner.start(cameras[0].id, config, success, () => undefined);
           }
         }
-
-        scannerRunningRef.current = true;
-        setState('scanner');
-      } catch (error) {
-        setState('camera-off');
-        setScannerError(
-          `Camera could not open. Use manual lookup or upload a QR image. ${getServiceErrorMessage(error)}`,
-        );
+        running.current = true;
+      } catch (err) {
+        setMessage(`Camera unavailable. Manual lookup still works. ${getServiceErrorMessage(err)}`);
       }
     }
-
-    void loadScanner();
-
+    void start();
     return () => {
       cancelled = true;
-      void clearScanner();
+      void stopScanner();
     };
   }, []);
 
-  return (
-    <AppShell>
-      <HeaderBlock
-        eyebrow="Scan"
-        title="Scan a Device DNA passport."
-        description="Use the camera, upload a QR image, or enter a Device DNA ID manually. Results open as public read-only passports."
-      />
-      <div className="grid gap-5 lg:grid-cols-[1fr_390px]">
-        <section className="rounded-2xl border border-device-border bg-white p-4 shadow-sm md:p-5">
-          <div className="mb-4 flex items-center justify-between">
-            <LogoMark compact light />
-            <Badge tone={state === 'found' ? 'approved' : state === 'missing' ? 'danger' : 'neutral'}>{state}</Badge>
-          </div>
-          <div className="normal-qr-scanner rounded-xl border border-device-border bg-white p-3 text-device-midnight">
-            <div id="device-dna-scanner" />
-            <div id="device-dna-upload-scanner" className="hidden" />
-          </div>
-          {scannerError && <p className="mt-3 rounded-xl border border-device-attention/25 bg-device-attention/10 px-3 py-2 text-sm font-bold text-device-attention">{scannerError}</p>}
-        </section>
-        <GlassPanel>
-          <h2 className="text-2xl font-black text-device-ink">Manual lookup</h2>
-          <p className="mt-2 text-sm leading-7 text-device-slate">Paste a public passport URL, device ID, serial, or IMEI.</p>
-          <div className="mt-5 space-y-3">
-            <Field label="Device DNA ID or passport link">
-              <Input
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                placeholder="Paste a QR link or enter a serial/IMEI"
-              />
-            </Field>
-            {state === 'missing' && <p className="rounded-xl border border-device-critical/20 bg-device-critical/10 px-3 py-2 text-sm font-bold text-device-critical">No device found.</p>}
-            {state === 'invalid' && <p className="rounded-xl border border-device-critical/20 bg-device-critical/10 px-3 py-2 text-sm font-bold text-device-critical">Enter a valid code or link.</p>}
-            {state === 'camera-off' && <p className="rounded-xl border border-device-attention/25 bg-device-attention/10 px-3 py-2 text-sm font-bold text-device-attention">Camera is unavailable. Manual lookup still works.</p>}
-            <PrimaryButton onClick={() => find()}>Find device</PrimaryButton>
-            <label className="inline-flex min-h-12 w-full cursor-pointer items-center justify-center gap-2 rounded-[16px] border border-device-border bg-white px-5 text-sm font-black text-device-ink shadow-sm transition hover:bg-device-ice">
-              <Upload size={16} />
-              Upload QR image
-              <input
-                type="file"
-                accept="image/*"
-                className="sr-only"
-                onChange={(event) => void scanUploadedQr(event.target.files?.[0])}
-              />
-            </label>
-          </div>
-        </GlassPanel>
-      </div>
-    </AppShell>
-  );
-}
-
-type Html5ScannerInstance = {
-  start: (
-    cameraConfig: string | MediaTrackConstraints,
-    configuration: {
-      fps: number;
-      qrbox: { width: number; height: number };
-      aspectRatio: number;
-    },
-    qrCodeSuccessCallback: (decodedText: string) => void,
-    qrCodeErrorCallback?: () => void,
-  ) => Promise<unknown>;
-  stop: () => Promise<unknown>;
-  clear: () => void;
-  scanFile: (imageFile: File, showImage?: boolean) => Promise<string>;
-};
-
-export function ActivityPage() {
-  return (
-    <AuthGate>
-      <ActivityContent />
-    </AuthGate>
-  );
-}
-
-function ActivityContent() {
-  const viewer = useViewer();
-  const [requests, setRequests] = useState<RepairAccessRequestWithDevice[]>([]);
-  const [notice, setNotice] = useState('');
-  const [activeTab, setActiveTab] = useState<'requests' | 'history'>('requests');
-
-  useEffect(() => {
-    if (!viewer.id) return;
-    getRepairAccessRequests().then(setRequests).catch(() => setRequests([]));
-  }, [viewer.id]);
-
-  async function decide(requestId: string, decision: 'approved' | 'declined') {
-    const decidedAt = new Date().toISOString();
-    const previous = requests;
-    setRequests((current) => current.map((request) => (
-      request.id === requestId
-        ? { ...request, status: decision, decided_at: decidedAt }
-        : request
-    )));
-    setNotice(decision === 'approved' ? 'Technician access approved.' : 'Technician access declined.');
+  async function scanFile(file: File | undefined) {
+    if (!file) return;
     try {
-      await decideRepairAccessRequest(requestId, decision);
-    } catch (error) {
-      setRequests(previous);
-      setNotice(getServiceErrorMessage(error));
+      await stopScanner();
+      const { Html5Qrcode } = await import('html5-qrcode');
+      const scanner = new Html5Qrcode('device-dna-upload') as Html5Scanner;
+      const text = await scanner.scanFile(file, true);
+      scanner.clear();
+      await openValue(text);
+    } catch (err) {
+      setMessage(`Could not read that QR image. ${getServiceErrorMessage(err)}`);
     }
   }
 
-  const pendingRequests = requests.filter((request) => request.status === 'pending');
-  const historicalRequests = requests.filter((request) => request.status !== 'pending');
-  const visibleRequests = activeTab === 'requests' ? pendingRequests : historicalRequests;
-
   return (
-    <AppShell>
-      <HeaderBlock eyebrow="Activity" title="Requests and access history" description="Review technician access before a repair log can be added." />
-      {pendingRequests.length > 0 && (
-        <div className="mb-5 rounded-2xl border border-device-critical/20 bg-device-critical/10 p-4">
-          <p className="text-sm font-black text-device-critical">
-            {pendingRequests.length} technician {pendingRequests.length === 1 ? 'request needs' : 'requests need'} your decision.
-          </p>
-          <p className="mt-1 text-sm leading-6 text-device-slate">Approve only if you recognize the shop and device.</p>
+    <PublicFrame>
+      <header className="flex items-center justify-between">
+        <LogoMark />
+        <Link href="/" className={ui.link}>Home</Link>
+      </header>
+      <section className="mt-10">
+        <ScreenHeader title="Scan passport" description="Use a camera, upload a QR image, or paste a passport link." />
+        <div className={`${ui.panel} mt-6 overflow-hidden p-4`}>
+          <div id="device-dna-camera" className="min-h-[280px]" />
+          <div id="device-dna-upload" className="hidden" />
         </div>
-      )}
-      {notice && <AlertGlass title="Activity update">{notice}</AlertGlass>}
-      <section className="rounded-[24px] border border-device-border bg-white shadow-sm">
-        <div className="grid grid-cols-2 border-b border-device-border p-2">
-          <button
-            type="button"
-            onClick={() => setActiveTab('requests')}
-            className={`min-h-11 rounded-[16px] text-sm font-black transition ${activeTab === 'requests' ? 'bg-device-midnight text-white' : 'text-device-slate hover:bg-device-ice'}`}
-          >
-            Requests <span className="font-mono">{pendingRequests.length}</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab('history')}
-            className={`min-h-11 rounded-[16px] text-sm font-black transition ${activeTab === 'history' ? 'bg-device-midnight text-white' : 'text-device-slate hover:bg-device-ice'}`}
-          >
-            History <span className="font-mono">{historicalRequests.length}</span>
-          </button>
+        <div className="mt-6 grid gap-3">
+          <TextInput value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Paste passport link, ID, serial, or IMEI" />
+          {message && <Notice tone="warning">{message}</Notice>}
+          <PrimaryAction onClick={() => void openValue(query)}>Find device</PrimaryAction>
+          <label className={ui.secondaryButton}>
+            <Upload size={18} /> Upload QR image
+            <input type="file" accept="image/*" className="sr-only" onChange={(event) => void scanFile(event.target.files?.[0])} />
+          </label>
         </div>
-        <CompactActivityList
-          empty={activeTab === 'requests' ? 'No active technician requests.' : 'Approved and rejected requests will appear here.'}
-          requests={visibleRequests}
-          onDecide={decide}
-          history={activeTab === 'history'}
-        />
       </section>
-    </AppShell>
+    </PublicFrame>
   );
 }
 
-function CompactActivityList({
-  empty,
-  requests,
-  history = false,
-  onDecide,
-}: {
-  empty: string;
-  requests: RepairAccessRequestWithDevice[];
-  history?: boolean;
-  onDecide: (requestId: string, decision: 'approved' | 'declined') => void;
-}) {
+export function ActivityPage() {
   return (
-    <div className="divide-y divide-device-border">
-      {requests.length ? requests.map((request) => {
-        const device = getRequestDevice(request);
-        return (
-          <div key={request.id} className="grid gap-3 px-4 py-3 md:grid-cols-[1fr_auto] md:items-center">
-            <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className={`h-2.5 w-2.5 rounded-full ${request.status === 'approved' ? 'bg-device-healthy' : request.status === 'declined' ? 'bg-device-critical' : 'bg-device-attention'}`} />
-                <p className="break-words text-sm font-black text-device-ink">{request.requester_name}</p>
-                <Badge tone={request.status === 'approved' ? 'approved' : request.status === 'declined' ? 'danger' : 'pending'}>{request.status}</Badge>
+    <RequireSignIn>
+      <ActivityScreen />
+    </RequireSignIn>
+  );
+}
+
+function ActivityScreen() {
+  const [requests, setRequests] = useState<RepairAccessRequestWithDevice[]>([]);
+  const [tab, setTab] = useState<'requests' | 'history'>('requests');
+  const [notice, setNotice] = useState('');
+
+  useEffect(() => {
+    getRepairAccessRequests().then(setRequests).catch(() => setRequests([]));
+  }, []);
+
+  async function decide(id: string, decision: 'approved' | 'declined') {
+    const previous = requests;
+    setRequests((items) => items.map((item) => item.id === id ? { ...item, status: decision, decided_at: new Date().toISOString() } : item));
+    setNotice(decision === 'approved' ? 'Request approved.' : 'Request declined.');
+    try {
+      await decideRepairAccessRequest(id, decision);
+    } catch (err) {
+      setRequests(previous);
+      setNotice(getServiceErrorMessage(err));
+    }
+  }
+
+  const visible = requests.filter((request) => tab === 'requests' ? request.status === 'pending' : request.status !== 'pending');
+
+  return (
+    <AppFrame>
+      <ScreenHeader title="Activity" description="Technician access requests and past decisions." />
+      <div className="mt-8 grid grid-cols-2 rounded-full border border-[var(--dna-border)] bg-[var(--dna-background)] p-1">
+        <button className={tabClass(tab === 'requests')} onClick={() => setTab('requests')}>Requests</button>
+        <button className={tabClass(tab === 'history')} onClick={() => setTab('history')}>History</button>
+      </div>
+      {notice && <Notice tone="success">{notice}</Notice>}
+      <div className="mt-6 divide-y divide-[var(--dna-border)]">
+        {visible.length ? visible.map((request) => (
+          <div key={request.id} className="py-4">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-[17px] font-medium">{request.requester_name}</p>
+                <p className="mt-1 text-[14px] leading-6 text-[var(--dna-text-secondary)]">{request.shop_name} · {request.requester_phone}</p>
+                <p className="mt-1 text-[14px] text-[var(--dna-text-secondary)]">{formatDateTime(request.created_at)}</p>
               </div>
-              <p className="mt-1 break-words text-sm text-device-slate">{request.shop_name} - {request.requester_phone}</p>
-              <p className="mt-1 break-words text-xs font-bold text-device-slate">{device ? `${device.brand} ${device.model}` : 'Device'} - {formatDateTime(request.created_at)}</p>
+              <StatusPill value={request.status} />
             </div>
-            <div className="flex flex-wrap gap-2 md:justify-end">
-              <GlassButton href={`/devices/${request.device_id}`}>Open</GlassButton>
-              {!history && request.status === 'pending' ? (
+            <div className="mt-3 flex gap-2">
+              <SecondaryAction href={`/devices/${request.device_id}`}>Open</SecondaryAction>
+              {request.status === 'pending' && tab === 'requests' ? (
                 <>
-                  <PrimaryButton onClick={() => onDecide(request.id, 'approved')}>Approve</PrimaryButton>
-                  <GlassButton onClick={() => onDecide(request.id, 'declined')}>Decline</GlassButton>
+                  <PrimaryAction onClick={() => void decide(request.id, 'approved')}>Approve</PrimaryAction>
+                  <SecondaryAction onClick={() => void decide(request.id, 'declined')}>Decline</SecondaryAction>
                 </>
               ) : null}
             </div>
           </div>
-        );
-      }) : <p className="p-4 text-sm text-device-slate">{empty}</p>}
-    </div>
-  );
-}
-
-function ActivityList({
-  empty,
-  requests,
-  history = false,
-  onDecide,
-}: {
-  empty: string;
-  requests: RepairAccessRequestWithDevice[];
-  history?: boolean;
-  onDecide: (requestId: string, decision: 'approved' | 'declined') => void;
-}) {
-  return (
-    <>
-      <div className="divide-y divide-device-border overflow-hidden rounded-[18px] border border-device-border bg-white">
-        {requests.length ? requests.map((request) => {
-          const device = getRequestDevice(request);
-          return (
-            <div key={request.id} className="grid gap-3 bg-white p-3 md:grid-cols-[1fr_auto] md:items-center">
-              <div className="flex items-start gap-3">
-                <span className={`mt-1 h-2.5 w-2.5 shrink-0 rounded-full ${request.status === 'approved' ? 'bg-device-healthy' : request.status === 'declined' ? 'bg-device-critical' : 'bg-device-attention'}`} />
-                <div className="min-w-0 flex-1">
-                  <p className="break-words font-black text-device-ink">{request.requester_name}</p>
-                  <p className="mt-1 break-words text-sm text-device-slate">{request.shop_name} · {request.requester_phone}</p>
-                  <p className="mt-1 break-words text-sm text-device-slate">{device ? `${device.brand} ${device.model}` : 'Device'} · {formatDateTime(request.created_at)}</p>
-                  <p className="mt-2"><Badge tone={request.status === 'approved' ? 'approved' : request.status === 'declined' ? 'danger' : 'pending'}>{request.status}</Badge></p>
-                </div>
-              </div>
-              <div className="flex flex-wrap gap-2 md:justify-end">
-                <GlassButton href={`/devices/${request.device_id}`}>Open</GlassButton>
-                {!history && request.status === 'pending' ? (
-                  <>
-                    <PrimaryButton onClick={() => onDecide(request.id, 'approved')}>Approve</PrimaryButton>
-                    <GlassButton onClick={() => onDecide(request.id, 'declined')}>Decline</GlassButton>
-                  </>
-                ) : null}
-              </div>
-            </div>
-          );
-        }) : <p className="text-sm text-device-slate">{empty}</p>}
+        )) : <EmptyState title={tab === 'requests' ? 'No active requests' : 'No history yet'} />}
       </div>
-    </>
+    </AppFrame>
   );
-}
-
-function getRequestDevice(request: RepairAccessRequestWithDevice): Device | null {
-  if (!request.devices) return null;
-  return Array.isArray(request.devices) ? request.devices[0] ?? null : request.devices;
 }
 
 export function AccountPage() {
   return (
-    <AuthGate>
-      <AccountContent />
-    </AuthGate>
+    <RequireSignIn>
+      <AccountScreen />
+    </RequireSignIn>
   );
 }
 
-function AccountContent() {
+function AccountScreen() {
   const viewer = useViewer();
   const [phone, setPhone] = useState(viewer.phone === 'Phone number not added' ? '' : viewer.phone);
   const [saved, setSaved] = useState(false);
 
-  function savePhone() {
+  function save() {
     if (!viewer.id) return;
     window.localStorage.setItem(`device-dna-phone-${viewer.id}`, phone.trim());
     setSaved(true);
   }
 
   return (
-    <AppShell>
-      <HeaderBlock eyebrow="Account" title="Profile" description="Your Google/Clerk identity used across Device DNA." />
-      <GlassPanel>
-        <div className="flex flex-col gap-5 md:flex-row md:items-center">
-          {viewer.imageUrl ? (
-            <img src={viewer.imageUrl} alt={viewer.name} className="h-24 w-24 rounded-2xl border border-device-border object-cover shadow-xl" />
-          ) : (
-            <div className="grid h-24 w-24 place-items-center rounded-2xl border border-device-border bg-white"><CircleUserRound size={42} /></div>
-          )}
-          <div className="flex-1">
-            <h2 className="text-4xl font-black text-device-ink">{viewer.name}</h2>
-            <div className="mt-5 grid gap-3 md:grid-cols-3">
-              <MiniMetric label="Email" value={viewer.email} normal />
-              <div className="rounded-xl border border-device-border bg-white p-3">
-                <p className="text-xs font-bold text-device-slate">Phone</p>
-                <div className="mt-2 flex flex-col gap-2 sm:flex-row">
-                  <Input value={phone} onChange={(event) => setPhone(event.target.value)} placeholder="Example: +91 98765 43210" />
-                  <GlassButton onClick={savePhone}>Save</GlassButton>
-                </div>
-                {saved && <p className="mt-2 text-xs font-bold text-device-healthy">Saved on this device.</p>}
-              </div>
-              <MiniMetric label="Access" value="Signed in" />
-            </div>
+    <AppFrame>
+      <ScreenHeader title="Profile" description="Account details used for repair access and owner activity." />
+      <section className={`${ui.panel} mt-8 p-5`}>
+        <div className="flex items-center gap-4">
+          <div className="grid h-14 w-14 place-items-center rounded-full border border-[var(--dna-border)]">
+            <CircleUserRound size={24} strokeWidth={1.8} />
           </div>
-          {viewer.configured && (
-            <SignOutButton>
-              <button className="inline-flex min-h-12 items-center justify-center gap-2 rounded-[16px] border border-device-border bg-white px-5 text-sm font-black text-device-ink">
-                <LogOut size={17} /> Sign out
-              </button>
-            </SignOutButton>
-          )}
+          <div>
+            <h1 className="text-[22px] font-medium">{viewer.name}</h1>
+            <p className="mt-1 text-[14px] text-[var(--dna-text-secondary)]">{viewer.email}</p>
+          </div>
         </div>
-      </GlassPanel>
-    </AppShell>
+        <div className="mt-6 grid gap-4">
+          <FormField label="Phone number"><TextInput value={phone} onChange={(event) => setPhone(event.target.value)} placeholder="+91 98765 43210" /></FormField>
+          {saved && <Notice tone="success">Phone number saved on this device.</Notice>}
+          <PrimaryAction onClick={save}>Save profile</PrimaryAction>
+          <SignOutButton>
+            <button className={ui.secondaryButton}><X size={18} /> Sign out</button>
+          </SignOutButton>
+        </div>
+      </section>
+    </AppFrame>
   );
 }
 
-export function PassportPage() {
-  return (
-    <AuthGate>
-      <PassportContent />
-    </AuthGate>
-  );
-}
-
-function PassportContent() {
-  const params = useParams<{ id: string }>();
-  const viewer = useViewer();
-  const [timeline, setTimeline] = useState<DeviceTimeline | null | undefined>(undefined);
-  const [score, setScore] = useState<DeviceScore | null>(null);
-  const [accessStatus, setAccessStatus] = useState<'pending' | 'approved' | 'declined' | null | undefined>(undefined);
-
-  useEffect(() => {
-    let alive = true;
-
-    getPublicPassportTimeline(params.id)
-      .then((nextTimeline) => {
-        if (!alive) return;
-        setTimeline(nextTimeline);
-        setScore(nextTimeline?.device_scores[0] ?? null);
-      })
-      .catch(() => {
-        if (!alive) return;
-        setTimeline(null);
-        setScore(null);
-      });
-
-    return () => {
-      alive = false;
-    };
-  }, [params.id]);
-
-  useEffect(() => {
-    if (!viewer.id || !timeline || viewer.id === timeline.owner_id) {
-      setAccessStatus(null);
-      return;
-    }
-
-    setAccessStatus(undefined);
-    getRepairAccessStatus(timeline.id, viewer.id)
-      .then(setAccessStatus)
-      .catch(() => setAccessStatus(null));
-  }, [viewer.id, timeline]);
-
-  if (timeline === undefined) return <AppShell><LoadingGlass title="Loading passport" /></AppShell>;
-  if (!timeline) return <AppShell><EmptyGlass title="Passport not found" body="Check the QR code or scan again." /></AppShell>;
-
-  return (
-    <AppShell>
-      <DeviceHero device={timeline} score={score} showPrivateId={false} />
-      <div className="mt-6 grid gap-5 xl:grid-cols-[0.88fr_1.12fr]">
-        <ScoreSuite score={score} />
-        <section>
-          <HeaderBlock eyebrow="Timeline" title="Repair log" description="Only recorded repair history is shown here." />
-          <RepairTimeline repairs={timeline.repair_events} isOwner={false} publicOnly />
-          {accessStatus !== undefined && (
-            <RepairAccessPanel device={timeline} status={accessStatus} onSubmitted={() => setAccessStatus('pending')} />
-          )}
-        </section>
-      </div>
-    </AppShell>
-  );
-}
-
-function AuthGate({ children }: { children: React.ReactNode }) {
+function RequireSignIn({ children }: { children: React.ReactNode }) {
   const viewer = useViewer();
   const pathname = usePathname();
-  const [timedOut, setTimedOut] = useState(false);
+  const [waiting, setWaiting] = useState(true);
 
   useEffect(() => {
     if (viewer.ready) {
-      setTimedOut(false);
+      setWaiting(false);
       return;
     }
-
-    const timer = window.setTimeout(() => setTimedOut(true), 3500);
+    const timer = window.setTimeout(() => setWaiting(false), 1500);
     return () => window.clearTimeout(timer);
   }, [viewer.ready]);
 
-  if (!viewer.configured) {
+  if (!viewer.configured) return <PublicFrame><EmptyState title="Auth is not configured" text="Add the Clerk publishable key and restart the app." /></PublicFrame>;
+  if (waiting) return <PublicFrame><LoadingState text="Checking sign in" /></PublicFrame>;
+  if (!viewer.signedIn) {
     return (
-      <AppShell>
-        <GlassPanel>
-          <h1 className="text-4xl font-black text-device-ink">Clerk is not configured.</h1>
-          <p className="mt-3 text-sm leading-7 text-device-slate">
-            Add NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY to your environment and restart
-            Next.js.
-          </p>
-        </GlassPanel>
-      </AppShell>
+      <PublicFrame>
+        <header className="flex items-center justify-between"><LogoMark /><Link href="/" className={ui.link}>Home</Link></header>
+        <section className="mt-20">
+          <Lock size={24} strokeWidth={1.8} />
+          <h1 className="mt-6 text-[32px] font-medium tracking-[-0.03em]">Sign in to continue</h1>
+          <p className="mt-4 text-[16px] leading-8 text-[var(--dna-text-secondary)]">This keeps owner records and technician requests attached to the right account.</p>
+          <div className="mt-8 grid gap-3">
+            <SignInButton mode="modal" forceRedirectUrl={pathname}>
+              <button className={ui.primaryButton}>Sign in</button>
+            </SignInButton>
+            <SignUpButton mode="modal" forceRedirectUrl={pathname}>
+              <button className={ui.secondaryButton}>Create account</button>
+            </SignUpButton>
+          </div>
+        </section>
+      </PublicFrame>
     );
   }
-
-  if (!viewer.ready && !timedOut) return <AppShell><LoadingGlass title="Checking sign-in" /></AppShell>;
-
-  if (!viewer.signedIn || timedOut) {
-    return <SignedOutRouteState pathname={pathname} />;
-  }
-
   return <>{children}</>;
 }
 
-function HeaderBlock({ eyebrow, title, description, action }: { eyebrow?: string; title: string; description?: string; action?: React.ReactNode }) {
+function ScreenHeader({ title, description, action }: { title: string; description?: string; action?: React.ReactNode }) {
   return (
-    <header className="mb-5 flex flex-col justify-between gap-4 md:flex-row md:items-end">
+    <header className="flex items-start justify-between gap-4">
       <div>
-        {eyebrow && <SectionKicker>{eyebrow}</SectionKicker>}
-        <h1 className="mt-2 max-w-4xl text-4xl font-medium leading-tight tracking-[-0.035em] text-device-ink md:text-6xl">{title}</h1>
-        {description && <p className="mt-3 max-w-2xl text-sm leading-7 text-device-slate md:text-base">{description}</p>}
+        <h1 className="text-[32px] font-medium leading-tight tracking-[-0.03em] md:text-[44px]">{title}</h1>
+        {description && <p className="mt-3 max-w-xl text-[15px] leading-7 text-[var(--dna-text-secondary)]">{description}</p>}
       </div>
       {action}
     </header>
   );
 }
 
-function GlassPanel({ children, className = '' }: { children: React.ReactNode; className?: string }) {
-  return <section className={`rounded-[20px] border border-device-border bg-white p-4 md:p-5 ${className}`}>{children}</section>;
-}
-
-function SectionKicker({ children }: { children: React.ReactNode }) {
-  return <p className="text-xs font-medium uppercase tracking-[0.14em] text-device-slate">{children}</p>;
-}
-
-function PrimaryButton({ href, children, disabled = false, onClick }: { href?: string; children: React.ReactNode; disabled?: boolean; onClick?: () => void }) {
-  const className = 'inline-flex min-h-12 items-center justify-center gap-2 rounded-[16px] bg-device-blue px-5 text-sm font-medium text-white transition hover:bg-device-cobalt disabled:cursor-not-allowed disabled:opacity-50';
-  if (href) return <Link href={href} className={className}>{children}</Link>;
-  return <button type="button" disabled={disabled} onClick={onClick} className={className}>{children}</button>;
-}
-
-function SignedOutRouteState({ pathname }: { pathname: string }) {
-  const route = pathname.startsWith('/scan')
-    ? {
-        eyebrow: 'Scan',
-        title: 'Scan a device',
-        body: 'Sign in to open a scanned Device DNA passport and request technician access.',
-        icon: <QrCode />,
-        preview: 'scanner',
-        color: 'bg-device-blue',
-      }
-    : pathname.startsWith('/devices') || pathname.startsWith('/register') || pathname.startsWith('/passport')
-      ? {
-          eyebrow: 'Devices',
-          title: 'Your devices',
-          body: 'Sign in to register, view, and manage the private side of your device records.',
-          icon: <Smartphone />,
-          preview: 'devices',
-          color: 'bg-device-healthy',
-        }
-      : pathname.startsWith('/activity')
-        ? {
-            eyebrow: 'Activity',
-            title: 'Your activity',
-            body: 'Sign in to approve technician access requests and view request history.',
-            icon: <Activity />,
-            preview: 'activity',
-            color: 'bg-device-attention',
-          }
-        : {
-            eyebrow: 'Account',
-            title: 'Enter Device DNA',
-            body: 'Sign in to continue with your device passport.',
-            icon: <CircleUserRound />,
-            preview: 'account',
-            color: 'bg-device-cobalt',
-          };
-
+function DeviceHeader({ timeline, score, showSerial, publicMode }: { timeline: DeviceTimeline; score: DeviceScore | null; showSerial: boolean; publicMode: boolean }) {
+  const value = score?.health_score ?? (timeline.repair_events.length ? 86 : 100);
   return (
-    <AppShell>
-      <section className="mx-auto flex min-h-[calc(100vh-120px)] max-w-5xl items-center">
-        <div className="grid w-full gap-6 lg:grid-cols-[0.92fr_1.08fr] lg:items-center">
-          <div>
-            <div className={`mb-7 h-1 w-16 rounded-full ${route.color}`} />
-            <SectionKicker>{route.eyebrow}</SectionKicker>
-            <h1 className="mt-3 text-5xl font-black leading-none text-device-ink md:text-7xl">{route.title}</h1>
-            <p className="mt-5 max-w-lg text-base leading-8 text-device-slate">{route.body}</p>
-            <div className="mt-7 flex flex-wrap gap-3">
-              <SignInButton mode="modal" forceRedirectUrl={pathname}>
-                <button className="inline-flex min-h-12 items-center justify-center gap-2 rounded-[16px] bg-device-blue px-5 text-sm font-medium text-white">
-                  Sign in
-                </button>
-              </SignInButton>
-              <SignUpButton mode="modal" forceRedirectUrl={pathname}>
-                <button className="inline-flex min-h-12 items-center justify-center rounded-[16px] border border-device-border bg-white px-5 text-sm font-medium text-device-ink">
-                  Create account
-                </button>
-              </SignUpButton>
+    <section>
+      <p className="text-[14px] text-[var(--dna-text-secondary)]">{publicMode ? 'Read-only public passport' : 'Owner device timeline'}</p>
+      <h1 className="mt-3 text-[36px] font-medium leading-tight tracking-[-0.035em] md:text-[56px]">{timeline.brand} {timeline.model}</h1>
+      {showSerial && <p className="mt-3 break-all font-mono text-[13px] text-[var(--dna-text-secondary)]">{timeline.device_type === 'phone' ? 'IMEI' : 'Serial'} {timeline.serial_imei}</p>}
+      <div className="mt-8 flex items-end gap-4">
+        <span className="text-[56px] font-medium leading-none tracking-[-0.05em]">{value}</span>
+        <span className="pb-2 text-[16px] text-[var(--dna-text-secondary)]">{healthSentence(value)}</span>
+      </div>
+      {score?.ai_summary && <p className="mt-5 text-[16px] leading-8 text-[var(--dna-text-secondary)]">{score.ai_summary}</p>}
+    </section>
+  );
+}
+
+function RepairList({ repairs }: { repairs: RepairEventWithParts[] }) {
+  if (!repairs.length) return <EmptyState title="No repairs logged yet" text="Clean history." />;
+  return (
+    <div className="mt-6 divide-y divide-[var(--dna-border)]">
+      {repairs.map((repair) => (
+        <article key={repair.id} className="py-5">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h3 className="text-[20px] font-medium tracking-[-0.02em]">{repair.symptom}</h3>
+              <p className="mt-2 text-[14px] text-[var(--dna-text-secondary)]">{formatDateTime(repair.created_at)} · {repair.profiles?.display_name ?? 'Technician'}</p>
             </div>
+            <span className="text-[14px] text-[var(--dna-text-secondary)]">{formatCurrency(repair.cost)}</span>
           </div>
-          <LockedPreview icon={route.icon} preview={route.preview} />
-        </div>
-      </section>
-    </AppShell>
-  );
-}
-
-function LockedPreview({ icon, preview }: { icon: React.ReactNode; preview: string }) {
-  return (
-    <div className="relative overflow-hidden rounded-[24px] border border-device-border bg-white p-4 shadow-[0_18px_50px_rgba(17,24,39,0.10)]">
-      {preview === 'scanner' ? (
-        <div className="relative aspect-[4/5] overflow-hidden rounded-[20px] border border-device-border bg-device-midnight">
-          <div className="absolute inset-8 rounded-[20px] border border-device-blue/40" />
-          <div className="scanner-line absolute left-10 right-10 top-14 h-px bg-device-blue" />
-          <div className="absolute inset-0 grid place-items-center bg-device-midnight/42">
-            <div className="grid h-16 w-16 place-items-center rounded-2xl bg-white text-device-blue">
-              <LockKeyhole size={30} />
-            </div>
-          </div>
-        </div>
-      ) : (
-        <div className="relative space-y-3">
-          {[0, 1, 2].map((index) => (
-            <div key={index} className="rounded-2xl border border-device-border bg-[#F7F8FB] p-4">
-              <div className="flex items-center gap-3">
-                <div className="grid h-12 w-12 place-items-center rounded-xl border border-device-blue/15 bg-device-blue/8 text-device-blue">{icon}</div>
-                <div className="min-w-0 flex-1">
-                  <div className="h-3 w-2/3 rounded-full bg-device-border" />
-                  <div className="mt-3 h-2 w-1/2 rounded-full bg-device-border/70" />
-                </div>
-              </div>
-            </div>
-          ))}
-          <div className="absolute inset-0 grid place-items-center bg-white/65">
-            <div className="grid h-16 w-16 place-items-center rounded-2xl border border-device-border bg-white text-device-blue shadow-[0_14px_34px_rgba(17,24,39,0.12)]">
-              <LockKeyhole size={28} />
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function DarkSecondaryButton({ href, children, onClick }: { href?: string; children: React.ReactNode; onClick?: () => void }) {
-  const className = 'inline-flex min-h-12 items-center justify-center gap-2 rounded-[16px] border border-device-border bg-white px-5 text-sm font-black text-device-ink transition hover:bg-device-ice';
-  if (href) return <Link href={href} className={className}>{children}</Link>;
-  return <button type="button" onClick={onClick} className={className}>{children}</button>;
-}
-
-function GlassButton({ href, children, disabled = false, onClick }: { href?: string; children: React.ReactNode; disabled?: boolean; onClick?: () => void }) {
-  const className = 'inline-flex min-h-12 items-center justify-center gap-2 rounded-[16px] border border-device-border bg-white px-5 text-sm font-medium text-device-ink transition hover:bg-device-ice disabled:cursor-not-allowed disabled:opacity-50';
-  if (href) return <Link href={href} className={className}>{children}</Link>;
-  return <button type="button" disabled={disabled} onClick={onClick} className={className}>{children}</button>;
-}
-
-function IconTile({ children, tone }: { children: React.ReactNode; tone: 'blue' | 'cyan' | 'green' | 'amber' }) {
-  const tones = {
-    blue: 'border-device-blue/25 bg-device-blue/10 text-device-blue',
-    cyan: 'border-device-cyan/25 bg-device-cyan/10 text-device-cyan',
-    green: 'border-emerald-300/40 bg-emerald-50 text-device-healthy',
-    amber: 'border-amber-300/45 bg-amber-50 text-device-attention',
-  };
-  return <div className={`grid h-14 w-14 shrink-0 place-items-center rounded-xl border ${tones[tone]}`}>{children}</div>;
-}
-
-function MiniMetric({ label, value, normal = false }: { label: string; value: React.ReactNode; normal?: boolean }) {
-  return (
-    <div className="rounded-xl border border-device-border bg-white p-3">
-      <p className="text-xs font-bold text-device-slate">{label}</p>
-      <p className={`mt-1 truncate text-sm font-black text-device-ink ${normal ? 'normal-case' : 'capitalize'}`}>{value}</p>
-    </div>
-  );
-}
-
-function HeroStat({ label, value }: { label: string; value: React.ReactNode }) {
-  return (
-    <div className="min-w-36 rounded-2xl border border-device-border bg-white p-4">
-      <p className="text-xs font-bold text-device-slate">{label}</p>
-      <p className="mt-1 text-xl font-black text-device-ink">{value}</p>
-    </div>
-  );
-}
-
-function Badge({ children, tone }: { children: React.ReactNode; tone: 'approved' | 'pending' | 'locked' | 'neutral' | 'danger' }) {
-  const tones = {
-    approved: 'border-emerald-300/40 bg-emerald-50 text-device-healthy',
-    pending: 'border-amber-300/45 bg-amber-50 text-device-attention',
-    locked: 'border-device-border bg-white text-device-slate',
-    neutral: 'border-device-blue/25 bg-device-blue/10 text-device-blue',
-    danger: 'border-red-300/40 bg-red-50 text-device-critical',
-  };
-  return <span className={`inline-flex min-h-8 items-center rounded-full border px-3 text-xs font-black ${tones[tone]}`}>{children}</span>;
-}
-
-function SearchBox({ value, onChange }: { value: string; onChange: (value: string) => void }) {
-  return (
-    <label className="flex min-h-12 flex-1 items-center gap-2 rounded-full border border-device-border bg-white px-4">
-      <Search size={18} className="text-device-slate" />
-      <input value={value} onChange={(event) => onChange(event.target.value)} placeholder="Search brand, model, serial..." className="w-full bg-transparent text-sm text-device-ink outline-none placeholder:text-device-slate" />
-    </label>
-  );
-}
-
-function SegmentedFilter({ value, onChange }: { value: DeviceFilter; onChange: (value: DeviceFilter) => void }) {
-  return (
-    <div className="flex rounded-full border border-device-border bg-white p-1">
-      {(['all', 'phone', 'laptop'] as DeviceFilter[]).map((item) => (
-        <button key={item} type="button" onClick={() => onChange(item)} className={`min-h-10 rounded-full px-4 text-sm font-black capitalize ${value === item ? 'bg-white text-device-midnight' : 'text-device-slate'}`}>
-          {item === 'all' ? <span className="inline-flex items-center gap-1"><Filter size={14} /> All</span> : item === 'phone' ? 'Phones' : 'Laptops'}
-        </button>
+          <p className="mt-4 text-[15px] leading-7 text-[var(--dna-text-secondary)]">{repair.diagnosis || 'No diagnosis recorded.'}</p>
+          <p className="mt-2 text-[15px] leading-7">{repair.action_taken}</p>
+          {repair.parts.length ? (
+            <p className="mt-3 text-[14px] text-[var(--dna-text-secondary)]">
+              Parts: {repair.parts.map((part) => `${pretty(part.component_name)} · ${part.warranty_days} warranty days`).join(', ')}
+            </p>
+          ) : null}
+        </article>
       ))}
     </div>
   );
 }
 
-function StepRail({ labels, active }: { labels: string[]; active: number }) {
+function AccessPanel({ device, status, onSubmitted }: { device: DeviceTimeline; status: AccessState; onSubmitted: () => void }) {
+  const viewer = useViewer();
+  const [form, setForm] = useState({ requesterName: viewer.name === 'Visitor' ? '' : viewer.name, requesterPhone: '', shopName: '' });
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState('');
+
+  if (device.owner_id === viewer.id) return null;
+  if (status === undefined) return <LoadingState text="Checking access" />;
+  if (status === 'approved') return <Notice tone="success">Technician access is approved for this account.</Notice>;
+  if (status === 'pending') return <Notice tone="warning">Access request sent. The owner can approve it in Activity.</Notice>;
+
+  async function submit() {
+    if (!viewer.signedIn) {
+      setMessage('Sign in before requesting access.');
+      return;
+    }
+    if (!form.requesterName.trim() || !form.requesterPhone.trim() || !form.shopName.trim()) {
+      setMessage('Name, phone number, and shop name are required.');
+      return;
+    }
+    setBusy(true);
+    setMessage('');
+    try {
+      await requestRepairAccess({ deviceId: device.id, requesterName: form.requesterName, requesterPhone: form.requesterPhone, shopName: form.shopName });
+      onSubmitted();
+    } catch (err) {
+      setMessage(getServiceErrorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
-    <div className="mb-5 grid rounded-full border border-device-border bg-white p-1" style={{ gridTemplateColumns: `repeat(${labels.length}, minmax(0, 1fr))` }}>
-      {labels.map((label, index) => (
-        <div key={label} className={`rounded-full px-3 py-3 text-center text-xs font-black ${index <= active ? 'bg-device-blue text-white' : 'text-device-slate'}`}>
-          {label}
-        </div>
-      ))}
-    </div>
+    <section className={`${ui.panel} mt-8 grid gap-4 p-5`}>
+      <h2 className="text-[22px] font-medium tracking-[-0.02em]">Request technician access</h2>
+      <FormField label="Your name"><TextInput value={form.requesterName} onChange={(event) => setForm({ ...form, requesterName: event.target.value })} placeholder="Technician full name" /></FormField>
+      <FormField label="Phone number"><TextInput value={form.requesterPhone} onChange={(event) => setForm({ ...form, requesterPhone: event.target.value })} placeholder="+91 98765 43210" /></FormField>
+      <FormField label="Shop name"><TextInput value={form.shopName} onChange={(event) => setForm({ ...form, shopName: event.target.value })} placeholder="Service centre name" /></FormField>
+      {message && <Notice tone="warning">{message}</Notice>}
+      <PrimaryAction disabled={busy} onClick={submit}>{busy ? 'Sending' : 'Request access'}</PrimaryAction>
+    </section>
   );
 }
 
-function TypeCard({ active, icon, title, onClick }: { active: boolean; icon: React.ReactNode; title: string; onClick: () => void }) {
-  return (
-    <button type="button" onClick={onClick} className={`min-h-40 rounded-2xl border p-5 text-left transition ${active ? 'border-device-blue bg-device-blue/8' : 'border-device-border bg-white hover:bg-device-ice'}`}>
-      <IconTile tone={title === 'Phone' ? 'blue' : 'cyan'}>{icon}</IconTile>
-      <span className="mt-5 block text-3xl font-black text-device-ink">{title}</span>
-    </button>
-  );
-}
-
-function QrGlass({ value }: { value: string }) {
+function QrBlock({ value, fileName }: { value: string; fileName: string }) {
   const id = useMemo(() => `qr-${Math.random().toString(36).slice(2)}`, []);
-
   function download() {
     const svg = document.getElementById(id);
     if (!svg) return;
     const data = new XMLSerializer().serializeToString(svg);
     const image = new Image();
-    const svgUrl = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(data)}`;
-
     image.onload = () => {
       const canvas = document.createElement('canvas');
       const padding = 32;
       canvas.width = image.width + padding * 2;
       canvas.height = image.height + padding * 2;
       const context = canvas.getContext('2d');
-
-      if (!context) {
-        return;
-      }
-
-      context.fillStyle = '#ffffff';
+      if (!context) return;
+      context.fillStyle = dnaCssVariables['--dna-background'] as string;
       context.fillRect(0, 0, canvas.width, canvas.height);
       context.drawImage(image, padding, padding);
-
       const anchor = document.createElement('a');
       anchor.href = canvas.toDataURL('image/png');
-      anchor.download = 'device-dna-passport-qr.png';
+      anchor.download = `${fileName}.png`;
       anchor.click();
     };
-
-    image.src = svgUrl;
+    image.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(data)}`;
   }
-
   return (
-    <GlassPanel>
-      <div className="flex items-center justify-between gap-3">
-        <h2 className="text-xl font-black text-device-ink">Passport QR</h2>
-        <QrCode className="text-device-blue" />
+    <section className={`${ui.panel} p-5`}>
+      <div className="grid place-items-center">
+        <QRCodeSVG id={id} value={value} size={200} bgColor={dnaCssVariables['--dna-background'] as string} fgColor={dnaCssVariables['--dna-text-primary'] as string} />
       </div>
-      <div className="mt-4 grid place-items-center rounded-2xl border border-device-border bg-white p-5">
-        <QRCodeSVG id={id} value={value} size={190} bgColor="#ffffff" fgColor="#080B11" />
+      <p className="mt-4 break-all font-mono text-[12px] text-[var(--dna-text-secondary)]">{value}</p>
+      <div className="mt-4 grid grid-cols-2 gap-3">
+        <SecondaryAction onClick={download}><Download size={18} /> Download</SecondaryAction>
+        <SecondaryAction onClick={() => window.print()}><FileText size={18} /> Print</SecondaryAction>
       </div>
-      <p className="mt-3 break-all font-mono text-xs text-device-slate">{value}</p>
-      <div className="mt-4 grid grid-cols-2 gap-2">
-        <GlassButton onClick={download}><Download size={16} /> Download</GlassButton>
-        <GlassButton onClick={() => window.print()}><Printer size={16} /> Print</GlassButton>
-      </div>
-    </GlassPanel>
+    </section>
   );
 }
 
-function AlertGlass({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div className="mb-4 rounded-2xl border border-device-blue/20 bg-device-blue/8 p-4">
-      <p className="font-black text-device-blue">{title}</p>
-      <p className="mt-1 text-sm leading-7 text-device-slate">{children}</p>
-    </div>
-  );
+function PrimaryAction({ href, children, disabled, onClick }: { href?: string; children: React.ReactNode; disabled?: boolean; onClick?: () => void }) {
+  if (href) return <Link href={href} className={ui.primaryButton}>{children}</Link>;
+  return <button type="button" disabled={disabled} onClick={onClick} className={ui.primaryButton}>{children}</button>;
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function SecondaryAction({ href, children, disabled, onClick }: { href?: string; children: React.ReactNode; disabled?: boolean; onClick?: () => void }) {
+  if (href) return <Link href={href} className={ui.secondaryButton}>{children}</Link>;
+  return <button type="button" disabled={disabled} onClick={onClick} className={ui.secondaryButton}>{children}</button>;
+}
+
+function TextInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
+  return <input {...props} className={`${ui.field} ${props.className ?? ''}`} />;
+}
+
+function SelectInput(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
+  return <select {...props} className={`${ui.field} ${props.className ?? ''}`} />;
+}
+
+function TextArea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
+  return <textarea {...props} className={`${ui.field} min-h-28 py-3 ${props.className ?? ''}`} />;
+}
+
+function FormField({ label, children }: { label: string; children: React.ReactNode }) {
+  return <label className="block"><span className="text-[14px] text-[var(--dna-text-secondary)]">{label}</span><span className="mt-2 block">{children}</span></label>;
+}
+
+function SearchInput({ value, onChange }: { value: string; onChange: (value: string) => void }) {
   return (
-    <label className="block">
-      <span className="text-sm font-medium text-device-slate">{label}</span>
-      <div className="mt-2">{children}</div>
+    <label className="flex min-h-[var(--dna-touch-target)] items-center gap-3 rounded-[var(--dna-pill-radius)] border border-[var(--dna-border)] bg-[var(--dna-background)] px-4">
+      <Search size={18} strokeWidth={1.8} />
+      <input value={value} onChange={(event) => onChange(event.target.value)} placeholder="Search devices" className="w-full bg-transparent text-[15px] outline-none placeholder:text-[var(--dna-text-secondary)]" />
     </label>
   );
 }
 
-function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
-  return <input {...props} className={`min-h-12 w-full rounded-[16px] border border-device-border bg-white px-4 text-sm text-device-ink outline-none placeholder:text-device-slate focus:border-device-blue ${props.className ?? ''}`} />;
-}
-
-function Select(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
-  return <select {...props} className={`min-h-12 w-full rounded-[16px] border border-device-border bg-white px-4 text-sm text-device-ink outline-none focus:border-device-blue ${props.className ?? ''}`} />;
-}
-
-function Textarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
-  return <textarea {...props} className={`min-h-28 w-full rounded-[16px] border border-device-border bg-white px-4 py-3 text-sm text-device-ink outline-none placeholder:text-device-slate focus:border-device-blue ${props.className ?? ''}`} />;
-}
-
-function Info({ label, value }: { label: string; value: React.ReactNode }) {
+function PillSwitch({ value, onChange }: { value: DeviceFilter; onChange: (value: DeviceFilter) => void }) {
   return (
-    <div>
-      <dt className="text-xs font-black uppercase tracking-[0.14em] text-device-slate">{label}</dt>
-      <dd className="mt-1 leading-6 text-device-slate">{value}</dd>
+    <div className="grid grid-cols-3 rounded-[var(--dna-pill-radius)] border border-[var(--dna-border)] bg-[var(--dna-background)] p-1">
+      {(['all', 'phone', 'laptop'] as DeviceFilter[]).map((item) => (
+        <button key={item} onClick={() => onChange(item)} className={tabClass(value === item)}>{item === 'all' ? 'All' : item === 'phone' ? 'Phones' : 'Laptops'}</button>
+      ))}
     </div>
   );
 }
 
-function LoadingGlass({ title }: { title: string }) {
+function StepLabels({ labels, active }: { labels: string[]; active: number }) {
   return (
-    <GlassPanel>
-      <p className="font-black text-device-ink">{title}</p>
-      <div className="mt-4 h-3 w-2/3 animate-pulse rounded-full bg-device-border" />
-      <div className="mt-3 h-3 w-1/2 animate-pulse rounded-full bg-device-border" />
-    </GlassPanel>
+    <div className="mt-8 grid gap-2" style={{ gridTemplateColumns: `repeat(${labels.length}, minmax(0, 1fr))` }}>
+      {labels.map((label, index) => <span key={label} className={`h-1 rounded-full ${index <= active ? 'bg-[var(--dna-accent)]' : 'bg-[var(--dna-border)]'}`} />)}
+    </div>
   );
 }
 
-function EmptyGlass({ title, body }: { title: string; body?: string }) {
+function ChoiceButton({ active, icon, label, onClick }: { active: boolean; icon: React.ReactNode; label: string; onClick: () => void }) {
   return (
-    <GlassPanel>
-      <Sparkles className="text-device-blue" />
-      <h2 className="mt-4 text-2xl font-black text-device-ink">{title}</h2>
-      {body && <p className="mt-2 max-w-md text-sm leading-7 text-device-slate">{body}</p>}
-    </GlassPanel>
+    <button type="button" onClick={onClick} className={`${ui.panel} min-h-32 p-5 text-left ${active ? 'border-[var(--dna-accent)]' : ''}`}>
+      <span className="[&_svg]:h-6 [&_svg]:w-6 [&_svg]:stroke-[1.8]">{icon}</span>
+      <span className="mt-8 block text-[24px] font-medium">{label}</span>
+    </button>
   );
+}
+
+function ReviewLine({ label, value }: { label: string; value: React.ReactNode }) {
+  return <p className="flex justify-between gap-4 border-b border-[var(--dna-border)] py-3 text-[15px]"><span className="text-[var(--dna-text-secondary)]">{label}</span><span className="text-right">{value}</span></p>;
+}
+
+function Notice({ children, tone }: { children: React.ReactNode; tone: 'success' | 'warning' | 'danger' }) {
+  const color = tone === 'success' ? 'var(--dna-success)' : tone === 'warning' ? 'var(--dna-warning)' : 'var(--dna-danger)';
+  return <p className="rounded-[var(--dna-control-radius)] border border-[var(--dna-border)] bg-[var(--dna-background)] px-4 py-3 text-[14px]" style={{ color }}>{children}</p>;
+}
+
+function StatusPill({ value }: { value: string }) {
+  const color = value === 'approved' ? 'var(--dna-success)' : value === 'declined' ? 'var(--dna-danger)' : 'var(--dna-warning)';
+  return <span className="rounded-full border border-[var(--dna-border)] px-3 py-1 text-[13px]" style={{ color }}>{value}</span>;
+}
+
+function LoadingState({ text }: { text: string }) {
+  return <p className="pt-20 text-[17px] text-[var(--dna-text-secondary)]">{text}...</p>;
+}
+
+function EmptyState({ title, text }: { title: string; text?: string }) {
+  return (
+    <section className="py-14">
+      <ListChecks size={24} strokeWidth={1.8} />
+      <h2 className="mt-5 text-[24px] font-medium tracking-[-0.02em]">{title}</h2>
+      {text && <p className="mt-2 text-[15px] leading-7 text-[var(--dna-text-secondary)]">{text}</p>}
+    </section>
+  );
+}
+
+function tabClass(active: boolean) {
+  return `min-h-11 rounded-full px-4 text-[15px] font-normal ${active ? 'bg-[var(--dna-surface)] text-[var(--dna-text-primary)]' : 'text-[var(--dna-text-secondary)]'}`;
+}
+
+function healthSentence(score: number) {
+  if (score >= 85) return 'Strong device health';
+  if (score >= 65) return 'Some attention needed';
+  return 'Review before resale or repair';
 }
 
 function parseDeviceCode(value: string) {
@@ -2228,22 +1197,16 @@ function parseDeviceCode(value: string) {
 }
 
 function shouldOpenPassportDirectly(rawValue: string, parsed: string) {
-  const clean = rawValue.trim();
-
-  if (isUuidLike(parsed)) {
-    return true;
-  }
-
+  if (isUuid(parsed)) return true;
   try {
-    const url = new URL(clean);
-    const parts = url.pathname.split('/').filter(Boolean);
-    return parts.some((part) => ['passport', 'devices', 'timeline'].includes(part));
+    const url = new URL(rawValue.trim());
+    return url.pathname.split('/').some((part) => ['passport', 'devices', 'timeline'].includes(part));
   } catch {
     return false;
   }
 }
 
-function isUuidLike(value: string) {
+function isUuid(value: string) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value.trim());
 }
 
@@ -2262,22 +1225,14 @@ function pretty(value: string) {
   return value.replace(/_/g, ' ');
 }
 
-function getRegistrationErrorMessage(error: unknown) {
-  const message = getServiceErrorMessage(error);
-  const lower = message.toLowerCase();
-
-  if (lower.includes('duplicate') || lower.includes('unique')) {
-    return 'A device with this serial or IMEI already exists.';
-  }
-
-  if (lower.includes('row-level security') || lower.includes('violates row-level security')) {
-    return 'Supabase blocked registration. Apply the latest profile bootstrap migration so signed-in users can create their own devices.';
-  }
-
-  if (lower.includes('jwt') || lower.includes('auth')) {
-    return 'Your sign-in session is missing the Supabase JWT. Sign out, sign in again, and confirm the Clerk Supabase JWT template is enabled.';
-  }
-
-  return `Could not register this device: ${message}`;
-}
-
+type Html5Scanner = {
+  start: (
+    cameraConfig: string | MediaTrackConstraints,
+    configuration: { fps: number; qrbox: { width: number; height: number }; aspectRatio: number },
+    success: (decodedText: string) => void,
+    error?: () => void,
+  ) => Promise<unknown>;
+  stop: () => Promise<unknown>;
+  clear: () => void;
+  scanFile: (file: File, showImage?: boolean) => Promise<string>;
+};

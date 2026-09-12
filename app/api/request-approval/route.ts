@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { dnaTokens } from '@/lib/design-tokens';
 import type { Database } from '@/src/types/database';
 
 export const dynamic = 'force-dynamic';
@@ -266,30 +267,41 @@ async function sendGmailRepairNotification({
       '',
       'If you did not request this, you can ignore this email.',
     ].join('\n'),
-    html: `
-      <div style="margin:0;padding:28px;background:#080B11;font-family:Inter,Arial,sans-serif;color:#F6F8FC">
-        <div style="max-width:560px;margin:0 auto;border:1px solid #263247;border-radius:22px;background:#111722;overflow:hidden">
-          <div style="height:3px;background:linear-gradient(90deg,#2764FF,#38BDF8)"></div>
-          <div style="padding:28px">
-            <p style="margin:0 0 18px;font-size:12px;letter-spacing:0.18em;text-transform:uppercase;font-weight:800;color:#38BDF8">Device DNA</p>
-            <h1 style="margin:0;font-size:28px;line-height:1.1;font-weight:900;color:#ffffff">New device activity</h1>
-            <p style="margin:18px 0 0;font-size:16px;line-height:1.7;color:#DCE3ED">
-              <strong style="color:#ffffff">${escapeHtml(technicianName)}</strong> ${escapeHtml(reason)} for
-              <strong style="color:#ffffff">${escapeHtml(deviceName)}</strong>.
-            </p>
-            <div style="margin:24px 0;padding:16px;border:1px solid #263247;border-radius:16px;background:#080B11">
-              <p style="margin:0;font-size:13px;line-height:1.6;color:#DCE3ED">
-                Open Device DNA Activity from your owner account to review the request or see the latest record.
-              </p>
-            </div>
-            <p style="margin:0;font-size:12px;line-height:1.6;color:#667085">
-              Device DNA keeps repair history transparent and permanent. If this was not expected, you can ignore this email.
-            </p>
-          </div>
+    html: buildEmailHtml({ technicianName, deviceName, reason }),
+  });
+}
+
+function buildEmailHtml({
+  technicianName,
+  deviceName,
+  reason,
+}: {
+  technicianName: string;
+  deviceName: string;
+  reason: string;
+}) {
+  const { colors } = dnaTokens;
+
+  return `
+    <div style="margin:0;padding:28px;background:${colors.surface};font-family:Inter,Arial,sans-serif;color:${colors.textPrimary}">
+      <div style="max-width:560px;margin:0 auto;border:1px solid ${colors.border};border-radius:20px;background:${colors.background};overflow:hidden">
+        <div style="padding:28px">
+          <p style="margin:0 0 18px;font-size:14px;font-weight:500;color:${colors.textSecondary}">Device DNA</p>
+          <h1 style="margin:0;font-size:28px;line-height:1.18;font-weight:500;color:${colors.textPrimary}">New device activity</h1>
+          <p style="margin:18px 0 0;font-size:16px;line-height:1.7;color:${colors.textSecondary}">
+            <span style="font-weight:500;color:${colors.textPrimary}">${escapeHtml(technicianName)}</span> ${escapeHtml(reason)} for
+            <span style="font-weight:500;color:${colors.textPrimary}">${escapeHtml(deviceName)}</span>.
+          </p>
+          <p style="margin:24px 0 0;font-size:14px;line-height:1.7;color:${colors.textSecondary}">
+            Open Device DNA Activity from your owner account to review the request or see the latest record.
+          </p>
+          <p style="margin:24px 0 0;font-size:12px;line-height:1.6;color:${colors.textSecondary}">
+            Device DNA keeps repair history transparent and permanent. If this was not expected, you can ignore this email.
+          </p>
         </div>
       </div>
-    `,
-  });
+    </div>
+  `;
 }
 
 function escapeHtml(value: string): string {

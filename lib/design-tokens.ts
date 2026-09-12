@@ -1,26 +1,61 @@
-export const deviceTokens = {
-  color: {
-    surface: '#FFFFFF',
-    canvas: '#F5F5F7',
-    text: '#1D1D1F',
-    secondaryText: '#6E6E73',
-    border: '#D2D2D7',
+import type { CSSProperties } from 'react';
+
+export const dnaTokens = {
+  colors: {
+    background: '#FFFFFF',
+    surface: '#F5F5F7',
+    textPrimary: '#1D1D1F',
+    textSecondary: '#6E6E73',
     accent: '#0071E3',
-    good: '#34C759',
+    success: '#34C759',
     warning: '#FF9F0A',
-    critical: '#FF3B30',
+    danger: '#FF3B30',
+    border: '#E5E5E7',
   },
   radius: {
     card: '20px',
-    control: '16px',
+    control: '18px',
     pill: '999px',
   },
   spacing: {
-    touch: '44px',
-    nav: '64px',
+    unit: '8px',
+    touchTarget: '44px',
+    authenticatedNavHeight: '64px',
   },
-  type: {
-    body: 'var(--font-geist-sans), Inter, -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif',
-    mono: 'var(--font-geist-mono), "SF Mono", ui-monospace, monospace',
+  fontWeight: {
+    regular: 400,
+    medium: 500,
   },
+} as const;
+
+export const dnaCssVariables: CSSProperties & Record<string, string> = {
+  '--dna-background': dnaTokens.colors.background,
+  '--dna-surface': dnaTokens.colors.surface,
+  '--dna-text-primary': dnaTokens.colors.textPrimary,
+  '--dna-text-secondary': dnaTokens.colors.textSecondary,
+  '--dna-accent': dnaTokens.colors.accent,
+  '--dna-success': dnaTokens.colors.success,
+  '--dna-warning': dnaTokens.colors.warning,
+  '--dna-danger': dnaTokens.colors.danger,
+  '--dna-border': dnaTokens.colors.border,
+  '--dna-card-radius': dnaTokens.radius.card,
+  '--dna-control-radius': dnaTokens.radius.control,
+  '--dna-pill-radius': dnaTokens.radius.pill,
+  '--dna-touch-target': dnaTokens.spacing.touchTarget,
+  '--dna-nav-height': dnaTokens.spacing.authenticatedNavHeight,
+};
+
+export const ui = {
+  page: 'min-h-screen bg-[var(--dna-background)] text-[var(--dna-text-primary)]',
+  appPage: 'min-h-screen bg-[var(--dna-surface)] text-[var(--dna-text-primary)]',
+  panel: 'rounded-[var(--dna-card-radius)] border border-[var(--dna-border)] bg-[var(--dna-background)]',
+  field:
+    'min-h-[var(--dna-touch-target)] w-full rounded-[var(--dna-control-radius)] border border-[var(--dna-border)] bg-[var(--dna-background)] px-4 text-[15px] font-normal text-[var(--dna-text-primary)] outline-none placeholder:text-[var(--dna-text-secondary)] focus:border-[var(--dna-accent)]',
+  primaryButton:
+    'inline-flex min-h-[52px] items-center justify-center gap-2 rounded-[var(--dna-pill-radius)] bg-[var(--dna-accent)] px-5 text-[15px] font-medium text-white disabled:cursor-not-allowed disabled:opacity-50',
+  secondaryButton:
+    'inline-flex min-h-[52px] items-center justify-center gap-2 rounded-[var(--dna-pill-radius)] border border-[var(--dna-border)] bg-[var(--dna-background)] px-5 text-[15px] font-medium text-[var(--dna-text-primary)] disabled:cursor-not-allowed disabled:opacity-50',
+  textSecondary: 'text-[var(--dna-text-secondary)]',
+  textPrimary: 'text-[var(--dna-text-primary)]',
+  link: 'text-[var(--dna-accent)]',
 } as const;
