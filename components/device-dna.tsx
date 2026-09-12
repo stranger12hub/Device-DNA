@@ -47,6 +47,7 @@ import {
   registerDevice,
   requestRepairAccess,
   submitRepairRecord,
+  updateProfilePhone,
 } from '@/src/lib/services';
 import type { RepairAccessRequestWithDevice } from '@/src/lib/services';
 import type {
@@ -896,11 +897,26 @@ function AccountScreen() {
   const viewer = useViewer();
   const [phone, setPhone] = useState(viewer.phone === 'Phone number not added' ? '' : viewer.phone);
   const [saved, setSaved] = useState(false);
+  const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
 
-  function save() {
+  useEffect(() => {
+    setPhone(viewer.phone === 'Phone number not added' ? '' : viewer.phone);
+  }, [viewer.phone]);
+
+  async function save() {
     if (!viewer.id) return;
-    window.localStorage.setItem(`device-dna-phone-${viewer.id}`, phone.trim());
-    setSaved(true);
+    setSaving(true);
+    setSaved(false);
+    setError('');
+    try {
+      await updateProfilePhone(viewer.id, phone);
+      setSaved(true);
+    } catch (error) {
+      setError(getServiceErrorMessage(error));
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -922,8 +938,9 @@ function AccountScreen() {
         </div>
         <div className="mt-6 grid gap-4">
           <FormField label="Phone number"><TextInput value={phone} onChange={(event) => setPhone(event.target.value)} placeholder="+91 98765 43210" /></FormField>
-          {saved && <Notice tone="success">Phone number saved on this device.</Notice>}
-          <PrimaryAction onClick={save}>Save profile</PrimaryAction>
+          {saved && <Notice tone="success">Phone number saved to your account.</Notice>}
+          {error && <Notice tone="danger">{error}</Notice>}
+          <PrimaryAction onClick={() => void save()} disabled={saving}>{saving ? 'Saving...' : 'Save profile'}</PrimaryAction>
           <SignOutButton>
             <button className={ui.secondaryButton}><X size={18} /> Sign out</button>
           </SignOutButton>

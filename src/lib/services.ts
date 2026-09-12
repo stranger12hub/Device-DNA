@@ -84,8 +84,18 @@ type RepairAccessResponse = {
   requests?: RepairAccessRequestWithDevice[];
   error?: string;
 };
-const LOCAL_DEVICE_CACHE_KEY = 'device-dna-local-devices-v2';
-const LOCAL_REPAIR_CACHE_KEY = 'device-dna-local-repairs-v2';
+const LOCAL_DEVICE_CACHE_KEY = 'device-dna-local-devices-v3';
+const LOCAL_REPAIR_CACHE_KEY = 'device-dna-local-repairs-v3';
+const STALE_LOCAL_STORAGE_KEYS = [
+  'device-dna-local-devices-v1',
+  'device-dna-local-devices-v2',
+  'device-dna-local-repairs-v1',
+  'device-dna-local-repairs-v2',
+  'device-dna-prototype-v1',
+  'device-dna-prototype-v2',
+];
+
+clearStaleLocalStorage();
 
 export async function getProfile(userId: string): Promise<Profile | null> {
   ensureSupabaseConfigured();
@@ -139,6 +149,26 @@ export async function ensureProfile(
   return data;
 }
 
+export async function updateProfilePhone(
+  userId: string,
+  phone: string,
+): Promise<Profile> {
+  ensureSupabaseConfigured();
+
+  const { data, error } = await supabase
+    .from('profiles')
+    .update({ phone: phone.trim() || null })
+    .eq('id', userId)
+    .select()
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return data;
+}
+
 export function getServiceErrorMessage(error: unknown): string {
   if (error instanceof Error) {
     return error.message;
@@ -186,14 +216,8 @@ export function getServiceErrorMessage(error: unknown): string {
 }
 
 export async function getDevicesForUser(userId: string): Promise<Device[]> {
-  const cached = getCachedDevices(userId);
-
-  if (cached.length) {
-    return mergeDevices(cached, []);
-  }
-
   if (!isSupabaseConfigured) {
-    return cached;
+    return [];
   }
 
   const { data, error } = await withTimeout(
@@ -209,27 +233,16 @@ export async function getDevicesForUser(userId: string): Promise<Device[]> {
   }));
 
   if (error) {
-    console.warn('Device list failed, using local cache:', error);
-    return getCachedDevices(userId);
+    console.warn('Device list failed:', error);
+    return [];
   }
 
-  if (!(data ?? []).length) {
-    const visibleDevices = await getRecentVisibleDevices().catch(() => []);
-    return mergeDevices(visibleDevices, getCachedDevices(userId));
-  }
-
-  return mergeDevices(data ?? [], getCachedDevices(userId));
+  return data ?? [];
 }
 
 export async function getRecentVisibleDevices(limit = 24): Promise<Device[]> {
-  const cached = getCachedDevices();
-
-  if (cached.length) {
-    return mergeDevices(cached, []);
-  }
-
   if (!isSupabaseConfigured) {
-    return cached;
+    return [];
   }
 
   const { data, error } = await withTimeout(
@@ -245,8 +258,8 @@ export async function getRecentVisibleDevices(limit = 24): Promise<Device[]> {
   }));
 
   if (error) {
-    console.warn('Recent device list failed, using local cache:', error);
-    return getCachedDevices();
+    console.warn('Recent device list failed:', error);
+    return [];
   }
 
   return data ?? [];
@@ -283,7 +296,6 @@ export async function registerDevice(
     throw new Error(body.error || 'Could not register this device');
   }
 
-  cacheDevice(body.device);
   return body.device;
 }
 
@@ -300,9 +312,7 @@ export async function submitRepairRecord(
   };
 
   if (!isUuid(payload.deviceId)) {
-    const repair = createLocalRepairRecord(data);
-    cacheRepair(repair);
-    return repair;
+    throw new Error('Open a registered Device DNA record before adding a repair log');
   }
 
   ensureSupabaseConfigured();
@@ -323,16 +333,9 @@ export async function submitRepairRecord(
   const body = (await response.json().catch(() => ({}))) as SubmitRepairResponse;
 
   if (!response.ok || !body.ok || !body.repair) {
-    const message = body.error || 'Could not submit repair record';
-    if (message.includes('invalid input syntax for type uuid')) {
-      const repair = createLocalRepairRecord(data);
-      cacheRepair(repair);
-      return repair;
-    }
     throw new Error(body.error || 'Could not submit repair record');
   }
 
-  cacheRepair(body.repair);
   return body.repair;
 }
 
@@ -462,14 +465,8 @@ export async function getRepairAccessStatus(
 export async function getDeviceTimeline(
   deviceId: string,
 ): Promise<DeviceTimeline | null> {
-  const localTimeline = getCachedTimeline(deviceId);
-
-  if (localTimeline) {
-    return localTimeline;
-  }
-
   if (!isSupabaseConfigured) {
-    return null;
+    return getCachedTimeline(deviceId);
   }
 
   const token = await getClerkAccessToken();
@@ -530,19 +527,17 @@ export async function getDeviceTimeline(
   }));
 
   if (deviceError) {
-    console.warn('Device timeline failed, using local cache:', deviceError);
-    return (await getDeviceTimelineFallback(deviceId)) ?? getCachedTimeline(deviceId);
+    console.warn('Device timeline failed:', deviceError);
+    return await getDeviceTimelineFallback(deviceId);
   }
 
   if (!device) {
-    return (await getDeviceTimelineFallback(deviceId)) ?? getCachedTimeline(deviceId);
+    return await getDeviceTimelineFallback(deviceId);
   }
-
-  const cachedRepairs = getCachedRepairs(device.id);
 
   return {
     ...device,
-    repair_events: mergeRepairs(device.repair_events ?? [], cachedRepairs),
+    repair_events: device.repair_events ?? [],
   };
 }
 
@@ -581,14 +576,9 @@ export async function getPublicPassportTimeline(
 export async function getDeviceScore(
   deviceId: string,
 ): Promise<DeviceScore | null> {
-  const localTimeline = getCachedTimeline(deviceId);
-
-  if (localTimeline) {
-    return getFallbackDeviceScore(localTimeline);
-  }
-
   if (!isSupabaseConfigured) {
-    return null;
+    const localTimeline = getCachedTimeline(deviceId);
+    return localTimeline ? getFallbackDeviceScore(localTimeline) : null;
   }
 
   const { data, error } = await withTimeout(
@@ -748,14 +738,8 @@ export async function lookupDevice(query: string): Promise<Device | null> {
     return null;
   }
 
-  const local = lookupCachedDevice(clean);
-
-  if (local) {
-    return local;
-  }
-
   if (!isSupabaseConfigured) {
-    return null;
+    return lookupCachedDevice(clean);
   }
 
   const deviceQuery = supabase.from('devices').select();
@@ -771,11 +755,11 @@ export async function lookupDevice(query: string): Promise<Device | null> {
   }));
 
   if (error) {
-    console.warn('Device lookup failed, using local cache:', error);
-    return lookupCachedDevice(clean);
+    console.warn('Device lookup failed:', error);
+    return null;
   }
 
-  return data ?? lookupCachedDevice(clean);
+  return data ?? null;
 }
 
 export function formatCurrency(value: number | null | undefined): string {
@@ -952,6 +936,21 @@ function ensureSupabaseConfigured() {
   }
 }
 
+function clearStaleLocalStorage() {
+  if (typeof window === 'undefined') return;
+
+  for (const key of STALE_LOCAL_STORAGE_KEYS) {
+    window.localStorage.removeItem(key);
+  }
+
+  for (let index = window.localStorage.length - 1; index >= 0; index -= 1) {
+    const key = window.localStorage.key(index);
+    if (key?.startsWith('device-dna-phone-')) {
+      window.localStorage.removeItem(key);
+    }
+  }
+}
+
 function cacheDevice(device: Device) {
   if (typeof window === 'undefined') return;
   const devices = mergeDevices([device], getCachedDevices());
@@ -1015,6 +1014,7 @@ function createLocalRepairRecord(data: SubmitRepairRecordInput): RepairEventWith
       role: 'technician',
       display_name: 'Current technician',
       service_centre: 'Device DNA workshop',
+      phone: null,
       created_at: now.toISOString(),
     },
   };
@@ -1127,7 +1127,7 @@ async function getDeviceTimelineFallback(deviceId: string): Promise<DeviceTimeli
 
   return {
     ...device,
-    repair_events: mergeRepairs(repairEvents, getCachedRepairs(device.id)),
+    repair_events: repairEvents,
     device_scores: scores ?? [],
     documents: [],
     device_access: [],

@@ -71,6 +71,7 @@ export type Database = {
           role: ProfileRole;
           display_name: string | null;
           service_centre: string | null;
+          phone: string | null;
           created_at: string;
         };
         Insert: {
@@ -78,9 +79,12 @@ export type Database = {
           role: ProfileRole;
           display_name?: string | null;
           service_centre?: string | null;
+          phone?: string | null;
           created_at?: string;
         };
-        Update: never;
+        Update: {
+          phone?: string | null;
+        };
         Relationships: [];
       };
       repair_events: {

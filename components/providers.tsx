@@ -3,6 +3,7 @@
 import { ClerkProvider, useAuth, useUser } from '@clerk/clerk-react';
 import { createContext, type ReactNode, useContext, useEffect, useState } from 'react';
 import { setSupabaseAccessTokenGetter } from '@/src/lib/supabase';
+import { getProfile } from '@/src/lib/services';
 import type { ProfileRole } from '@/src/types/database';
 
 export type ViewerContextValue = {
@@ -61,7 +62,7 @@ export function useViewerContext() {
 function ViewerBridge({ children }: { children: ReactNode }) {
   const { getToken, isLoaded, isSignedIn, userId } = useAuth();
   const { user } = useUser();
-  const [savedPhone, setSavedPhone] = useState('');
+  const [profilePhone, setProfilePhone] = useState('');
 
   useEffect(() => {
     setSupabaseAccessTokenGetter(async () => {
@@ -80,13 +81,29 @@ function ViewerBridge({ children }: { children: ReactNode }) {
   }, [getToken]);
 
   useEffect(() => {
-    if (!userId) {
-      setSavedPhone('');
+    if (!userId || !isSignedIn) {
+      setProfilePhone('');
       return;
     }
 
-    setSavedPhone(window.localStorage.getItem(`device-dna-phone-${userId}`) ?? '');
-  }, [userId]);
+    let active = true;
+
+    getProfile(userId)
+      .then((profile) => {
+        if (active) {
+          setProfilePhone(profile?.phone ?? '');
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setProfilePhone('');
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [isSignedIn, userId]);
 
   const viewer: ViewerContextValue = {
     configured: true,
@@ -96,7 +113,7 @@ function ViewerBridge({ children }: { children: ReactNode }) {
     role: null,
     name: user?.fullName ?? user?.username ?? 'Device DNA user',
     email: user?.primaryEmailAddress?.emailAddress ?? 'No email on account',
-    phone: user?.primaryPhoneNumber?.phoneNumber ?? (savedPhone || 'Phone number not added'),
+    phone: profilePhone || user?.primaryPhoneNumber?.phoneNumber || 'Phone number not added',
     imageUrl: user?.imageUrl,
   };
 
