@@ -79,18 +79,37 @@ const componentOptions: Record<DeviceType, ComponentName[]> = {
 
 const partTypes: PartType[] = ['oem', 'compatible', 'refurbished', 'customer_provided'];
 
-export function LogoMark({ compact = false }: { compact?: boolean; light?: boolean }) {
+export function LogoMark({
+  variant = 'lockup',
+}: {
+  variant?: 'lockup' | 'wordmark' | 'icon' | 'mark';
+}) {
+  const assets = {
+    lockup: {
+      src: '/assets/icons/device-dna-logo-final.svg',
+      className: 'h-11 w-auto',
+      alt: 'Device DNA',
+    },
+    wordmark: {
+      src: '/assets/icons/device-dna-wordmark-final.svg',
+      className: 'h-8 w-auto',
+      alt: 'device DNA',
+    },
+    icon: {
+      src: '/assets/icons/device-dna-icon-final.svg',
+      className: 'h-11 w-11',
+      alt: 'Device DNA',
+    },
+    mark: {
+      src: '/assets/icons/device-dna-mark-ink.svg',
+      className: 'h-7 w-7',
+      alt: 'Device DNA',
+    },
+  }[variant];
+
   return (
     <Link href="/" className="inline-flex min-h-11 items-center gap-3">
-      <span className="grid h-9 w-9 place-items-center rounded-full border border-[var(--dna-border)] text-[15px] font-medium text-[var(--dna-text-primary)]">
-        D
-      </span>
-      {!compact && (
-        <span className="leading-tight">
-          <span className="block text-[15px] font-medium text-[var(--dna-text-primary)]">Device DNA</span>
-          <span className="block text-[12px] font-normal text-[var(--dna-text-secondary)]">Permanent device passport</span>
-        </span>
-      )}
+      <img src={assets.src} alt={assets.alt} className={assets.className} />
     </Link>
   );
 }
@@ -250,7 +269,7 @@ function AuthenticatedHome() {
   return (
     <AppFrame>
       <header className="flex items-center justify-between gap-4">
-        <LogoMark />
+        <LogoMark variant="wordmark" />
         <PrimaryAction href="/register"><Plus size={18} /> Register</PrimaryAction>
       </header>
 
@@ -534,6 +553,7 @@ export function DevicePage() {
 
 function DeviceScreen({ publicMode }: { publicMode: boolean }) {
   const params = useParams<{ id: string }>();
+  const router = useRouter();
   const viewer = useViewer();
   const [timeline, setTimeline] = useState<DeviceTimeline | null | undefined>(undefined);
   const [score, setScore] = useState<DeviceScore | null>(null);
@@ -560,12 +580,25 @@ function DeviceScreen({ publicMode }: { publicMode: boolean }) {
 
   const frame = publicMode ? PublicFrame : AppFrame;
   const Frame = frame;
+  const backControl = publicMode ? (
+    <BackControl
+      label="Back"
+      onClick={() => {
+        if (typeof window !== 'undefined' && window.history.length > 1) {
+          router.back();
+          return;
+        }
+        router.push('/scan');
+      }}
+    />
+  ) : null;
 
-  if (timeline === undefined) return <Frame><LoadingState text="Loading passport" /></Frame>;
-  if (!timeline) return <Frame><EmptyState title="Passport not found" text="Check the QR code or scan again." /></Frame>;
+  if (timeline === undefined) return <Frame>{backControl}<LoadingState text="Loading passport" /></Frame>;
+  if (!timeline) return <Frame>{backControl}<EmptyState title="Passport not found" text="Check the QR code or scan again." /></Frame>;
 
   return (
     <Frame>
+      {backControl}
       <DeviceHeader timeline={timeline} score={score} showSerial={!publicMode && isOwner} publicMode={publicMode} />
       <section className="mt-10">
         <div className="grid gap-4 border-b border-[var(--dna-border)] pb-6 sm:grid-cols-[1fr_auto] sm:items-end">
@@ -592,6 +625,19 @@ function DeviceScreen({ publicMode }: { publicMode: boolean }) {
         )}
       </section>
     </Frame>
+  );
+}
+
+function BackControl({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="mb-8 inline-flex min-h-11 items-center gap-2 rounded-full border border-[var(--dna-border)] bg-[var(--dna-background)] px-4 text-[15px] text-[var(--dna-text-primary)]"
+    >
+      <ChevronRight size={19} strokeWidth={1.8} className="rotate-180" />
+      {label}
+    </button>
   );
 }
 

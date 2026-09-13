@@ -246,12 +246,13 @@ function buildApprovalEmailHtml({
   addLogUrl: string;
 }) {
   const { colors } = dnaTokens;
+  const wordmarkUrl = getPublicAssetUrl('/assets/icons/device-dna-wordmark-final.svg');
 
   return `
     <div style="margin:0;padding:28px;background:${colors.surface};font-family:Inter,Arial,sans-serif;color:${colors.textPrimary}">
       <div style="max-width:560px;margin:0 auto;border:1px solid ${colors.border};border-radius:20px;background:${colors.background};overflow:hidden">
         <div style="padding:28px">
-          <p style="margin:0 0 18px;font-size:14px;font-weight:500;color:${colors.textSecondary}">Device DNA</p>
+          ${wordmarkUrl ? `<img src="${escapeHtml(wordmarkUrl)}" alt="device DNA" width="132" style="display:block;width:132px;height:auto;margin:0 0 22px" />` : '<p style="margin:0 0 18px;font-size:14px;font-weight:500;color:#1D1D1F">device DNA</p>'}
           <h1 style="margin:0;font-size:28px;line-height:1.18;font-weight:500;color:${colors.textPrimary}">Access approved</h1>
           <p style="margin:18px 0 0;font-size:16px;line-height:1.7;color:${colors.textSecondary}">
             ${escapeHtml(technicianName)} from ${escapeHtml(shopName)} can now add a repair log for
@@ -267,6 +268,14 @@ function buildApprovalEmailHtml({
       </div>
     </div>
   `;
+}
+
+function getPublicAssetUrl(path: string): string | null {
+  const base =
+    process.env.NEXT_PUBLIC_APP_URL ||
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null);
+
+  return base ? new URL(path, base).toString() : null;
 }
 
 function escapeHtml(value: string): string {
