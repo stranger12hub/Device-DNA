@@ -86,17 +86,17 @@ export function LogoMark({
 }) {
   const assets = {
     lockup: {
-      src: '/assets/icons/device-dna-logo-final.svg',
+      src: '/assets/icons/device-dna-logo-v2.svg',
       className: 'h-11 w-auto',
       alt: 'Device DNA',
     },
     wordmark: {
-      src: '/assets/icons/device-dna-wordmark-final.svg',
+      src: '/assets/icons/device-dna-wordmark-v2.svg',
       className: 'h-8 w-auto',
-      alt: 'device DNA',
+      alt: 'Device DNA',
     },
     icon: {
-      src: '/assets/icons/device-dna-icon-final.svg',
+      src: '/assets/icons/device-dna-icon-v2.svg',
       className: 'h-11 w-11',
       alt: 'Device DNA',
     },
