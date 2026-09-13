@@ -2,9 +2,6 @@
 -- Run once in the Supabase SQL editor when you want a clean app.
 -- This clears application records only; Clerk users/auth accounts are not stored here.
 
-delete from storage.objects
-where bucket_id = 'device-documents';
-
 truncate table
   public.approval_requests,
   public.documents,

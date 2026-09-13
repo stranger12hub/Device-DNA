@@ -73,6 +73,11 @@ type RegisterDeviceResponse = {
   device?: Device;
   error?: string;
 };
+type DeviceListResponse = {
+  ok: boolean;
+  devices?: Device[];
+  error?: string;
+};
 type SubmitRepairResponse = {
   ok: boolean;
   repair?: RepairEventWithParts;
@@ -218,6 +223,27 @@ export function getServiceErrorMessage(error: unknown): string {
 export async function getDevicesForUser(userId: string): Promise<Device[]> {
   if (!isSupabaseConfigured) {
     return [];
+  }
+
+  const token = await getClerkAccessToken();
+
+  if (token) {
+    const response = await fetch('/api/devices', {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    }).catch(() => null);
+    const body: DeviceListResponse = response
+      ? (await response.json().catch(() => ({}))) as DeviceListResponse
+      : { ok: false };
+
+    if (response?.ok && body.ok) {
+      return body.devices ?? [];
+    }
+
+    if (response && response.status !== 401) {
+      console.warn('Server device list failed, using direct Supabase fallback:', body.error ?? response.statusText);
+    }
   }
 
   const { data, error } = await withTimeout(

@@ -342,16 +342,33 @@ export function DevicesPage() {
 
 function DevicesScreen() {
   const viewer = useViewer();
-  const [devices, setDevices] = useState<Device[]>([]);
+  const [devices, setDevices] = useState<Device[] | null>(null);
+  const [error, setError] = useState('');
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<DeviceFilter>('all');
 
   useEffect(() => {
     if (!viewer.id) return;
-    getDevicesForUser(viewer.id).then(setDevices).catch(() => setDevices([]));
+    let active = true;
+    setError('');
+    setDevices(null);
+
+    getDevicesForUser(viewer.id)
+      .then((items) => {
+        if (active) setDevices(items);
+      })
+      .catch((error) => {
+        if (!active) return;
+        setError(getServiceErrorMessage(error));
+        setDevices([]);
+      });
+
+    return () => {
+      active = false;
+    };
   }, [viewer.id]);
 
-  const filtered = devices.filter((device) => {
+  const filtered = (devices ?? []).filter((device) => {
     const term = `${device.brand} ${device.model} ${device.serial_imei}`.toLowerCase();
     return (filter === 'all' || filter === device.device_type) && term.includes(query.toLowerCase());
   });
@@ -364,7 +381,11 @@ function DevicesScreen() {
         <PillSwitch value={filter} onChange={setFilter} />
       </div>
       <div className="mt-8 grid gap-4">
-        {filtered.length ? filtered.map((device) => (
+        {devices === null ? (
+          <LoadingState text="Loading your devices" />
+        ) : error ? (
+          <EmptyState title="Could not load devices" text={error} />
+        ) : filtered.length ? filtered.map((device) => (
           <Link key={device.id} href={`/devices/${device.id}`} className={`${ui.panel} block p-5`}>
             <div className="flex items-center justify-between gap-4">
               <div>
