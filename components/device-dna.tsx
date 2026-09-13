@@ -276,7 +276,7 @@ function AuthenticatedHome() {
   return (
     <AppFrame>
       <header className="flex items-center justify-between gap-4">
-        <LogoMark variant="wordmark" />
+        <LogoMark />
         <PrimaryAction href="/register"><Plus size={18} /> Register</PrimaryAction>
       </header>
 
