@@ -565,7 +565,6 @@ function DeviceScreen({ publicMode }: { publicMode: boolean }) {
     load.then((next) => {
       setTimeline(next);
       setScore(next?.device_scores?.[0] ?? null);
-      if (next && !publicMode) getDeviceScore(next.id).then(setScore).catch(() => undefined);
     }).catch(() => setTimeline(null));
   }, [params.id, publicMode]);
 
