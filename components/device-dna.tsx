@@ -580,6 +580,12 @@ function DeviceScreen({ publicMode }: { publicMode: boolean }) {
 
   const frame = publicMode ? PublicFrame : AppFrame;
   const Frame = frame;
+  const passportTimeline = timeline
+    ? {
+        ...timeline,
+        repair_events: timeline.repair_events.filter((event) => event.status === 'approved'),
+      }
+    : null;
   const backControl = publicMode ? (
     <BackControl
       label="Back"
@@ -588,25 +594,25 @@ function DeviceScreen({ publicMode }: { publicMode: boolean }) {
           router.back();
           return;
         }
-        router.push('/scan');
+        router.push('/');
       }}
     />
   ) : null;
 
   if (timeline === undefined) return <Frame>{backControl}<LoadingState text="Loading passport" /></Frame>;
-  if (!timeline) return <Frame>{backControl}<EmptyState title="Passport not found" text="Check the QR code or scan again." /></Frame>;
+  if (!timeline) return <Frame>{backControl}<EmptyState title="Passport not found" text="Check the Device DNA link or open it from your account." /></Frame>;
 
   return (
     <Frame>
       {backControl}
-      <DeviceHeader timeline={timeline} score={score} showSerial={!publicMode && isOwner} publicMode={publicMode} />
+      <DeviceHeader timeline={passportTimeline ?? timeline} score={score} showSerial={!publicMode && isOwner} publicMode={publicMode} />
       <section className="mt-10">
         <div className="grid gap-4 border-b border-[var(--dna-border)] pb-6 sm:grid-cols-[1fr_auto] sm:items-end">
           <div>
             <p className="text-[12px] uppercase tracking-[0.12em] text-[var(--dna-text-muted)]">Repairs</p>
             <h2 className="mt-2 text-[28px] font-medium tracking-[-0.03em]">{publicMode ? 'Public timeline' : 'Device timeline'}</h2>
             <p className="mt-2 text-[15px] leading-7 text-[var(--dna-text-secondary)]">
-              {publicMode ? 'Approved records only.' : 'All visible records for this device.'}
+              {publicMode ? 'Approved repair records only, with private owner identifiers hidden.' : 'Approved repair records for this device.'}
             </p>
           </div>
           {!isOwner && access === 'approved' ? (
@@ -615,7 +621,7 @@ function DeviceScreen({ publicMode }: { publicMode: boolean }) {
             </div>
           ) : null}
         </div>
-        <RepairList repairs={timeline.repair_events} />
+        <RepairList repairs={(passportTimeline ?? timeline).repair_events} />
         {publicMode || !isOwner ? (
           <AccessPanel device={timeline} status={access} onSubmitted={() => setAccess('pending')} />
         ) : (

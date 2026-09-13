@@ -582,21 +582,10 @@ export async function getPublicPassportTimeline(
   }
 
   if (response.status !== 404) {
-    console.warn('Public passport API failed, using direct timeline fallback:', body.error ?? response.statusText);
+    console.warn('Public passport API failed:', body.error ?? response.statusText);
   }
 
-  const timeline = await getDeviceTimeline(deviceId);
-
-  if (!timeline) {
-    return null;
-  }
-
-  return {
-    ...timeline,
-    repair_events: timeline.repair_events.filter(
-      (event) => event.status === 'approved',
-    ),
-  };
+  return null;
 }
 
 export async function getDeviceScore(
