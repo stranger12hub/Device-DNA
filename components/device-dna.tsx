@@ -586,7 +586,8 @@ function DeviceScreen({ publicMode }: { publicMode: boolean }) {
         repair_events: timeline.repair_events.filter((event) => event.status === 'approved'),
       }
     : null;
-  const backControl = publicMode ? (
+  const displayScore = passportTimeline?.repair_events.length ? score : null;
+  const backControl = (
     <BackControl
       label="Back"
       onClick={() => {
@@ -594,10 +595,10 @@ function DeviceScreen({ publicMode }: { publicMode: boolean }) {
           router.back();
           return;
         }
-        router.push('/');
+        router.push(publicMode ? '/' : '/devices');
       }}
     />
-  ) : null;
+  );
 
   if (timeline === undefined) return <Frame>{backControl}<LoadingState text="Loading passport" /></Frame>;
   if (!timeline) return <Frame>{backControl}<EmptyState title="Passport not found" text="Check the Device DNA link or open it from your account." /></Frame>;
@@ -605,7 +606,7 @@ function DeviceScreen({ publicMode }: { publicMode: boolean }) {
   return (
     <Frame>
       {backControl}
-      <DeviceHeader timeline={passportTimeline ?? timeline} score={score} showSerial={!publicMode && isOwner} publicMode={publicMode} />
+      <DeviceHeader timeline={passportTimeline ?? timeline} score={displayScore} showSerial={!publicMode && isOwner} publicMode={publicMode} />
       <section className="mt-10">
         <div className="grid gap-4 border-b border-[var(--dna-border)] pb-6 sm:grid-cols-[1fr_auto] sm:items-end">
           <div>
