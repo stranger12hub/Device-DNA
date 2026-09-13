@@ -777,6 +777,29 @@ export async function lookupDevice(query: string): Promise<Device | null> {
   return data ?? null;
 }
 
+export function calculateDeviceHealthScore(
+  timeline: DeviceTimeline,
+  storedScore?: DeviceScore | null,
+): DeviceScore {
+  const approvedRepairs = timeline.repair_events.filter(
+    (repair) => repair.status === 'approved',
+  );
+  const approvedTimeline = {
+    ...timeline,
+    repair_events: approvedRepairs,
+  };
+  const computed = getFallbackDeviceScore(approvedTimeline);
+
+  return {
+    ...computed,
+    ai_summary: storedScore?.ai_summary ?? computed.ai_summary,
+    previous_score: storedScore?.previous_score ?? null,
+    market_value_estimate: storedScore?.market_value_estimate ?? null,
+    market_value_summary: storedScore?.market_value_summary ?? null,
+    generated_at: storedScore?.generated_at ?? computed.generated_at,
+  };
+}
+
 export function formatCurrency(value: number | null | undefined): string {
   if (typeof value !== 'number') {
     return 'Not enough data';
@@ -1277,10 +1300,11 @@ function mergeRepairs(
 function getFallbackDeviceScore(timeline: DeviceTimeline): DeviceScore {
   const repairCount = getApprovedRepairCount(timeline);
   const hasRepairs = repairCount > 0;
-  const replacedCriticalParts = timeline.repair_events
-    .filter((repair) => repair.status === 'approved')
-    .flatMap((repair) => repair.parts)
-    .filter((part) => [
+  const approvedRepairs = timeline.repair_events.filter(
+    (repair) => repair.status === 'approved',
+  );
+  const parts = approvedRepairs.flatMap((repair) => repair.parts);
+  const replacedCriticalParts = parts.filter((part) => [
       'motherboard',
       'display',
       'battery',
@@ -1288,18 +1312,33 @@ function getFallbackDeviceScore(timeline: DeviceTimeline): DeviceScore {
       'charging_assembly',
       'charging_port',
     ].includes(part.component_name)).length;
-  const repairFrequency = hasRepairs ? Math.max(45, 100 - repairCount * 12) : 100;
-  const recurringFaults = hasRepairs ? 90 : 100;
+  const nonPreferredParts = parts.filter((part) =>
+    ['compatible', 'refurbished', 'customer_provided'].includes(part.part_type),
+  ).length;
+  const recurringGroups = new Map<string, number>();
+
+  for (const repair of approvedRepairs) {
+    const key = normalizeRepairIssue(
+      [repair.symptom, repair.diagnosis, repair.action_taken].join(' '),
+    );
+    if (key) {
+      recurringGroups.set(key, (recurringGroups.get(key) ?? 0) + 1);
+    }
+  }
+
+  const recurringHits = [...recurringGroups.values()].filter((count) => count > 1).length;
+  const deviceAge = scoreDeviceAgeFromTimeline(timeline);
+  const repairFrequency = hasRepairs ? Math.max(20, 100 - repairCount * 16) : 100;
+  const recurringFaults = hasRepairs ? Math.max(25, 100 - recurringHits * 30) : 100;
   const criticalComponentHistory = hasRepairs
-    ? Math.max(45, 100 - replacedCriticalParts * 10)
+    ? Math.max(20, 100 - replacedCriticalParts * 14 - nonPreferredParts * 8)
     : 100;
-  const deviceAge = hasRepairs ? 95 : 100;
   const healthScore = hasRepairs
     ? Math.round(
         deviceAge * 0.15 +
-        repairFrequency * 0.30 +
+        repairFrequency * 0.35 +
         recurringFaults * 0.30 +
-        criticalComponentHistory * 0.25,
+        criticalComponentHistory * 0.20,
       )
     : 100;
 
@@ -1315,7 +1354,7 @@ function getFallbackDeviceScore(timeline: DeviceTimeline): DeviceScore {
       warrantyEvidenceCompleteness: 100,
     },
     ai_summary: hasRepairs
-      ? 'This score is based on the available repair history and replaced component records. Review the timeline before making a resale decision.'
+      ? buildLocalHealthSummary(repairCount, recurringHits, replacedCriticalParts, nonPreferredParts)
       : 'No faults or replaced parts are recorded for this device. Until a repair is logged, Device DNA treats the device as full health.',
     previous_score: null,
     market_value_estimate: null,
@@ -1326,4 +1365,51 @@ function getFallbackDeviceScore(timeline: DeviceTimeline): DeviceScore {
 
 function getApprovedRepairCount(timeline: DeviceTimeline): number {
   return timeline.repair_events.filter((repair) => repair.status === 'approved').length;
+}
+
+function scoreDeviceAgeFromTimeline(timeline: DeviceTimeline): number {
+  const anchor = timeline.purchase_date || timeline.created_at;
+  const ageDays = Math.max(
+    0,
+    Math.ceil((Date.now() - new Date(anchor).getTime()) / (1000 * 60 * 60 * 24)),
+  );
+
+  if (ageDays <= 365) return 100;
+  if (ageDays <= 730) return 85;
+  if (ageDays <= 1095) return 70;
+  if (ageDays <= 1460) return 55;
+  return 40;
+}
+
+function normalizeRepairIssue(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9 ]/g, ' ')
+    .split(/\s+/)
+    .filter((word) => word.length > 3)
+    .slice(0, 3)
+    .join(' ');
+}
+
+function buildLocalHealthSummary(
+  repairCount: number,
+  recurringHits: number,
+  criticalPartCount: number,
+  nonPreferredPartCount: number,
+): string {
+  const factors: string[] = [`${repairCount} approved repair ${repairCount === 1 ? 'record' : 'records'}`];
+
+  if (recurringHits) {
+    factors.push('recurring issue patterns');
+  }
+
+  if (criticalPartCount) {
+    factors.push(`${criticalPartCount} critical component ${criticalPartCount === 1 ? 'replacement' : 'replacements'}`);
+  }
+
+  if (nonPreferredPartCount) {
+    factors.push('non-OEM or refurbished part history');
+  }
+
+  return `This score is calculated from ${factors.join(', ')}. Fewer repeated faults and fewer critical component replacements keep the Device DNA score higher.`;
 }

@@ -32,6 +32,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useViewerContext } from '@/components/providers';
 import { dnaCssVariables, ui } from '@/lib/design-tokens';
 import {
+  calculateDeviceHealthScore,
   decideRepairAccessRequest,
   formatCurrency,
   formatDate,
@@ -263,7 +264,13 @@ function AuthenticatedHome() {
       setScore(null);
       return;
     }
-    getDeviceScore(front.id).then(setScore).catch(() => setScore(null));
+    getDeviceTimeline(front.id)
+      .then((timeline) => {
+        setScore(timeline ? calculateDeviceHealthScore(timeline, timeline.device_scores?.[0] ?? null) : null);
+      })
+      .catch(() => {
+        getDeviceScore(front.id).then(setScore).catch(() => setScore(null));
+      });
   }, [front]);
 
   return (
@@ -585,7 +592,9 @@ function DeviceScreen({ publicMode }: { publicMode: boolean }) {
         repair_events: timeline.repair_events.filter((event) => event.status === 'approved'),
       }
     : null;
-  const displayScore = passportTimeline?.repair_events.length ? score : null;
+  const displayScore = passportTimeline
+    ? calculateDeviceHealthScore(passportTimeline, score)
+    : null;
   const backControl = (
     <BackControl
       label="Back"
