@@ -570,7 +570,10 @@ export async function getDeviceTimeline(
 export async function getPublicPassportTimeline(
   deviceId: string,
 ): Promise<DeviceTimeline | null> {
-  const response = await fetch(`/api/public-passport/${encodeURIComponent(deviceId)}`);
+  const token = await getClerkAccessToken();
+  const response = await fetch(`/api/public-passport/${encodeURIComponent(deviceId)}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+  });
   const body = (await response.json().catch(() => ({}))) as {
     ok?: boolean;
     timeline?: DeviceTimeline | null;

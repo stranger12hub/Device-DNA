@@ -66,15 +66,17 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     }
 
     if (body.decision === 'approved') {
-      notifyTechnicianAccessApproved({
-        technicianId: accessRequest.requester_id,
-        technicianName: accessRequest.requester_name,
-        shopName: accessRequest.shop_name,
-        deviceName: device ? [device.brand, device.model].filter(Boolean).join(' ') : 'Device',
-        addLogUrl: new URL(`/devices/${accessRequest.device_id}/repair`, request.nextUrl.origin).toString(),
-      }).catch((error) => {
+      try {
+        await notifyTechnicianAccessApproved({
+          technicianId: accessRequest.requester_id,
+          technicianName: accessRequest.requester_name,
+          shopName: accessRequest.shop_name,
+          deviceName: device ? [device.brand, device.model].filter(Boolean).join(' ') : 'Device',
+          addLogUrl: new URL(`/devices/${accessRequest.device_id}/repair`, request.nextUrl.origin).toString(),
+        });
+      } catch (error) {
         console.error('Technician approval email failed', error instanceof Error ? error.message : 'Unknown error');
-      });
+      }
     }
 
     return json({ ok: true }, 200);
@@ -252,7 +254,7 @@ function buildApprovalEmailHtml({
     <div style="margin:0;padding:28px;background:${colors.surface};font-family:Inter,Arial,sans-serif;color:${colors.textPrimary}">
       <div style="max-width:560px;margin:0 auto;border:1px solid ${colors.border};border-radius:20px;background:${colors.background};overflow:hidden">
         <div style="padding:28px">
-          ${wordmarkUrl ? `<img src="${escapeHtml(wordmarkUrl)}" alt="Device DNA" width="132" style="display:block;width:132px;height:auto;margin:0 0 22px" />` : '<p style="margin:0 0 18px;font-size:14px;font-weight:500;color:#1D1D1F">Device DNA</p>'}
+          ${wordmarkUrl ? `<img src="${escapeHtml(wordmarkUrl)}" alt="Device DNA" width="132" style="display:block;width:132px;height:auto;margin:0 0 22px" />` : `<p style="margin:0 0 18px;font-size:14px;font-weight:500;color:${colors.textPrimary}">Device DNA</p>`}
           <h1 style="margin:0;font-size:28px;line-height:1.18;font-weight:500;color:${colors.textPrimary}">Access approved</h1>
           <p style="margin:18px 0 0;font-size:16px;line-height:1.7;color:${colors.textSecondary}">
             ${escapeHtml(technicianName)} from ${escapeHtml(shopName)} can now add a repair log for

@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import NextImage from 'next/image';
 import { useParams, usePathname, useRouter } from 'next/navigation';
 import { SignInButton, SignOutButton, SignUpButton } from '@clerk/clerk-react';
 import {
@@ -90,33 +91,59 @@ export function LogoMark({
       src: '/assets/icons/device-dna-logo-v2.svg',
       className: 'h-11 w-auto',
       alt: 'Device DNA',
+      width: 160,
+      height: 44,
     },
     wordmark: {
       src: '/assets/icons/device-dna-wordmark-v2.svg',
       className: 'h-8 w-auto',
       alt: 'Device DNA',
+      width: 132,
+      height: 32,
     },
     icon: {
       src: '/assets/icons/device-dna-icon-v2.svg',
       className: 'h-11 w-11',
       alt: 'Device DNA',
+      width: 44,
+      height: 44,
     },
     mark: {
       src: '/assets/icons/device-dna-mark-ink.svg',
       className: 'h-7 w-7',
       alt: 'Device DNA',
+      width: 28,
+      height: 28,
     },
   }[variant];
 
   return (
     <Link href="/" className="inline-flex min-h-11 items-center gap-3">
-      <img src={assets.src} alt={assets.alt} className={assets.className} />
+      <NextImage
+        src={assets.src}
+        alt={assets.alt}
+        width={assets.width}
+        height={assets.height}
+        className={assets.className}
+        priority={variant === 'lockup'}
+      />
     </Link>
   );
 }
 
 function useViewer(): Viewer {
   return useViewerContext();
+}
+
+function useDebouncedValue<T>(value: T, delay = 180): T {
+  const [debounced, setDebounced] = useState(value);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setDebounced(value), delay);
+    return () => window.clearTimeout(timer);
+  }, [delay, value]);
+
+  return debounced;
 }
 
 function PublicFrame({ children }: { children: React.ReactNode }) {
@@ -372,6 +399,7 @@ function DevicesScreen() {
   const [error, setError] = useState('');
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<DeviceFilter>('all');
+  const debouncedQuery = useDebouncedValue(query);
 
   useEffect(() => {
     if (!viewer.id) return;
@@ -396,7 +424,7 @@ function DevicesScreen() {
 
   const filtered = (devices ?? []).filter((device) => {
     const term = `${device.brand} ${device.model} ${device.serial_imei}`.toLowerCase();
-    return (filter === 'all' || filter === device.device_type) && term.includes(query.toLowerCase());
+    return (filter === 'all' || filter === device.device_type) && term.includes(debouncedQuery.toLowerCase());
   });
 
   return (
@@ -504,13 +532,13 @@ function RegisterScreen() {
         )}
         {step === 1 && (
           <div className="grid gap-4">
-            <FormField label="Brand"><TextInput value={form.brand} onChange={(event) => setForm({ ...form, brand: event.target.value })} placeholder={type === 'phone' ? 'Apple, Samsung, OnePlus' : 'Apple, Lenovo, HP'} /></FormField>
-            <FormField label="Model"><TextInput value={form.model} onChange={(event) => setForm({ ...form, model: event.target.value })} placeholder={type === 'phone' ? 'iPhone 15, Galaxy S24' : 'MacBook Air M2, ThinkPad X1'} /></FormField>
-            <FormField label={type === 'phone' ? 'IMEI' : 'Serial number'}><TextInput value={form.serialImei} onChange={(event) => setForm({ ...form, serialImei: event.target.value })} placeholder={type === 'phone' ? '15 digit IMEI' : 'Manufacturer serial or service tag'} /></FormField>
-            <FormField label="Purchase date"><TextInput type="date" value={form.purchaseDate} onChange={(event) => setForm({ ...form, purchaseDate: event.target.value })} /></FormField>
-            {type === 'laptop' && <FormField label="Processor"><TextInput value={form.processor} onChange={(event) => setForm({ ...form, processor: event.target.value })} placeholder="Apple M2, Intel i7, Ryzen 5" /></FormField>}
-            <FormField label="RAM"><TextInput value={form.ram} onChange={(event) => setForm({ ...form, ram: event.target.value })} placeholder="Optional, for example 8 GB" /></FormField>
-            <FormField label="Storage"><TextInput value={form.storage} onChange={(event) => setForm({ ...form, storage: event.target.value })} placeholder="Optional, for example 256 GB" /></FormField>
+            <FormField label="Brand" required><TextInput value={form.brand} onChange={(event) => setForm({ ...form, brand: event.target.value })} placeholder={type === 'phone' ? 'Apple, Samsung, OnePlus' : 'Apple, Lenovo, HP'} /></FormField>
+            <FormField label="Model" required><TextInput value={form.model} onChange={(event) => setForm({ ...form, model: event.target.value })} placeholder={type === 'phone' ? 'iPhone 15, Galaxy S24' : 'MacBook Air M2, ThinkPad X1'} /></FormField>
+            <FormField label={type === 'phone' ? 'IMEI' : 'Serial number'} required><TextInput value={form.serialImei} onChange={(event) => setForm({ ...form, serialImei: event.target.value })} placeholder={type === 'phone' ? '15 digit IMEI' : 'Manufacturer serial or service tag'} /></FormField>
+            <FormField label="Purchase date" optional><TextInput type="date" value={form.purchaseDate} onChange={(event) => setForm({ ...form, purchaseDate: event.target.value })} /></FormField>
+            {type === 'laptop' && <FormField label="Processor" optional><TextInput value={form.processor} onChange={(event) => setForm({ ...form, processor: event.target.value })} placeholder="Apple M2, Intel i7, Ryzen 5" /></FormField>}
+            <FormField label="RAM" optional><TextInput value={form.ram} onChange={(event) => setForm({ ...form, ram: event.target.value })} placeholder="For example 8 GB" /></FormField>
+            <FormField label="Storage" optional><TextInput value={form.storage} onChange={(event) => setForm({ ...form, storage: event.target.value })} placeholder="For example 256 GB" /></FormField>
           </div>
         )}
         {step === 2 && (
@@ -648,7 +676,7 @@ function BackControl({ label, onClick }: { label: string; onClick: () => void })
     <button
       type="button"
       onClick={onClick}
-      className="mb-8 inline-flex min-h-11 items-center gap-2 rounded-full border border-[var(--dna-border)] bg-[var(--dna-background)] px-4 text-[15px] text-[var(--dna-text-primary)]"
+      className="sticky left-5 top-4 z-30 mb-8 inline-flex min-h-11 items-center gap-2 rounded-full border border-[var(--dna-border)] bg-[var(--dna-background)] px-4 text-[15px] text-[var(--dna-text-primary)]"
     >
       <ChevronRight size={19} strokeWidth={1.8} className="rotate-180" />
       {label}
@@ -755,16 +783,16 @@ function RepairSubmissionScreen() {
         </section>
       ) : (
         <section className={`${ui.panel} mt-8 grid gap-4 p-5`}>
-          <FormField label="Symptoms"><TextArea value={form.symptom} onChange={(event) => setForm({ ...form, symptom: event.target.value })} placeholder="Charging only works at an angle; battery drains quickly." /></FormField>
-          <FormField label="Diagnosis"><TextArea value={form.diagnosis} onChange={(event) => setForm({ ...form, diagnosis: event.target.value })} placeholder="Charging connector worn; no board damage seen." /></FormField>
-          <FormField label="Action taken"><TextArea value={form.actionTaken} onChange={(event) => setForm({ ...form, actionTaken: event.target.value })} placeholder="Replaced charging assembly and tested fast charging." /></FormField>
-          <FormField label="Component"><SelectInput value={form.componentName} onChange={(event) => setForm({ ...form, componentName: event.target.value as ComponentName })}>{componentOptions[timeline.device_type].map((item) => <option key={item} value={item}>{pretty(item)}</option>)}</SelectInput></FormField>
-          <FormField label="Part type"><SelectInput value={form.partType} onChange={(event) => setForm({ ...form, partType: event.target.value as PartType })}>{partTypes.map((item) => <option key={item} value={item}>{pretty(item)}</option>)}</SelectInput></FormField>
-          <FormField label="Part number"><TextInput value={form.partNumber} onChange={(event) => setForm({ ...form, partNumber: event.target.value })} placeholder="Supplier SKU or part number" /></FormField>
-          <FormField label="Supplier"><TextInput value={form.supplier} onChange={(event) => setForm({ ...form, supplier: event.target.value })} placeholder="Shop stock or supplier name" /></FormField>
-          <FormField label="Part cost"><TextInput type="number" min="0" value={form.partCost} onChange={(event) => setForm({ ...form, partCost: event.target.value })} placeholder="1450" /></FormField>
-          <FormField label="Part warranty days"><TextInput type="number" min="0" value={form.warrantyDays} onChange={(event) => setForm({ ...form, warrantyDays: event.target.value })} placeholder="90" /></FormField>
-          <FormField label="Service cost"><TextInput type="number" min="0" value={form.serviceCost} onChange={(event) => setForm({ ...form, serviceCost: event.target.value })} placeholder="2300" /></FormField>
+          <FormField label="Symptoms" required><TextArea value={form.symptom} onChange={(event) => setForm({ ...form, symptom: event.target.value })} placeholder="Charging only works at an angle; battery drains quickly." /></FormField>
+          <FormField label="Diagnosis" optional><TextArea value={form.diagnosis} onChange={(event) => setForm({ ...form, diagnosis: event.target.value })} placeholder="Charging connector worn; no board damage seen." /></FormField>
+          <FormField label="Action taken" required><TextArea value={form.actionTaken} onChange={(event) => setForm({ ...form, actionTaken: event.target.value })} placeholder="Replaced charging assembly and tested fast charging." /></FormField>
+          <FormField label="Component" required><SelectInput value={form.componentName} onChange={(event) => setForm({ ...form, componentName: event.target.value as ComponentName })}>{componentOptions[timeline.device_type].map((item) => <option key={item} value={item}>{pretty(item)}</option>)}</SelectInput></FormField>
+          <FormField label="Part type" required><SelectInput value={form.partType} onChange={(event) => setForm({ ...form, partType: event.target.value as PartType })}>{partTypes.map((item) => <option key={item} value={item}>{pretty(item)}</option>)}</SelectInput></FormField>
+          <FormField label="Part number" optional><TextInput value={form.partNumber} onChange={(event) => setForm({ ...form, partNumber: event.target.value })} placeholder="Supplier SKU or part number" /></FormField>
+          <FormField label="Supplier" optional><TextInput value={form.supplier} onChange={(event) => setForm({ ...form, supplier: event.target.value })} placeholder="Shop stock or supplier name" /></FormField>
+          <FormField label="Part cost" optional><TextInput type="number" min="0" value={form.partCost} onChange={(event) => setForm({ ...form, partCost: event.target.value })} placeholder="1450" /></FormField>
+          <FormField label="Part warranty days" optional><TextInput type="number" min="0" value={form.warrantyDays} onChange={(event) => setForm({ ...form, warrantyDays: event.target.value })} placeholder="90" /></FormField>
+          <FormField label="Service cost" optional><TextInput type="number" min="0" value={form.serviceCost} onChange={(event) => setForm({ ...form, serviceCost: event.target.value })} placeholder="2300" /></FormField>
           {error && <Notice tone="danger">{error}</Notice>}
           <PrimaryAction disabled={busy} onClick={submit}>{busy ? 'Submitting' : 'Create permanent repair record'}</PrimaryAction>
         </section>
@@ -901,7 +929,7 @@ export function ActivityPage() {
 
 function ActivityScreen() {
   const [requests, setRequests] = useState<RepairAccessRequestWithDevice[]>([]);
-  const [filter, setFilter] = useState<'all' | 'pending' | 'approved'>('all');
+  const [filter, setFilter] = useState<'all' | 'pending' | 'decided'>('all');
   const [notice, setNotice] = useState('');
 
   useEffect(() => {
@@ -923,18 +951,18 @@ function ActivityScreen() {
   const visible = requests.filter((request) => (
     filter === 'all' ||
     request.status === filter ||
-    (filter === 'approved' && request.status === 'declined')
+    (filter === 'decided' && (request.status === 'approved' || request.status === 'declined'))
   ));
 
   return (
     <AppFrame>
       <ScreenHeader title="Activity" description="Technician access requests and past decisions." />
       <div className="mt-8 grid grid-cols-3 rounded-full border border-[var(--dna-border)] bg-[var(--dna-background)] p-1">
-        {(['all', 'pending', 'approved'] as const).map((item) => (
+        {(['all', 'pending', 'decided'] as const).map((item) => (
           <button key={item} className={tabClass(filter === item)} onClick={() => setFilter(item)}>
             <span className="inline-flex items-center justify-center gap-1.5">
               {filter === item && <Check size={14} strokeWidth={1.8} />}
-              {item === 'approved' ? 'Decided' : item[0].toUpperCase() + item.slice(1)}
+              {item[0].toUpperCase() + item.slice(1)}
             </span>
           </button>
         ))}
@@ -1007,7 +1035,14 @@ function AccountScreen() {
       <section className={`${ui.panel} mt-8 p-5`}>
         <div className="flex items-center gap-4">
           {viewer.imageUrl ? (
-            <img src={viewer.imageUrl} alt={viewer.name} className="h-14 w-14 rounded-full object-cover" />
+            <NextImage
+              src={viewer.imageUrl}
+              alt={viewer.name}
+              width={56}
+              height={56}
+              unoptimized
+              className="h-14 w-14 rounded-full object-cover"
+            />
           ) : (
             <div className="grid h-14 w-14 place-items-center rounded-full border border-[var(--dna-border)] text-[20px] font-medium">
               {viewer.name.slice(0, 1)}
@@ -1019,7 +1054,7 @@ function AccountScreen() {
           </div>
         </div>
         <div className="mt-6 grid gap-4">
-          <FormField label="Phone number"><TextInput value={phone} onChange={(event) => setPhone(event.target.value)} placeholder="+91 98765 43210" /></FormField>
+          <FormField label="Phone number" optional><TextInput value={phone} onChange={(event) => setPhone(event.target.value)} placeholder="+91 98765 43210" /></FormField>
           {saved && <Notice tone="success">Phone number saved to your account.</Notice>}
           {error && <Notice tone="danger">{error}</Notice>}
           <PrimaryAction onClick={() => void save()} disabled={saving}>{saving ? 'Saving...' : 'Save profile'}</PrimaryAction>
@@ -1075,7 +1110,7 @@ function ScreenHeader({ title, description, action }: { title: string; descripti
   const router = useRouter();
 
   return (
-    <header className="flex items-start justify-between gap-4 border-b border-[var(--dna-border)] pb-6">
+    <header className="sticky top-0 z-30 -mx-5 flex items-start justify-between gap-4 border-b border-[var(--dna-border)] bg-[var(--dna-surface)] px-5 pb-6 pt-5 md:-mx-8 md:px-8">
       <div className="min-w-0">
         <button
           type="button"
@@ -1191,9 +1226,9 @@ function AccessPanel({ device, status, onSubmitted }: { device: DeviceTimeline; 
   return (
     <section className={`${ui.panel} mt-8 grid gap-4 p-5`}>
       <h2 className="text-[22px] font-medium tracking-[-0.02em]">Request technician access</h2>
-      <FormField label="Your name"><TextInput value={form.requesterName} onChange={(event) => setForm({ ...form, requesterName: event.target.value })} placeholder="Technician full name" /></FormField>
-      <FormField label="Phone number"><TextInput value={form.requesterPhone} onChange={(event) => setForm({ ...form, requesterPhone: event.target.value })} placeholder="+91 98765 43210" /></FormField>
-      <FormField label="Shop name"><TextInput value={form.shopName} onChange={(event) => setForm({ ...form, shopName: event.target.value })} placeholder="Service centre name" /></FormField>
+      <FormField label="Your name" required><TextInput value={form.requesterName} onChange={(event) => setForm({ ...form, requesterName: event.target.value })} placeholder="Technician full name" /></FormField>
+      <FormField label="Phone number" required><TextInput value={form.requesterPhone} onChange={(event) => setForm({ ...form, requesterPhone: event.target.value })} placeholder="+91 98765 43210" /></FormField>
+      <FormField label="Shop name" required><TextInput value={form.shopName} onChange={(event) => setForm({ ...form, shopName: event.target.value })} placeholder="Service centre name" /></FormField>
       {message && <Notice tone="warning">{message}</Notice>}
       <PrimaryAction disabled={busy} onClick={submit}>{busy ? 'Sending' : 'Request access'}</PrimaryAction>
     </section>
@@ -1260,8 +1295,27 @@ function TextArea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
   return <textarea {...props} className={`${ui.field} min-h-28 py-3 ${props.className ?? ''}`} />;
 }
 
-function FormField({ label, children }: { label: string; children: React.ReactNode }) {
-  return <label className="block"><span className="text-[14px] text-[var(--dna-text-secondary)]">{label}</span><span className="mt-2 block">{children}</span></label>;
+function FormField({
+  label,
+  children,
+  optional,
+  required,
+}: {
+  label: string;
+  children: React.ReactNode;
+  optional?: boolean;
+  required?: boolean;
+}) {
+  return (
+    <label className="block">
+      <span className="flex items-center gap-1 text-[14px] text-[var(--dna-text-secondary)]">
+        <span>{label}</span>
+        {required && <span aria-label="required" className="text-[var(--dna-danger)]">*</span>}
+        {optional && <span className="text-[var(--dna-text-secondary)]">(optional)</span>}
+      </span>
+      <span className="mt-2 block">{children}</span>
+    </label>
+  );
 }
 
 function SearchInput({ value, onChange }: { value: string; onChange: (value: string) => void }) {
@@ -1331,7 +1385,16 @@ function StatusPill({ value }: { value: string }) {
 }
 
 function LoadingState({ text }: { text: string }) {
-  return <p className="pt-20 text-[17px] text-[var(--dna-text-secondary)]">{text}...</p>;
+  return (
+    <section className="pt-10" aria-label={text}>
+      <p className="text-[15px] text-[var(--dna-text-secondary)]">{text}...</p>
+      <div className="mt-5 grid gap-3">
+        <div className="h-16 animate-pulse rounded-[var(--dna-control-radius)] bg-[var(--dna-border)]" />
+        <div className="h-24 animate-pulse rounded-[var(--dna-card-radius)] bg-[var(--dna-border)]" />
+        <div className="h-12 w-2/3 animate-pulse rounded-[var(--dna-control-radius)] bg-[var(--dna-border)]" />
+      </div>
+    </section>
+  );
 }
 
 function EmptyState({ title, text }: { title: string; text?: string }) {

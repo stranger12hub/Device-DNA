@@ -144,7 +144,7 @@ export async function POST(request: NextRequest) {
       return json({ ok: false, error: error.message }, 500);
     }
 
-    fetch(new URL('/api/request-approval', request.nextUrl.origin), {
+    const notification = await fetch(new URL('/api/request-approval', request.nextUrl.origin), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -153,7 +153,15 @@ export async function POST(request: NextRequest) {
         requester_phone: body.requesterPhone,
         shop_name: body.shopName,
       }),
-    }).catch(() => undefined);
+    }).catch((error: unknown) => {
+      console.error('Owner access-request email failed', getErrorMessage(error));
+      return null;
+    });
+
+    if (notification && !notification.ok) {
+      const notificationBody = await notification.json().catch(() => null) as { error?: string } | null;
+      console.error('Owner access-request email failed', notificationBody?.error ?? notification.statusText);
+    }
 
     return json({ ok: true, request: data }, 200);
   } catch (error) {

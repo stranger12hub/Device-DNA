@@ -119,13 +119,27 @@ export async function POST(request: NextRequest) {
       ? await insertWarranties(supabase, parts)
       : [];
 
-    fetch(new URL('/api/request-approval', request.nextUrl.origin), {
+    const scoreError = await refreshDeviceScore(supabase, input.deviceId).catch((error: unknown) => (
+      error instanceof Error ? error.message : 'Unknown score refresh error'
+    ));
+
+    const notification = await fetch(new URL('/api/request-approval', request.nextUrl.origin), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ repair_event_id: repairEvent.id }),
     }).catch((error) => {
-      console.warn('Repair notification failed', error instanceof Error ? error.message : 'Unknown error');
+      console.error('Repair notification failed', error instanceof Error ? error.message : 'Unknown error');
+      return null;
     });
+
+    if (notification && !notification.ok) {
+      const notificationBody = await notification.json().catch(() => null) as { error?: string } | null;
+      console.error('Repair notification failed', notificationBody?.error ?? notification.statusText);
+    }
+
+    if (scoreError) {
+      console.warn('Repair score refresh failed', scoreError);
+    }
 
     return json({
       ok: true,
@@ -290,6 +304,44 @@ function attachWarrantyRecords(
       (record) => record.part_id === part.id,
     ),
   }));
+}
+
+async function refreshDeviceScore(
+  supabase: ReturnType<typeof getServiceClient>,
+  deviceId: string,
+) {
+  const { data: timeline, error } = await supabase
+    .from('devices')
+    .select(`
+      *,
+      repair_events (
+        *,
+        parts (
+          *,
+          warranty_records (*)
+        ),
+        profiles:technician_id (*)
+      ),
+      device_scores (*)
+    `)
+    .eq('id', deviceId)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  if (!timeline) {
+    throw new Error('Device not found for score refresh');
+  }
+
+  const { error: invokeError } = await supabase.functions.invoke('insight', {
+    body: { timeline },
+  });
+
+  if (invokeError) {
+    throw new Error(invokeError.message);
+  }
 }
 
 function toDateOnly(date: Date): string {

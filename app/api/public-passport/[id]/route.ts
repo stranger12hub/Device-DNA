@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { createRemoteJWKSet, decodeJwt, jwtVerify } from 'jose';
 import type { Database, DeviceTimeline } from '@/src/types/database';
 
 export const dynamic = 'force-dynamic';
@@ -11,6 +12,12 @@ type Params = {
 
 export async function GET(_request: NextRequest, { params }: Params) {
   try {
+    const userId = await verifyClerkUser(_request);
+
+    if (!userId) {
+      return NextResponse.json({ ok: false, error: 'Sign in to view this passport' }, { status: 401 });
+    }
+
     const { id } = await params;
     const supabase = getServiceClient();
     const { data, error } = await supabase
@@ -57,6 +64,25 @@ export async function GET(_request: NextRequest, { params }: Params) {
       { ok: false, error: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 },
     );
+  }
+}
+
+async function verifyClerkUser(request: NextRequest): Promise<string | null> {
+  const authorization = request.headers.get('authorization');
+  const token = authorization?.match(/^Bearer\s+(.+)$/i)?.[1];
+
+  if (!token) return null;
+
+  try {
+    const unverified = decodeJwt(token);
+    const issuer = typeof unverified.iss === 'string' ? unverified.iss : null;
+    if (!issuer) return null;
+
+    const jwks = createRemoteJWKSet(new URL(`${issuer}/.well-known/jwks.json`));
+    const { payload } = await jwtVerify(token, jwks, { issuer });
+    return typeof payload.sub === 'string' ? payload.sub : null;
+  } catch {
+    return null;
   }
 }
 

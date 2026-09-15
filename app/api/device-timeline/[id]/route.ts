@@ -48,6 +48,26 @@ export async function GET(request: NextRequest, { params }: Params) {
       return NextResponse.json({ ok: false, error: 'Device not found' }, { status: 404 });
     }
 
+    const isOwner = data.owner_id === userId;
+    const hasFamilyAccess = (data.device_access ?? []).some(
+      (access) => access.user_id === userId,
+    );
+    const { data: approvedTechnicianAccess, error: accessError } = await supabase
+      .from('repair_access_requests')
+      .select('id')
+      .eq('device_id', id)
+      .eq('requester_id', userId)
+      .eq('status', 'approved')
+      .limit(1);
+
+    if (accessError) {
+      return NextResponse.json({ ok: false, error: accessError.message }, { status: 500 });
+    }
+
+    if (!isOwner && !hasFamilyAccess && !approvedTechnicianAccess?.length) {
+      return NextResponse.json({ ok: false, error: 'Not allowed to view this device timeline' }, { status: 403 });
+    }
+
     return NextResponse.json({
       ok: true,
       timeline: {
