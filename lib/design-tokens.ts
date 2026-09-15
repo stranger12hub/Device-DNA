@@ -54,7 +54,7 @@ export const ui = {
   appPage: 'min-h-screen bg-[var(--dna-surface)] text-[var(--dna-text-primary)]',
   panel: 'rounded-[var(--dna-card-radius)] border border-[var(--dna-border)] bg-[var(--dna-background)]',
   field:
-    'min-h-[var(--dna-touch-target)] w-full rounded-[var(--dna-control-radius)] border border-[var(--dna-border)] bg-[var(--dna-background)] px-4 text-[15px] font-normal text-[var(--dna-text-primary)] outline-none placeholder:text-[var(--dna-text-secondary)] focus:border-[var(--dna-accent)]',
+    'min-h-[var(--dna-touch-target)] w-full rounded-[var(--dna-control-radius)] border border-[var(--dna-border)] bg-[var(--dna-background)] px-4 text-[15px] font-normal text-[var(--dna-text-primary)] outline-none placeholder:text-[var(--dna-text-secondary)] focus:border-[var(--dna-accent)] disabled:bg-[var(--dna-surface)] disabled:text-[var(--dna-text-secondary)]',
   primaryButton:
     'inline-flex min-h-[52px] min-w-0 items-center justify-center gap-2 rounded-[var(--dna-pill-radius)] bg-[var(--dna-accent)] px-5 text-center text-[15px] font-medium text-white disabled:cursor-not-allowed disabled:bg-[var(--dna-border)] disabled:text-[var(--dna-text-muted)]',
   secondaryButton:

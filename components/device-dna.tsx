@@ -676,7 +676,7 @@ function BackControl({ label, onClick }: { label: string; onClick: () => void })
     <button
       type="button"
       onClick={onClick}
-      className="sticky left-5 top-4 z-30 mb-8 inline-flex min-h-11 items-center gap-2 rounded-full border border-[var(--dna-border)] bg-[var(--dna-background)] px-4 text-[15px] text-[var(--dna-text-primary)]"
+      className="mb-8 inline-flex min-h-11 items-center gap-2 rounded-full border border-[var(--dna-border)] bg-[var(--dna-background)] px-4 text-[15px] text-[var(--dna-text-primary)]"
     >
       <ChevronRight size={19} strokeWidth={1.8} className="rotate-180" />
       {label}
@@ -1009,6 +1009,7 @@ function AccountScreen() {
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
+  const hasSavedPhone = viewer.phone !== 'Phone number not added';
 
   useEffect(() => {
     setPhone(viewer.phone === 'Phone number not added' ? '' : viewer.phone);
@@ -1054,10 +1055,18 @@ function AccountScreen() {
           </div>
         </div>
         <div className="mt-6 grid gap-4">
-          <FormField label="Phone number" optional><TextInput value={phone} onChange={(event) => setPhone(event.target.value)} placeholder="+91 98765 43210" /></FormField>
+          <FormField label="Phone number" optional>
+            <TextInput
+              value={phone}
+              onChange={(event) => setPhone(event.target.value)}
+              placeholder="+91 98765 43210"
+              disabled={hasSavedPhone}
+            />
+          </FormField>
+          {hasSavedPhone && <p className="text-[14px] leading-6 text-[var(--dna-text-secondary)]">Phone number is saved once for account trust and cannot be changed here.</p>}
           {saved && <Notice tone="success">Phone number saved to your account.</Notice>}
           {error && <Notice tone="danger">{error}</Notice>}
-          <PrimaryAction onClick={() => void save()} disabled={saving}>{saving ? 'Saving...' : 'Save profile'}</PrimaryAction>
+          <PrimaryAction onClick={() => void save()} disabled={saving || hasSavedPhone || !phone.trim()}>{saving ? 'Saving...' : 'Save profile'}</PrimaryAction>
           <SignOutButton>
             <button className={ui.secondaryButton}><X size={18} /> Sign out</button>
           </SignOutButton>
@@ -1106,11 +1115,19 @@ function RequireSignIn({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-function ScreenHeader({ title, description, action }: { title: string; description?: string; action?: React.ReactNode }) {
+function ScreenHeader({
+  title,
+  description,
+  action,
+}: {
+  title: string;
+  description?: string;
+  action?: React.ReactNode;
+}) {
   const router = useRouter();
 
   return (
-    <header className="sticky top-0 z-30 -mx-5 flex items-start justify-between gap-4 border-b border-[var(--dna-border)] bg-[var(--dna-surface)] px-5 pb-6 pt-5 md:-mx-8 md:px-8">
+    <header className="-mx-5 flex items-start justify-between gap-4 border-b border-[var(--dna-border)] bg-[var(--dna-surface)] px-5 pb-6 pt-5 md:-mx-8 md:px-8">
       <div className="min-w-0">
         <button
           type="button"

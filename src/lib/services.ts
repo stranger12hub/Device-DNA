@@ -89,6 +89,11 @@ type RepairAccessResponse = {
   requests?: RepairAccessRequestWithDevice[];
   error?: string;
 };
+type ProfilePhoneResponse = {
+  ok: boolean;
+  profile?: Profile;
+  error?: string;
+};
 const LOCAL_DEVICE_CACHE_KEY = 'device-dna-local-devices-v3';
 const LOCAL_REPAIR_CACHE_KEY = 'device-dna-local-repairs-v3';
 const STALE_LOCAL_STORAGE_KEYS = [
@@ -159,19 +164,27 @@ export async function updateProfilePhone(
   phone: string,
 ): Promise<Profile> {
   ensureSupabaseConfigured();
+  const token = await getClerkAccessToken();
 
-  const { data, error } = await supabase
-    .from('profiles')
-    .update({ phone: phone.trim() || null })
-    .eq('id', userId)
-    .select()
-    .single();
-
-  if (error) {
-    throw error;
+  if (!token) {
+    throw new Error('Sign in again before saving phone number');
   }
 
-  return data;
+  const response = await fetch('/api/profile/phone', {
+    method: 'PATCH',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ userId, phone }),
+  });
+  const body = (await response.json().catch(() => ({}))) as ProfilePhoneResponse;
+
+  if (!response.ok || !body.ok || !body.profile) {
+    throw new Error(body.error || 'Could not save phone number');
+  }
+
+  return body.profile;
 }
 
 export function getServiceErrorMessage(error: unknown): string {

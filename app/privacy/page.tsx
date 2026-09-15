@@ -20,7 +20,7 @@ function PolicyPage({ title, body }: { title: string; body: string }) {
           type="button"
           onClick={() => router.back()}
           aria-label="Go back"
-          className="sticky top-4 z-30 mb-6 grid min-h-11 min-w-11 place-items-center rounded-full border border-[var(--dna-border)] bg-[var(--dna-background)] text-[var(--dna-text-primary)]"
+          className="mb-6 grid min-h-11 min-w-11 place-items-center rounded-full border border-[var(--dna-border)] bg-[var(--dna-background)] text-[var(--dna-text-primary)]"
         >
           <ChevronLeft size={22} strokeWidth={1.8} />
         </button>
